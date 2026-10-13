@@ -122,6 +122,31 @@ export const softError = (report: SampleReport): string | null =>
     .find((s) => s.error)
     ?.error?.split('\n')[0] ?? null
 
+/**
+ * What keeps an episode from being accepted, one reason each:
+ *
+ *   gate        a check or a success criterion stops it, whatever the total
+ *               score (`source` hard or soft, its score and stop line; a
+ *               check can also stop on a flag, then `flag` names it)
+ *   rejectFlag  a flag the scoring rejects on
+ *   reviewFlag  a flag that caps the episode at review
+ *   score       the total score lies below "accept from" (`limit`)
+ *   error       a critic failed on the episode, which always means review
+ */
+export type Blocker =
+  | {
+      kind: 'gate'
+      source: 'hard' | 'soft'
+      id: string
+      score: number | null
+      limit: number | null
+      flag?: string
+      evidence?: string
+    }
+  | { kind: 'rejectFlag' | 'reviewFlag'; flag: string }
+  | { kind: 'score'; total: number | null; limit: number }
+  | { kind: 'error' }
+
 export interface PreviewRow {
   episode: number
   hard: number | null
@@ -130,8 +155,11 @@ export interface PreviewRow {
   verdict: Verdict
   /** what the critics decided in the run */
   ranVerdict: Verdict
+  /** the ids of the checks (`duration`) and criteria (`vlm.object_in_target`) that stop the episode */
   gates: string[]
   flags: string[]
+  /** why it is not accepted; empty for an accepted episode */
+  blockers: Blocker[]
 }
 
 const weightedMean = (rows: { score: number | null; weight: number }[]): number | null => {
@@ -161,7 +189,7 @@ export function previewVerdicts(
   const indicators = new Map(form.soft.indicators.map((i) => [i.id, i]))
 
   return report.episodes.map((e: SampleEpisode) => {
-    const gates: string[] = []
+    const gates: Blocker[] = []
     const flags = new Set<string>()
     const hardRows: { score: number | null; weight: number }[] = []
     for (const h of e.hard) {
@@ -172,12 +200,14 @@ export function previewVerdicts(
       const weight = c ? c.weight : h.weight
       hardRows.push({ score: h.score, weight })
       const gateBelow = c ? (c.gate ? c.gateBelow : null) : h.gate ? h.gate_below : null
-      const gateFlags = c ? c.gateFlags : []
-      const failed =
-        (gateBelow != null && h.score != null && h.score < gateBelow) ||
-        gateFlags.some((f) => own.includes(f)) ||
-        (!c && h.gate_failed)
-      if (failed) gates.push(h.id)
+      const gateFlag = (c ? c.gateFlags : []).find((f) => own.includes(f))
+      if (gateBelow != null && h.score != null && h.score < gateBelow) {
+        gates.push({ kind: 'gate', source: 'hard', id: h.id, score: h.score, limit: gateBelow })
+      } else if (gateFlag) {
+        gates.push({ kind: 'gate', source: 'hard', id: h.id, score: h.score, limit: null, flag: gateFlag })
+      } else if (!c && h.gate_failed) {
+        gates.push({ kind: 'gate', source: 'hard', id: h.id, score: h.score, limit: h.gate_below })
+      }
     }
     const softRows: { score: number | null; weight: number }[] = []
     if (form.soft.enabled) {
@@ -187,7 +217,16 @@ export function previewVerdicts(
         if (!ind) continue
         softRows.push({ score: s.score, weight: ind.weight })
         s.flags.filter((f) => !muted.has(f)).forEach((f) => flags.add(f))
-        if (ind.gate && s.score != null && s.score < ind.gateBelow) gates.push(s.id)
+        if (ind.gate && s.score != null && s.score < ind.gateBelow) {
+          gates.push({
+            kind: 'gate',
+            source: 'soft',
+            id: ind.id,
+            score: s.score,
+            limit: ind.gateBelow,
+            evidence: s.evidence[0] || undefined,
+          })
+        }
       }
     }
     const hard = weightedMean(hardRows)
@@ -197,16 +236,104 @@ export function previewVerdicts(
     if (soft != null) parts.push({ score: soft, weight: form.scoring.softWeight })
     const total = weightedMean(parts)
     const flagList = [...flags].sort()
+    const rejecting = flagList.filter((f) => rejectFlags.has(f))
+    const capping = flagList.filter((f) => reviewFlags.has(f))
+
+    const blockers: Blocker[] = [...gates, ...rejecting.map((flag) => ({ kind: 'rejectFlag' as const, flag }))]
+    if (total == null || total < form.scoring.acceptThreshold)
+      blockers.push({ kind: 'score', total, limit: form.scoring.acceptThreshold })
     let verdict: Verdict
-    if (gates.length || flagList.some((f) => rejectFlags.has(f))) verdict = 'reject'
+    if (gates.length || rejecting.length) verdict = 'reject'
     else if (total == null) verdict = 'review'
     else if (total >= form.scoring.acceptThreshold) verdict = 'accept'
     else if (total >= form.scoring.reviewThreshold) verdict = 'review'
     else verdict = 'reject'
-    if (verdict === 'accept' && flagList.some((f) => reviewFlags.has(f))) verdict = 'review'
-    if (e.error) verdict = 'review'
-    return { episode: e.episode, hard, soft, total, verdict, ranVerdict: e.score.verdict, gates, flags: flagList }
+    if (verdict === 'accept' && capping.length) {
+      verdict = 'review'
+      blockers.push(...capping.map((flag) => ({ kind: 'reviewFlag' as const, flag })))
+    }
+    if (e.error) {
+      verdict = 'review'
+      blockers.push({ kind: 'error' })
+    }
+    return {
+      episode: e.episode,
+      hard,
+      soft,
+      total,
+      verdict,
+      ranVerdict: e.score.verdict,
+      gates: gates.map((g) => (g.kind === 'gate' && g.source === 'soft' ? `vlm.${g.id}` : (g as { id: string }).id)),
+      flags: flagList,
+      blockers: verdict === 'accept' ? [] : blockers,
+    }
   })
+}
+
+/** One reason that holds back episodes of the sample, with the episodes it holds back. */
+export interface BlockerGroup {
+  key: string
+  blocker: Blocker
+  episodes: number[]
+  /** for a gate: the lowest and highest score among those episodes */
+  scores: number[]
+}
+
+export const blockerKey = (b: Blocker): string =>
+  b.kind === 'gate'
+    ? `gate:${b.source}:${b.id}:${b.flag ?? ''}`
+    : b.kind === 'score' || b.kind === 'error'
+      ? b.kind
+      : `${b.kind}:${b.flag}`
+
+/**
+ * The reasons over the whole sample, the most frequent first: what to change
+ * to get episodes through. A stop counts before the score, because no
+ * threshold moves an episode that is stopped.
+ */
+export function blockerSummary(rows: PreviewRow[]): BlockerGroup[] {
+  const groups = new Map<string, BlockerGroup>()
+  for (const r of rows) {
+    for (const b of r.blockers) {
+      const key = blockerKey(b)
+      const g = groups.get(key) ?? { key, blocker: b, episodes: [], scores: [] }
+      g.episodes.push(r.episode)
+      if (b.kind === 'gate' && b.score != null) g.scores.push(b.score)
+      if (b.kind === 'score' && b.total != null) g.scores.push(b.total)
+      groups.set(key, g)
+    }
+  }
+  const rank = (b: Blocker) => (b.kind === 'gate' || b.kind === 'rejectFlag' ? 0 : b.kind === 'score' ? 2 : 1)
+  return [...groups.values()].sort((a, b) => rank(a.blocker) - rank(b.blocker) || b.episodes.length - a.episodes.length)
+}
+
+/** What the vision-language model said for one success criterion over the sample. */
+export interface IndicatorEvidence {
+  id: string
+  /** the wording the model judged; differs from the form when the criterion was reworded since */
+  judgedText: string
+  episodes: { episode: number; score: number | null; evidence: string }[]
+  meanScore: number | null
+}
+
+export function indicatorEvidence(report: SampleReport): Record<string, IndicatorEvidence> {
+  const ran =
+    (report.spec?.soft_critics as { indicators?: { id?: string; description?: string }[] } | undefined)?.indicators ?? []
+  const text = new Map(ran.map((i) => [String(i.id ?? ''), String(i.description ?? '')]))
+  const out: Record<string, IndicatorEvidence> = {}
+  for (const e of report.episodes) {
+    for (const s of e.soft) {
+      if (!s.id.startsWith('vlm.') || s.id === 'vlm.summary') continue
+      const id = s.id.slice(4)
+      const row = (out[id] ??= { id, judgedText: text.get(id) ?? '', episodes: [], meanScore: null })
+      row.episodes.push({ episode: e.episode, score: s.score, evidence: s.evidence[0] ?? '' })
+    }
+  }
+  for (const row of Object.values(out)) {
+    const scores = row.episodes.map((x) => x.score).filter((x): x is number => typeof x === 'number')
+    row.meanScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+  }
+  return out
 }
 
 export const countVerdicts = (rows: { verdict: Verdict }[]): Record<Verdict, number> => {

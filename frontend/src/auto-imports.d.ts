@@ -17,6 +17,8 @@ declare global {
   const THEME_KEY: typeof import('./stores/ui').THEME_KEY
   const activeStep: typeof import('./utils/plan').activeStep
   const addDays: typeof import('./utils/time').addDays
+  const blockerKey: typeof import('./utils/specSample').blockerKey
+  const blockerSummary: typeof import('./utils/specSample').blockerSummary
   const computed: typeof import('vue').computed
   const countVerdicts: typeof import('./utils/specSample').countVerdicts
   const createApp: typeof import('vue').createApp
@@ -51,6 +53,7 @@ declare global {
   const h: typeof import('vue').h
   const hasSession: typeof import('./utils/fetcher').hasSession
   const indicator: typeof import('./utils/spec').indicator
+  const indicatorEvidence: typeof import('./utils/specSample').indicatorEvidence
   const inject: typeof import('vue').inject
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
@@ -159,6 +162,6 @@ declare global {
   export type { ObjectRole, PerEpisode, SpecObject, SpecIndicator, SpecHardCritic, SpecForm, SpecFormSection, PresetId } from './utils/spec'
   import('./utils/spec')
   // @ts-ignore
-  export type { Verdict, CriticEvidence, PreviewRow } from './utils/specSample'
+  export type { Verdict, CriticEvidence, Blocker, PreviewRow, BlockerGroup, IndicatorEvidence } from './utils/specSample'
   import('./utils/specSample')
 }

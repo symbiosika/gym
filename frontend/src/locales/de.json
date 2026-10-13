@@ -1221,7 +1221,7 @@
     "lead_robot": "Welcher Arm arbeitet, und auf welche Kamera schaut das Sprachmodell zuerst?",
     "lead_checks": "Die Prüfungen der Signale und Videos. Neben jeder Prüfung steht, was sie in der Stichprobe gefunden hat.",
     "lead_success": "Woran das Sprachmodell erkennt, dass eine Episode gelungen ist. Jedes Kriterium ein Satz, den man im Video sehen kann.",
-    "lead_scoring": "Ab wann eine Episode akzeptiert wird. Die Stichprobe rechts bewegt sich mit, während du die Werte änderst.",
+    "lead_scoring": "Ab wann eine Episode akzeptiert wird. Rechts siehst du live, wie die Stichprobe damit ausgeht, und was die Episoden aufhält, die nicht durchkommen.",
     "lead_save": "Prüfe den Spec an denselben Episoden und speichere ihn.",
     "purpose": {
       "recording": "Aufnahme (Trainingsdaten)",
@@ -1312,13 +1312,49 @@
     },
     "success": {
       "vlmFailed": "Das Sprachmodell hat die Stichprobe nicht beurteilt. Die Kriterien werden trotzdem gespeichert und wirken, sobald es verfügbar ist.",
-      "vlmOff": "Für die Stichprobe lief kein Sprachmodell. Die Kriterien wirken bei den nächsten Analysen."
+      "vlmOff": "Für die Stichprobe lief kein Sprachmodell. Die Kriterien wirken bei den nächsten Analysen.",
+      "sample": "Stichprobe:",
+      "reworded": "Das Modell hat den alten Wortlaut beurteilt: „{old}“. Die Scores gelten dafür, der Testlauf zeigt den neuen.",
+      "notJudged": "Neues Kriterium: das Modell hat es noch nicht beurteilt, der Testlauf zeigt es."
     },
     "scoring": {
+      "live": "live",
+      "liveHint": "Jede Änderung links und jeder Knopf unten wirkt sofort auf die Episoden.",
+      "range": "{min} bis {max}",
+      "whyTitle": "Was die Episoden aufhält",
+      "why": {
+        "softGate": "Ein Erfolgskriterium stoppt {n} von {of} Episoden: Das Modell gibt {scores}, der Stopp greift unter {limit}. Ein Stopp lehnt ab, egal wie hoch der Score ist. Die Schwellen links ändern daran nichts.",
+        "hardGate": "Die Prüfung „{check}“ stoppt {n} von {of} Episoden: Score {scores}, der Stopp greift unter {limit}. Die Schwellen links ändern daran nichts.",
+        "flagGate": "Die Markierung {flag} der Prüfung „{check}“ stoppt {n} von {of} Episoden. Die Schwellen links ändern daran nichts.",
+        "rejectFlag": "Die Markierung {flag} lehnt {n} von {of} Episoden ab.",
+        "reviewFlag": "Die Markierung {flag} hält {n} von {of} Episoden auf „prüfen“.",
+        "score": "{n} von {of} Episoden liegen mit {scores} unter „Akzeptieren ab“ {limit}.",
+        "error": "Bei {n} von {of} Episoden ist ein Critic fehlgeschlagen, sie stehen deshalb auf „prüfen“."
+      },
+      "episodes": "Episoden {list}",
+      "reworded": "Das Modell hat noch den alten Wortlaut beurteilt: „{old}“. Die Scores gelten dafür, der Testlauf zeigt den neuen.",
+      "modelSaw": "Was das Modell gesehen hat",
+      "noEvidence": "keine Begründung",
+      "modelRight": "Stimmt das Modell, sind diese Episoden wirklich nicht gelungen und der Stopp tut seine Arbeit. Dann nicht den Spec lockern, sondern die Episoden gelten lassen, wie sie sind.",
+      "fix": {
+        "lowerGate": "Stopp erst unter {v}",
+        "liftGate": "Stopp aufheben",
+        "editCriterion": "Kriterium umformulieren",
+        "editCheck": "Prüfung ansehen",
+        "ignoreFlag": "{flag} ignorieren",
+        "lowerAccept": "„Akzeptieren ab“ auf {v}"
+      },
+      "allThrough": "Alle Episoden der Stichprobe kommen durch.",
+      "tag": {
+        "softGate": "Stopp: {name} ({score})",
+        "hardGate": "Stopp: {name} ({score})",
+        "flagGate": "Stopp: {flag}",
+        "score": "Score {total} unter {limit}",
+        "error": "Critic fehlgeschlagen"
+      },
       "preview": "Die Stichprobe mit diesen Werten",
       "changed": "{n} Episoden ändern ihr Urteil",
-      "gate": "Stopp: {id}",
-      "previewHint": "Vorschau aus den Ergebnissen der Auto-Analyse. Geänderte Parameter und neue Erfolgskriterien zeigt erst der Testlauf im letzten Schritt. Grüne Linie: akzeptieren ab, gelbe Linie: prüfen ab."
+      "previewHint": "Vorschau aus den Ergebnissen der Auto-Analyse. Geänderte Parameter und umformulierte Erfolgskriterien zeigt erst der Testlauf im letzten Schritt. Grüne Linie: akzeptieren ab, gelbe Linie: prüfen ab."
     },
     "save": {
       "testTitle": "Testlauf",

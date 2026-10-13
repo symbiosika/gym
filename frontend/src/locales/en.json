@@ -1221,7 +1221,7 @@
     "lead_robot": "Which arm works, and which camera does the language model look at first?",
     "lead_checks": "The checks of the signals and videos. Next to each check is what it found in the sample.",
     "lead_success": "How the language model tells that an episode succeeded. Each criterion one sentence you can see in the video.",
-    "lead_scoring": "When an episode is accepted. The sample on the right moves along while you change the values.",
+    "lead_scoring": "When an episode is accepted. On the right you see live how the sample comes out, and what holds back the episodes that do not get through.",
     "lead_save": "Check the spec on the same episodes and store it.",
     "purpose": {
       "recording": "Recording (training data)",
@@ -1312,13 +1312,49 @@
     },
     "success": {
       "vlmFailed": "The language model did not judge the sample. The criteria are stored anyway and take effect once it is available.",
-      "vlmOff": "No language model ran for the sample. The criteria take effect in the next analyses."
+      "vlmOff": "No language model ran for the sample. The criteria take effect in the next analyses.",
+      "sample": "Sample:",
+      "reworded": "The model judged the old wording: “{old}”. The scores belong to it, the test run shows the new one.",
+      "notJudged": "A new criterion: the model has not judged it yet, the test run shows it."
     },
     "scoring": {
+      "live": "live",
+      "liveHint": "Every change on the left and every button below acts on the episodes at once.",
+      "range": "{min} to {max}",
+      "whyTitle": "What holds the episodes back",
+      "why": {
+        "softGate": "A success criterion stops {n} of {of} episodes: the model gives {scores}, the stop applies below {limit}. A stop rejects however high the score is. The thresholds on the left do not change that.",
+        "hardGate": "The check “{check}” stops {n} of {of} episodes: score {scores}, the stop applies below {limit}. The thresholds on the left do not change that.",
+        "flagGate": "The flag {flag} of the check “{check}” stops {n} of {of} episodes. The thresholds on the left do not change that.",
+        "rejectFlag": "The flag {flag} rejects {n} of {of} episodes.",
+        "reviewFlag": "The flag {flag} keeps {n} of {of} episodes at review.",
+        "score": "{n} of {of} episodes score {scores}, below “accept from” {limit}.",
+        "error": "A critic failed on {n} of {of} episodes, so they stand at review."
+      },
+      "episodes": "episodes {list}",
+      "reworded": "The model judged the old wording: “{old}”. The scores belong to it, the test run shows the new one.",
+      "modelSaw": "What the model saw",
+      "noEvidence": "no reason given",
+      "modelRight": "If the model is right these episodes really failed and the stop does its job. Then do not loosen the spec, let the episodes count as they are.",
+      "fix": {
+        "lowerGate": "Stop only below {v}",
+        "liftGate": "Lift the stop",
+        "editCriterion": "Reword the criterion",
+        "editCheck": "Look at the check",
+        "ignoreFlag": "Ignore {flag}",
+        "lowerAccept": "“Accept from” to {v}"
+      },
+      "allThrough": "Every episode of the sample gets through.",
+      "tag": {
+        "softGate": "stop: {name} ({score})",
+        "hardGate": "stop: {name} ({score})",
+        "flagGate": "stop: {flag}",
+        "score": "score {total} below {limit}",
+        "error": "critic failed"
+      },
       "preview": "The sample with these values",
       "changed": "{n} episodes change their verdict",
-      "gate": "stop: {id}",
-      "previewHint": "A preview from the results of the auto analysis. Changed parameters and new success criteria show only in the test run on the last step. Green line: accept from, yellow line: review from."
+      "previewHint": "A preview from the results of the auto analysis. Changed parameters and reworded success criteria show only in the test run on the last step. Green line: accept from, yellow line: review from."
     },
     "save": {
       "testTitle": "Test run",

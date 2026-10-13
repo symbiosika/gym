@@ -16,7 +16,15 @@ import {
   type SpecDraftView,
 } from '@/types/gym'
 import { defaultIndicators, fromSpec, toSpec, type SpecForm as SpecFormModel } from '@/utils/spec'
-import { criticEvidence, cycleCounts, durationRange, sampleTasks, softError, softState } from '@/utils/specSample'
+import {
+  criticEvidence,
+  cycleCounts,
+  durationRange,
+  indicatorEvidence,
+  sampleTasks,
+  softError,
+  softState,
+} from '@/utils/specSample'
 import { fmtDateTime } from '@/utils/time'
 import SpecForm from '@/components/spec/SpecForm.vue'
 import StepSample from '@/components/specwizard/StepSample.vue'
@@ -290,6 +298,9 @@ async function finish(body: { name: string; assignToSkill: boolean }, overwrite 
 const tasks = computed(() => (analysis.value ? sampleTasks(analysis.value) : []))
 const cycles = computed(() => (analysis.value ? cycleCounts(analysis.value) : { perEpisode: [], typical: null }))
 const evidence = computed(() => (analysis.value ? criticEvidence(analysis.value) : undefined))
+const softEvidence = computed(() =>
+  analysis.value && softState(analysis.value) === 'judged' ? indicatorEvidence(analysis.value) : undefined,
+)
 const durations = computed(() => (analysis.value ? durationRange(analysis.value) : null))
 const soft = computed(() => (analysis.value ? softState(analysis.value) : 'off'))
 const firstEpisode = computed(() => analysis.value?.episodes[0]?.episode ?? null)
@@ -530,13 +541,13 @@ onBeforeUnmount(() => {
               softError(analysis)
             }}</span>
           </div>
-          <SpecForm v-model="form" :critics="critics" :sections="['soft']" />
+          <SpecForm v-model="form" :critics="critics" :sections="['soft']" :soft-sample="softEvidence" />
         </template>
 
         <!-- scoring: thresholds with the sample moving along -->
         <div v-else-if="step === 'scoring'" class="grid gap-6 xl:grid-cols-[2fr_3fr]">
           <SpecForm v-model="form" :critics="critics" :sections="['scoring']" />
-          <ScoringPreview v-if="analysis" :form="form" :report="analysis" />
+          <ScoringPreview v-if="analysis" v-model="form" :report="analysis" @goto="go" />
         </div>
 
         <StepSave
