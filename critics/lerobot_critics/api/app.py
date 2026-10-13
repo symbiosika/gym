@@ -114,6 +114,12 @@ class JobRequest(BaseModel):
         "for this run; null keeps it.",
     )
     options: RunOptions = Field(default_factory=RunOptions)
+    store_auto_spec: bool = Field(
+        True,
+        description="With spec=null: keep the generated spec as '<dataset>-auto' in the spec store. "
+        "False keeps it with the job only (GET /jobs/{id}/spec, the report), for an app that drafts "
+        "a spec from a sample and stores the finished one itself.",
+    )
 
     def all_datasets(self) -> list[DatasetSource]:
         out: list[DatasetSource] = list(self.datasets or [])
@@ -446,7 +452,14 @@ def create_job(req: JobRequest) -> dict[str, Any]:
     jobs = []
     for ds in req.all_datasets():
         spec = _resolve_spec(req.spec, ds, req.purpose)
-        job_id = store.submit(ds, spec, req.options, auto_spec_name=_auto_spec_name(ds), purpose=req.purpose)
+        job_id = store.submit(
+            ds,
+            spec,
+            req.options,
+            auto_spec_name=_auto_spec_name(ds),
+            purpose=req.purpose,
+            store_auto_spec=req.store_auto_spec,
+        )
         # the parts of a dataset are links with a token each: the answer names them instead
         jobs.append(
             {"job_id": job_id, "dataset": ds if isinstance(ds, str) else source_label(ds), "status": "queued"}

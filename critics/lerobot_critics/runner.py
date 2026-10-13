@@ -29,11 +29,37 @@ ProgressCb = Callable[[str, int, int], None]
 
 class RunOptions(BaseModel):
     episodes: list[int] | None = None
+    max_episodes: int | None = Field(
+        None,
+        ge=1,
+        description="analyse at most this many episodes, spread evenly over the dataset (a sample); "
+        "applied after `episodes`. None = all.",
+    )
     out_dir: str = "critic_out"
     workers: int = Field(0, description="process workers for hard critics; 0 = cpu count")
     run_hard: bool = True
     run_soft: bool = True
     contact_sheets: bool = True
+    sheets_for_all: bool = Field(
+        False,
+        description="write a contact sheet for every episode, not only for the ones not accepted "
+        "(a sample someone looks through to write a spec)",
+    )
+
+
+def sample_episodes(eps: list[int], n: int | None) -> list[int]:
+    """At most ``n`` of ``eps``, spread evenly from the first to the last, in order.
+
+    A sample of a recording session should see its start, its middle and its end:
+    an operator tires, a camera drifts, the scene changes over a session, and the
+    first ``n`` episodes would show none of that.
+    """
+    if n is None or len(eps) <= n:
+        return list(eps)
+    if n == 1:
+        return [eps[0]]
+    step = (len(eps) - 1) / (n - 1)
+    return [eps[round(i * step)] for i in range(n)]
 
 
 def parse_episodes(s: str | None) -> list[int] | None:
@@ -75,6 +101,8 @@ class DatasetReport(BaseModel):
     fps: float = 0.0
     cameras: list[str] = Field(default_factory=list)
     n_episodes: int = 0
+    # the episodes the dataset holds; more than n_episodes when the run looked at a sample
+    dataset_episodes: int = 0
     counts: dict[str, int] = Field(default_factory=dict)
     include: list[int] = Field(default_factory=list)
     review: list[int] = Field(default_factory=list)
@@ -172,6 +200,7 @@ def run(
     out_dir.mkdir(parents=True, exist_ok=True)
     eps = options.episodes if options.episodes is not None else ds.episode_indices()
     eps = [e for e in eps if e in ds.episodes]
+    eps = sample_episodes(eps, options.max_episodes)
     spec_dict = json.loads(spec.model_dump_json())
     soft_on = options.run_soft and spec.soft_critics.enabled and spec.soft_critics.vlm.provider != "none"
     composite = (
@@ -301,6 +330,7 @@ def run(
         fps=ds.fps,
         cameras=ds.camera_keys,
         n_episodes=len(reports),
+        dataset_episodes=len(ds.episodes),
         counts=counts,
         include=[r.episode for r in reports if r.score.verdict == "accept"],
         review=[r.episode for r in reports if r.score.verdict == "review"],
@@ -321,7 +351,7 @@ def run(
         report.session_profile = _jsonable(build_session_profile(report))
     except Exception as e:  # noqa: BLE001 - the profile is derived; never fail the run over it
         report.session_profile = {"error": f"{type(e).__name__}: {e}"}
-    write_reports(report, out_dir, ds if options.contact_sheets else None)
+    write_reports(report, out_dir, ds if options.contact_sheets else None, all_sheets=options.sheets_for_all)
     return report
 
 

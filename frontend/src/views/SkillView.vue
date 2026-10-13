@@ -232,7 +232,7 @@ async function removePolicy(p: PolicyRecord) {
             <Select v-model="form.collectionId" fluid :options="collectionOptions" option-label="label" option-value="value" />
           </FormField>
           <FormField :label="t('skill.spec')">
-            <SpecPicker v-model="form.criticSpecName" :tenant-id="tenantId" />
+            <SpecPicker v-model="form.criticSpecName" :tenant-id="tenantId" :skill-id="skillId" />
           </FormField>
         </div>
         <div class="mt-4 flex gap-2">

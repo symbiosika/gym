@@ -409,7 +409,7 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
     async (c) => {
       try {
         const { tenantId, id } = c.req.valid("param");
-        return c.json(await listUploads(tenantId, id));
+        return c.json(await listUploads(tenantId, { blockId: id }));
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -420,7 +420,7 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
       try {
         const { tenantId, id } = c.req.valid("param");
         const { fileName, bytes, name } = v.parse(beginUploadSchema, await c.req.json());
-        return c.json(await beginUpload(tenantId, await actorOf(c), id, { fileName, bytes, displayName: name }), 201);
+        return c.json(await beginUpload(tenantId, await actorOf(c), { blockId: id }, { fileName, bytes, displayName: name }), 201);
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -430,7 +430,7 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
     async (c) => {
       try {
         const { tenantId, id, uploadId } = c.req.valid("param");
-        return c.json(await getUpload(tenantId, id, uploadId));
+        return c.json(await getUpload(tenantId, { blockId: id }, uploadId));
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -441,7 +441,7 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
     async (c) => {
       try {
         const { tenantId, id, uploadId, index } = c.req.valid("param");
-        return c.json(await putChunk(tenantId, id, uploadId, index, await c.req.arrayBuffer()));
+        return c.json(await putChunk(tenantId, { blockId: id }, uploadId, index, await c.req.arrayBuffer()));
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -461,7 +461,7 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
     async (c) => {
       try {
         const { tenantId, id, uploadId } = c.req.valid("param");
-        await abortUpload(tenantId, id, uploadId);
+        await abortUpload(tenantId, { blockId: id }, uploadId);
         return c.body(null, 204);
       } catch (e) { throw toHttpError(e); }
     });

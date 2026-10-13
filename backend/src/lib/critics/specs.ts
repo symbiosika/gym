@@ -95,6 +95,18 @@ export async function saveSpecText(name: string, text: string): Promise<CriticsS
   return store(clean, parseSpec(text));
 }
 
+/** A spec built as an object (the spec wizard): checked like a text and stored under `name`. */
+export async function saveSpecObject(name: string, spec: Record<string, unknown>): Promise<CriticsSpecInfo> {
+  const clean = specNameOf(name);
+  if (!clean) throw new InvalidInputError("The spec needs a name");
+  return store(clean, parseSpec(JSON.stringify(spec)));
+}
+
+/** Is a spec of this name stored in the critics service? */
+export async function specExists(name: string): Promise<boolean> {
+  return (await criticsClient.specs()).some((s) => s.name === specNameOf(name));
+}
+
 /** One spec with its YAML, for the editor. */
 export async function getSpec(name: string): Promise<CriticsSpecDetail> {
   const spec = await criticsClient.spec(specNameOf(name)).catch((error) => {

@@ -99,6 +99,8 @@ export type CriticsPurpose = "recording" | "evaluation";
 
 export interface CriticsRunOptions {
   episodes?: number[] | null;
+  /** look at no more than this many episodes, spread evenly over the dataset (a sample) */
+  max_episodes?: number | null;
   run_hard?: boolean;
   run_soft?: boolean;
   contact_sheets?: boolean;
@@ -183,7 +185,10 @@ export interface DatasetReport {
   robot_type: string;
   fps: number;
   cameras: string[];
+  /** the episodes this run looked at */
   n_episodes: number;
+  /** the episodes the dataset holds; more than n_episodes for a sample (absent from older services) */
+  dataset_episodes?: number;
   counts: Record<string, number>;
   include: number[];
   review: number[];
@@ -309,11 +314,13 @@ export const criticsClient = {
     spec: string | Record<string, unknown> | null,
     options: CriticsRunOptions = {},
     purpose: CriticsPurpose = "recording",
+    /** with spec null: false keeps the generated spec with the job instead of storing it as "<dataset>-auto" */
+    storeAutoSpec = true,
   ): Promise<{ job_id: string; status: string }> {
     return json(`/jobs`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...source, spec, purpose, options }),
+      body: JSON.stringify({ ...source, spec, purpose, options, ...(storeAutoSpec ? {} : { store_auto_spec: false }) }),
     });
   },
 

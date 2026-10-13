@@ -5,6 +5,7 @@ import { useGym } from '@/stores/gym'
 import SpecManager from '@/components/SpecManager.vue'
 import { NONE } from '@/utils/select'
 import IconSettings from '~icons/carbon/settings-adjust'
+import IconMagic from '~icons/carbon/magic-wand'
 
 /**
  * The critics spec of a skill: pick one of the specs the critics service
@@ -12,8 +13,11 @@ import IconSettings from '~icons/carbon/settings-adjust'
  * `null` stands for the automatic spec the critics derive from the dataset;
  * inside the select it is the empty string, so it shows as a chosen option and
  * not as an empty field.
+ *
+ * The wizard button leads into the spec wizard, which works a spec out from a
+ * sample dataset; with `skillId` the new spec is meant for that skill.
  */
-const props = defineProps<{ tenantId: string; disabled?: boolean }>()
+const props = defineProps<{ tenantId: string; disabled?: boolean; skillId?: string }>()
 const model = defineModel<string | null>({ required: true })
 const { t } = useI18n()
 const gym = useGym()
@@ -52,6 +56,16 @@ const chosen = computed(() => gym.critics.specs.find((sp) => sp.name === model.v
         option-value="value"
         :disabled="disabled"
       />
+      <RouterLink
+        v-if="!disabled"
+        :to="{ name: 'SpecWizard', params: { tenantId }, query: skillId ? { skillId } : {} }"
+        :title="t('spec.wizardHint')"
+        class="inline-flex"
+      >
+        <SecondaryButton :label="t('spec.wizard')" tabindex="-1">
+          <template #icon><IconMagic class="size-4" /></template>
+        </SecondaryButton>
+      </RouterLink>
       <SecondaryButton :label="t('spec.manage')" :title="t('spec.manageHint')" :disabled="disabled" @click="manageOpen = true">
         <template #icon>
           <IconSettings class="size-4" />

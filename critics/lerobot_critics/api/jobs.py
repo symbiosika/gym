@@ -117,13 +117,15 @@ class JobStore:
         options: RunOptions,
         auto_spec_name: str = "auto",
         purpose: Purpose | None = None,
+        store_auto_spec: bool = True,
     ) -> str:
         """
         Start a job. `spec` of None means "generate one from the dataset": that
         needs the data, so it happens in the job thread and not here. A request
         that starts a job must come back at once, whatever the source is; a
         dataset behind a URL takes minutes to fetch and no proxy waits that long.
-        `purpose` is what the generated spec is for (a resolved spec carries its own).
+        `purpose` is what the generated spec is for (a resolved spec carries its own);
+        `store_auto_spec` False keeps a generated spec with the job only.
         """
         job_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_") + uuid.uuid4().hex[:6]
         job_dir = self.root / job_id
@@ -141,21 +143,29 @@ class JobStore:
             options=options.model_dump(),
         )
         t = threading.Thread(
-            target=self._run, args=(job_id, dataset, spec, options, auto_spec_name, purpose), daemon=True
+            target=self._run,
+            args=(job_id, dataset, spec, options, auto_spec_name, purpose, store_auto_spec),
+            daemon=True,
         )
         self._threads[job_id] = t
         t.start()
         return job_id
 
     def _auto_spec(
-        self, ds_path: Path, name: str, job_dir: Path, purpose: Purpose | None = None
+        self,
+        ds_path: Path,
+        name: str,
+        job_dir: Path,
+        purpose: Purpose | None = None,
+        store: bool = True,
     ) -> CriticSpec:
-        """A starter spec from the dataset, kept under `name` so the run can be reproduced."""
+        """A starter spec from the dataset, kept under `name` (unless `store` is False) so the run can be reproduced."""
         from ..spec.autospec import auto_spec
 
         generated = auto_spec(ds_path, purpose=purpose or "recording")
         generated.name = name
-        (self.specs_root / f"{name}.yaml").write_text(generated.to_yaml())
+        if store:
+            (self.specs_root / f"{name}.yaml").write_text(generated.to_yaml())
         (job_dir / "spec.yaml").write_text(generated.to_yaml())
         return generated
 
@@ -167,13 +177,14 @@ class JobStore:
         options: RunOptions,
         auto_spec_name: str = "auto",
         purpose: Purpose | None = None,
+        store_auto_spec: bool = True,
     ) -> None:
         job_dir = self.root / job_id
         try:
             self._write(job_id, status="preparing")
             ds_path = self.resolve_dataset(dataset, job_dir)
             if spec is None:
-                spec = self._auto_spec(ds_path, auto_spec_name, job_dir, purpose)
+                spec = self._auto_spec(ds_path, auto_spec_name, job_dir, purpose, store_auto_spec)
                 self._write(job_id, spec_name=spec.name)
             options = options.model_copy(update={"out_dir": str(job_dir / "out")})
             self._write(job_id, status="running", dataset_path=str(ds_path))

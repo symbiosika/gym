@@ -38,7 +38,7 @@ export interface FakeCritics {
   /** every temporary link this stand-in followed, oldest first */
   fetched: FetchedSource[];
   /** `dataset` is the link to the zip, or the first of `parts` for a dataset stored in parts */
-  jobs: { id: string; dataset: string; parts: string[] | null; spec: unknown; purpose: unknown; options: unknown; reads: number; overrides: { ignore_flags: string[]; review_flags: string[]; disabled_critics: string[] } }[];
+  jobs: { id: string; dataset: string; parts: string[] | null; spec: unknown; purpose: unknown; options: unknown; storeAutoSpec: boolean; reads: number; overrides: { ignore_flags: string[]; review_flags: string[]; disabled_critics: string[] } }[];
   merges: MergeCall[];
   deleted: string[];
   /** specs stored through PUT /specs/{name}, next to the built-in one */
@@ -169,11 +169,11 @@ export function startFakeCritics(): FakeCritics {
         });
       }
       if (p === "/jobs" && req.method === "POST") {
-        const body = (await req.json()) as { dataset?: string; dataset_parts?: string[]; spec: unknown; purpose?: unknown; options: unknown };
+        const body = (await req.json()) as { dataset?: string; dataset_parts?: string[]; spec: unknown; purpose?: unknown; options: unknown; store_auto_spec?: boolean };
         const id = `job_${state.jobs.length + 1}`;
         const parts = body.dataset_parts ?? null;
         const dataset = body.dataset ?? parts?.[0] ?? "";
-        state.jobs.push({ id, dataset, parts, spec: body.spec, purpose: body.purpose ?? null, options: body.options, reads: 0, overrides: { ignore_flags: [], review_flags: [], disabled_critics: [] } });
+        state.jobs.push({ id, dataset, parts, spec: body.spec, purpose: body.purpose ?? null, options: body.options, storeAutoSpec: body.store_auto_spec ?? true, reads: 0, overrides: { ignore_flags: [], review_flags: [], disabled_critics: [] } });
         // the real service fetches the dataset in the job, not in the request;
         // it is done here before answering only because a test wants to see it
         // (a dataset in parts is fetched part by part, in order, and joined)

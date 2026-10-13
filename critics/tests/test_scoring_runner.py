@@ -69,3 +69,15 @@ def test_runner_parallel_and_subset(synthetic_dataset, spec, tmp_path):
         ),
     )
     assert [e.episode for e in rep.episodes] == [0, 2]
+
+
+def test_sample_episodes_spreads_over_the_session():
+    from lerobot_critics.runner import sample_episodes
+
+    assert sample_episodes(list(range(10)), None) == list(range(10))
+    assert sample_episodes(list(range(10)), 20) == list(range(10))
+    assert sample_episodes(list(range(10)), 1) == [0]
+    assert sample_episodes(list(range(10)), 2) == [0, 9]
+    assert sample_episodes(list(range(10)), 4) == [0, 3, 6, 9]
+    picked = sample_episodes(list(range(100)), 7)
+    assert len(picked) == len(set(picked)) == 7 and picked == sorted(picked)
