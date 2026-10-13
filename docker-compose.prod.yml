@@ -1,0 +1,89 @@
+# Full stack: Postgres 17 + pgvector, the data critics and the app, both
+# images built from this repository.
+#   cp backend/.env.prod.example backend/.env.prod   # fill in secrets
+#   docker compose -f docker-compose.prod.yml up --build -d
+name: gym
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gym}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-gym}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gym} -d ${POSTGRES_DB:-gym}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # The data critics (./critics, the Python engine of this repository): every
+  # uploaded dataset is checked here. Datasets, results and specs live in the
+  # volumes; specs are created with the critics' web UI (http://<host>:8080/ui)
+  # or `docker compose run --rm critics init-spec /data/<dataset> -o /specs/<name>.yaml`.
+  critics:
+    build:
+      context: .
+      dockerfile: Dockerfile.critics-service
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      CRITICS_API_KEY: ${CRITICS_API_KEY:-}
+    volumes:
+      - critics_data:/data
+      - critics_jobs:/jobs
+      - critics_specs:/specs
+    ports:
+      - "${CRITICS_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: backend/.env.prod
+    environment:
+      CRITICS_URL: http://critics:8080
+      CRITICS_API_KEY: ${CRITICS_API_KEY:-}
+      # scratch space: the one request that completes a dataset upload puts the
+      # zip together here before handing it to the critics, and deletes it again
+      # (src/lib/gym/dataset-uploads.ts). The chunks themselves are in the
+      # configured storage (GYM_STORAGE_DRIVER), so a redeploy in the middle of
+      # an upload costs nothing.
+      TEMPORARY_STORAGE_PATH: /usr/src/app/tmp
+      # GYM_STORAGE_DRIVER and the S3_* variables are set in backend/.env.prod,
+      # not here: what is listed in this block wins over the env file.
+      # See backend/src/lib/storage.
+      # chunk size in bytes; lower it only for a proxy stricter than the default
+      GYM_UPLOAD_CHUNK_SIZE: ${GYM_UPLOAD_CHUNK_SIZE:-8388608}
+      POSTGRES_HOST: postgres
+      GYM_TIMEZONE: ${GYM_TIMEZONE:-Europe/Berlin}
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-gym}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-gym}
+      POSTGRES_CONNECTION_POOL_SIZE: 10
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - app_upload:/usr/src/app/static/upload
+      - app_logs:/usr/src/app/logs
+      - app_tmp:/usr/src/app/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+      critics:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  app_upload:
+  app_logs:
+  app_tmp:
+  critics_data:
+  critics_jobs:
+  critics_specs:

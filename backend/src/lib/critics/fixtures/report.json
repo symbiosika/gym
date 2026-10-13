@@ -1,0 +1,3717 @@
+{
+ "dataset": "data/gym_demo_ds",
+ "dataset_name": "gym_demo_ds",
+ "spec_name": "gym_demo_ds",
+ "spec": {
+  "version": 1,
+  "name": "gym_demo_ds",
+  "task": {
+   "instruction": "put the red block in the box",
+   "per_episode": "auto",
+   "scene": "",
+   "objects": [],
+   "expected_cycles": 1,
+   "notes": ""
+  },
+  "robot": {
+   "type": "test_bot",
+   "active_arms": [],
+   "action_state_pairs": null,
+   "cartesian_features": null,
+   "gripper": {
+    "feature": null,
+    "dims": null,
+    "closed_is_high": true,
+    "min_swing": null
+   },
+   "primary_camera": null
+  },
+  "hard_critics": [
+   {
+    "id": "integrity",
+    "weight": 1.0,
+    "enabled": true,
+    "gate": true,
+    "gate_below": 0.5,
+    "gate_flags": [
+     "VIDEO_MISSING",
+     "NAN_VALUES",
+     "LENGTH_MISMATCH",
+     "EMPTY"
+    ],
+    "params": {}
+   },
+   {
+    "id": "duration",
+    "weight": 1.0,
+    "enabled": true,
+    "gate": false,
+    "gate_below": 0.2,
+    "gate_flags": [
+     "TOO_SHORT",
+     "TOO_LONG"
+    ],
+    "params": {}
+   },
+   {
+    "id": "smoothness",
+    "weight": 1.0,
+    "enabled": true,
+    "gate": false,
+    "gate_below": 0.2,
+    "gate_flags": [],
+    "params": {}
+   },
+   {
+    "id": "tracking_error",
+    "weight": 1.5,
+    "enabled": true,
+    "gate": true,
+    "gate_below": 0.1,
+    "gate_flags": [
+     "TRACKERR"
+    ],
+    "params": {}
+   },
+   {
+    "id": "duplication",
+    "weight": 1.0,
+    "enabled": true,
+    "gate": true,
+    "gate_below": 0.1,
+    "gate_flags": [
+     "LAGGY",
+     "CAMSTALL"
+    ],
+    "params": {}
+   },
+   {
+    "id": "image_quality",
+    "weight": 1.0,
+    "enabled": true,
+    "gate": false,
+    "gate_below": 0.2,
+    "gate_flags": [],
+    "params": {}
+   },
+   {
+    "id": "sensor_limits",
+    "weight": 1.0,
+    "enabled": true,
+    "gate": false,
+    "gate_below": 0.2,
+    "gate_flags": [],
+    "params": {}
+   },
+   {
+    "id": "grasp_cycles",
+    "weight": 1.0,
+    "enabled": true,
+    "gate": false,
+    "gate_below": 0.2,
+    "gate_flags": [
+     "NOGRASP"
+    ],
+    "params": {}
+   },
+   {
+    "id": "tremor",
+    "weight": 0.5,
+    "enabled": true,
+    "gate": false,
+    "gate_below": 0.2,
+    "gate_flags": [],
+    "params": {}
+   },
+   {
+    "id": "normalization",
+    "weight": 1.0,
+    "enabled": true,
+    "gate": false,
+    "gate_below": 0.2,
+    "gate_flags": [],
+    "params": {}
+   },
+   {
+    "id": "diversity",
+    "weight": 0.0,
+    "enabled": true,
+    "gate": false,
+    "gate_below": 0.2,
+    "gate_flags": [],
+    "params": {}
+   }
+  ],
+  "soft_critics": {
+   "enabled": true,
+   "weight": 1.0,
+   "vlm": {
+    "provider": "gemini",
+    "model": "gemini-3.7-flash",
+    "mode": "agentic",
+    "base_url": null,
+    "api_key_env": null,
+    "composite_fps": 5.0,
+    "composite_scale": 1.0,
+    "frames_per_episode": 24,
+    "temperature": 0.0,
+    "max_concurrency": 4,
+    "timeout_s": 300.0,
+    "cache": true
+   },
+   "indicators": [
+    {
+     "id": "correct_object",
+     "description": "The robot identifies and manipulates the correct object (the target object), not a distractor.",
+     "weight": 1.0,
+     "gate": false,
+     "gate_below": 0.3,
+     "rubric": ""
+    },
+    {
+     "id": "grasp_centered",
+     "description": "the target object is grasped stably and centred in the hand/gripper; no slipping, tilting or re-grasp.",
+     "weight": 1.0,
+     "gate": false,
+     "gate_below": 0.3,
+     "rubric": ""
+    },
+    {
+     "id": "object_in_target",
+     "description": "At the end of each attempt the target object rests inside/on the target zone in a stable, upright pose.",
+     "weight": 2.0,
+     "gate": true,
+     "gate_below": 0.3,
+     "rubric": ""
+    },
+    {
+     "id": "visibility",
+     "description": "the target object and the target zone stay visible in the cameras during the manipulation (not out of frame or hidden).",
+     "weight": 0.5,
+     "gate": false,
+     "gate_below": 0.3,
+     "rubric": ""
+    },
+    {
+     "id": "no_disturbance",
+     "description": "No collisions, drops, dangerous motions, or people/hands other than the robot's in the workspace while the robot acts.",
+     "weight": 1.0,
+     "gate": false,
+     "gate_below": 0.3,
+     "rubric": ""
+    }
+   ],
+   "extra_questions": []
+  },
+  "scoring": {
+   "hard_weight": 1.0,
+   "soft_weight": 1.0,
+   "accept_threshold": 0.75,
+   "review_threshold": 0.55,
+   "relative_flags": true,
+   "z_cut": 3.0,
+   "review_flags": [
+    "VLM_TASK_FAILED",
+    "VLM_MAJOR_ANOMALY",
+    "HUMAN_IN_WORKSPACE",
+    "UNFINISHED_GRASP",
+    "ZERO_FRAMES"
+   ],
+   "reject_flags": [],
+   "ignore_flags": []
+  }
+ },
+ "created_at": "2026-09-10T09:32:44+00:00",
+ "robot_type": "test_bot",
+ "fps": 10.0,
+ "cameras": [
+  "observation.images.front",
+  "observation.images.wrist"
+ ],
+ "n_episodes": 4,
+ "counts": {
+  "accept": 2,
+  "review": 0,
+  "reject": 2
+ },
+ "include": [
+  0,
+  1
+ ],
+ "review": [],
+ "exclude": [
+  2,
+  3
+ ],
+ "flag_counts": {
+  "ACTION_SPIKES": 1,
+  "LAGGY": 1,
+  "NOGRASP": 1
+ },
+ "dataset_stats": {
+  "duration_s.median": 6.25,
+  "duration_s.min": 6.0,
+  "duration_s.max": 7.0,
+  "pos_err_mean_mm.median": 1.6149340934462986,
+  "pos_err_mean_mm.min": 1.610781858797523,
+  "pos_err_mean_mm.max": 18.262953570599965,
+  "lag_ms.median": 166.66363157816545,
+  "lag_ms.min": 0.0,
+  "lag_ms.max": 176.65919888802068,
+  "video_dup_rate_max.median": 0.0,
+  "video_dup_rate_max.min": 0.0,
+  "video_dup_rate_max.max": 0.0,
+  "action_dup_rate.median": 0.0,
+  "action_dup_rate.min": 0.0,
+  "action_dup_rate.max": 0.21875,
+  "ldj_median.median": -7.428434973752438,
+  "ldj_median.min": -10.64898748153681,
+  "ldj_median.max": -7.091096321606366,
+  "hf_ratio.median": 0.00002507292851442312,
+  "hf_ratio.min": 0.000011314105393987642,
+  "hf_ratio.max": 0.1706594145230798,
+  "hf5_share_cmd.median": 0.0,
+  "hf5_share_cmd.min": 0.0,
+  "hf5_share_cmd.max": 0.0,
+  "hf5_share_state.median": 0.0,
+  "hf5_share_state.min": 0.0,
+  "hf5_share_state.max": 0.0,
+  "hold_rms_speed_cmd_mms.median": 0.0,
+  "hold_rms_speed_cmd_mms.min": 0.0,
+  "hold_rms_speed_cmd_mms.max": 0.0,
+  "tremor_peak_hz_cmd.median": 3.0508474576271185,
+  "tremor_peak_hz_cmd.min": 3.0434782608695654,
+  "tremor_peak_hz_cmd.max": 3.125,
+  "zero_frames.median": 0.0,
+  "zero_frames.min": 0.0,
+  "zero_frames.max": 0.0,
+  "n_cycles.median": 1.0,
+  "n_cycles.min": 0.0,
+  "n_cycles.max": 1.0,
+  "close_dur_median_s.median": 0.1,
+  "close_dur_median_s.min": 0.1,
+  "close_dur_median_s.max": 0.1,
+  "wrist_move_during_close_median_mm.median": 13.1,
+  "wrist_move_during_close_median_mm.min": 10.5,
+  "wrist_move_during_close_median_mm.max": 14.7,
+  "active_frac.median": 0.9833333333333333,
+  "active_frac.min": 0.7538461538461538,
+  "active_frac.max": 0.9857142857142858,
+  "camera_dup_rate_median": {
+   "observation.images.front": 0.0,
+   "observation.images.wrist": 0.0
+  },
+  "camera_brightness_median": {
+   "observation.images.front": 112.07327008928571,
+   "observation.images.wrist": 147.87491939484124
+  }
+ },
+ "dataset_summaries": {
+  "normalization": {
+   "episodes_with_zero_frames": [],
+   "dead_action_dims": {
+    "action.arm": [
+     "r0",
+     "r1",
+     "r2",
+     "r3",
+     "r4",
+     "r5"
+    ]
+   },
+   "action_equals_state_episodes": {
+    "action.gripper": 3
+   },
+   "stats_file_found": false
+  },
+  "diversity": {
+   "grasp_positions": {
+    "n": 3,
+    "std_cm": [
+     0.1,
+     0.24,
+     0.27
+    ],
+    "robust_std_cm": [
+     0.04,
+     0.22,
+     0.31
+    ],
+    "range_cm": [
+     0.23,
+     0.57,
+     0.65
+    ],
+    "median_m": [
+     0.4979,
+     -0.0101,
+     0.89
+    ]
+   },
+   "release_positions": {
+    "n": 3,
+    "std_cm": [
+     10.93,
+     2.64,
+     2.94
+    ],
+    "robust_std_cm": [
+     0.03,
+     0.4,
+     0.09
+    ],
+    "range_cm": [
+     23.19,
+     5.73,
+     6.26
+    ],
+    "median_m": [
+     0.1163,
+     -0.0417,
+     0.9368
+    ]
+   },
+   "start_pose_std_cm": [
+    0.12,
+    0.11,
+    0.04
+   ],
+   "grasp_horizontal_spread_cm": 0.22
+  }
+ },
+ "dataset_flags": {
+  "DEAD_ACTION_DIMS": "action dimensions constant across the whole run: action.arm: ['r0', 'r1', 'r2', 'r3', 'r4', 'r5']. They carry no information - exclude them from the action space or leave them out of the loss.",
+  "ACTION_IS_STATE": "action features that are copies of the state in some episodes: action.gripper (3 ep)",
+  "LOW_DIVERSITY": "3 grasps but the object position varied by only 0.04 / 0.22 cm (robust std x / y; plain std 0.1 / 0.24 cm, range 0.23 / 0.57 cm). The policy can replay the approach from memory but never sees a correction towards the object. Randomise the object position over the workspace in the next recording session."
+ },
+ "metric_docs": {
+  "integrity.dt_max_s": {
+   "key": "dt_max_s",
+   "critic": "integrity",
+   "label": "Largest timestamp step",
+   "unit": "s",
+   "what": "The biggest gap between two consecutive timestamps.",
+   "how": "max(diff(timestamp))",
+   "better": "lower",
+   "per_feature": false
+  },
+  "integrity.length": {
+   "key": "length",
+   "critic": "integrity",
+   "label": "Frames",
+   "unit": "frames",
+   "what": "Number of rows (frames) in the episode's parquet slice.",
+   "how": "len(parquet)",
+   "better": "info",
+   "per_feature": false
+  },
+  "integrity.meta_length": {
+   "key": "meta_length",
+   "critic": "integrity",
+   "label": "Declared length",
+   "unit": "frames",
+   "what": "Frames the dataset metadata claims for this episode.",
+   "how": "meta/episodes.jsonl length field.",
+   "better": "target",
+   "per_feature": false
+  },
+  "integrity.nan_features": {
+   "key": "nan_features",
+   "critic": "integrity",
+   "label": "Features with NaN/inf",
+   "unit": "list",
+   "what": "Numeric features containing non-finite values.",
+   "how": "isfinite check over every numeric feature.",
+   "better": "lower",
+   "per_feature": false
+  },
+  "integrity.timestamp_gaps": {
+   "key": "timestamp_gaps",
+   "critic": "integrity",
+   "label": "Timestamp gaps",
+   "unit": "count",
+   "what": "Frames whose timestamp jumped by more than 1.5 frames at the nominal fps.",
+   "how": "Count of diff(timestamp) > (1 + dt_tolerance_frac) / fps.",
+   "better": "lower",
+   "per_feature": false
+  },
+  "integrity.timestamps_synthetic": {
+   "key": "timestamps_synthetic",
+   "critic": "integrity",
+   "label": "Synthetic timestamps",
+   "unit": "bool",
+   "what": "True when every timestamp step equals exactly 1/fps, i.e. timestamps were generated from the frame index and carry no timing information.",
+   "how": "allclose(diff(timestamp), 1/fps)",
+   "better": "info",
+   "per_feature": false
+  },
+  "integrity.video_frames.observation.images.front": {
+   "key": "video_frames.observation.images.front",
+   "critic": "integrity",
+   "label": "Video frames",
+   "unit": "frames",
+   "what": "Frames in the camera's video file (container metadata unless exact_video_count is set).",
+   "how": "ffprobe / exact decode count.",
+   "better": "target",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "integrity.video_frames.observation.images.wrist": {
+   "key": "video_frames.observation.images.wrist",
+   "critic": "integrity",
+   "label": "Video frames",
+   "unit": "frames",
+   "what": "Frames in the camera's video file (container metadata unless exact_video_count is set).",
+   "how": "ffprobe / exact decode count.",
+   "better": "target",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "integrity.video_mismatch_cameras": {
+   "key": "video_mismatch_cameras",
+   "critic": "integrity",
+   "label": "Cameras with frame mismatch",
+   "unit": "list",
+   "what": "Cameras whose video frame count differs from the parquet length by more than the tolerance.",
+   "how": "|video_frames - length| > video_frame_tolerance",
+   "better": "lower",
+   "per_feature": false
+  },
+  "duration.duration_s": {
+   "key": "duration_s",
+   "critic": "duration",
+   "label": "Duration",
+   "unit": "s",
+   "what": "Episode length in seconds.",
+   "how": "frames / fps",
+   "better": "target",
+   "per_feature": false
+  },
+  "duration.fps": {
+   "key": "fps",
+   "critic": "duration",
+   "label": "Frame rate",
+   "unit": "Hz",
+   "what": "Nominal frame rate of the dataset.",
+   "how": "meta/info.json fps",
+   "better": "info",
+   "per_feature": false
+  },
+  "duration.frames": {
+   "key": "frames",
+   "critic": "duration",
+   "label": "Frames",
+   "unit": "frames",
+   "what": "Episode length in frames.",
+   "how": "len(parquet)",
+   "better": "info",
+   "per_feature": false
+  },
+  "duration.max_s": {
+   "key": "max_s",
+   "critic": "duration",
+   "label": "Configured maximum",
+   "unit": "s",
+   "what": "Upper bound of the accepted duration band.",
+   "how": "params.max_s",
+   "better": "info",
+   "per_feature": false
+  },
+  "duration.min_s": {
+   "key": "min_s",
+   "critic": "duration",
+   "label": "Configured minimum",
+   "unit": "s",
+   "what": "Lower bound of the accepted duration band (after per_cycle scaling).",
+   "how": "params.min_s",
+   "better": "info",
+   "per_feature": false
+  },
+  "duration.neg_duration_s": {
+   "key": "neg_duration_s",
+   "critic": "duration",
+   "label": "Negated duration",
+   "unit": "s",
+   "what": "Helper: -duration_s, so that the dataset-relative SHORT_OUTLIER flag can use the common 'higher = outlier' rule.",
+   "how": "-duration_s",
+   "better": "info",
+   "per_feature": false
+  },
+  "smoothness.accel_max.action.arm": {
+   "key": "accel_max.action.arm",
+   "critic": "smoothness",
+   "label": "Peak command acceleration",
+   "unit": "m/s²",
+   "what": "Largest finite-difference acceleration of the commanded position.",
+   "how": "max |d²x/dt²| of the action position.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "smoothness.hesitation_s": {
+   "key": "hesitation_s",
+   "critic": "smoothness",
+   "label": "Longest pause",
+   "unit": "s",
+   "what": "Longest span inside the motion (between first and last movement) where the command did not change.",
+   "how": "Longest run of per-frame command change < still_eps.",
+   "better": "lower",
+   "per_feature": false
+  },
+  "smoothness.hf_ratio": {
+   "key": "hf_ratio",
+   "critic": "smoothness",
+   "label": "High-frequency energy share (>2.5 Hz)",
+   "unit": "fraction",
+   "what": "Share of the command speed profile's energy above 2.5 Hz. Tremor, noise and twitchy corrections push it up.",
+   "how": "FFT of the speed profile; sum of power at f >= hf_cutoff_hz divided by total power (DC removed).",
+   "better": "lower",
+   "per_feature": false
+  },
+  "smoothness.hf_ratio.action.arm": {
+   "key": "hf_ratio.action.arm",
+   "critic": "smoothness",
+   "label": "High-frequency energy share per feature",
+   "unit": "fraction",
+   "what": "hf_ratio for one arm/feature.",
+   "how": "See hf_ratio.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "smoothness.ldj_median": {
+   "key": "ldj_median",
+   "critic": "smoothness",
+   "label": "Log-dimensionless jerk",
+   "unit": "log",
+   "what": "How fluid the commanded motion is; less negative = smoother. Fluid cartesian teleop lands around -14 to -15.",
+   "how": "Median over 3 s windows with motion of -log( duration^5 / v_peak^2 * integral(jerk^2) ) of the command position.",
+   "better": "higher",
+   "per_feature": false
+  },
+  "smoothness.ldj_median.action.arm": {
+   "key": "ldj_median.action.arm",
+   "critic": "smoothness",
+   "label": "Log-dimensionless jerk per feature",
+   "unit": "log",
+   "what": "Windowed LDJ for one arm/feature.",
+   "how": "See ldj_median.",
+   "better": "higher",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "smoothness.neg_ldj_median": {
+   "key": "neg_ldj_median",
+   "critic": "smoothness",
+   "label": "Negated LDJ",
+   "unit": "log",
+   "what": "Helper: -ldj_median for the JERKY_OUTLIER rule (higher = jerkier).",
+   "how": "-ldj_median",
+   "better": "info",
+   "per_feature": false
+  },
+  "smoothness.speed_p95": {
+   "key": "speed_p95",
+   "critic": "smoothness",
+   "label": "Speed p95",
+   "unit": "m/s",
+   "what": "95th percentile of the commanded end-effector speed: how fast the operator moved.",
+   "how": "np.percentile(|v|, 95) of the command position.",
+   "better": "info",
+   "per_feature": false
+  },
+  "smoothness.spike_rate_per_min": {
+   "key": "spike_rate_per_min",
+   "critic": "smoothness",
+   "label": "Spike rate",
+   "unit": "1/min",
+   "what": "Command spikes normalised by episode length.",
+   "how": "spikes / duration_min",
+   "better": "lower",
+   "per_feature": false
+  },
+  "smoothness.spikes": {
+   "key": "spikes",
+   "critic": "smoothness",
+   "label": "Command spikes",
+   "unit": "count",
+   "what": "Single-frame command jumps that are physically implausible (acceleration > 25 m/s² or > 1 m/s in one frame): transport glitches flattened into the training targets.",
+   "how": "Count of frames where the finite-difference acceleration or speed of the command exceeds spike_accel_mps2 / spike_speed_mps.",
+   "better": "lower",
+   "per_feature": false
+  },
+  "smoothness.spikes.action.arm": {
+   "key": "spikes.action.arm",
+   "critic": "smoothness",
+   "label": "Command spikes per feature",
+   "unit": "count",
+   "what": "Spikes for one feature.",
+   "how": "See spikes.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.hand_err_norm.action.gripper": {
+   "key": "hand_err_norm.action.gripper",
+   "critic": "tracking_error",
+   "label": "Hand tracking error",
+   "unit": "fraction of range",
+   "what": "Mean |action - state| of the hand/gripper, normalised by its range.",
+   "how": "mean |a - s| / range",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.gripper"
+  },
+  "tracking_error.lag_corr.action.arm": {
+   "key": "lag_corr.action.arm",
+   "critic": "tracking_error",
+   "label": "Lag correlation peak",
+   "unit": "0..1",
+   "what": "How well the shifted state velocity matches the command velocity. Near 1 = the robot reproduces the command faithfully after the delay; low values mean heavy filtering or a poor lag estimate.",
+   "how": "Normalised cross-correlation at the best lag.",
+   "better": "higher",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.lag_err_share": {
+   "key": "lag_err_share",
+   "critic": "tracking_error",
+   "label": "Error explained by latency, slowest active arm",
+   "unit": "fraction",
+   "what": "lag_err_share of the arm that reports lag_ms (the slowest active arm).",
+   "how": "value of lag_err_share.<feature> for the slowest active arm",
+   "better": "info",
+   "per_feature": false
+  },
+  "tracking_error.lag_err_share.action.arm": {
+   "key": "lag_err_share.action.arm",
+   "critic": "tracking_error",
+   "label": "Error explained by latency",
+   "unit": "fraction",
+   "what": "Share of the raw position error that disappears when the state is shifted by the lag. 0.75 means three quarters of the visible command-vs-robot gap is pure delay, the rest is damping.",
+   "how": "1 - pos_err_mean_mm / pos_err_raw_mean_mm",
+   "better": "info",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.lag_frames.action.arm": {
+   "key": "lag_frames.action.arm",
+   "critic": "tracking_error",
+   "label": "Follower lag",
+   "unit": "frames",
+   "what": "Integer delay between command and robot: the state shift that minimises |action - state|. Only accepted when it removes at least 10 % of the error.",
+   "how": "argmin over shifts 0..max_lag of mean |action[t] - state[t+shift]|.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.lag_ms": {
+   "key": "lag_ms",
+   "critic": "tracking_error",
+   "label": "Follower lag, worst active arm",
+   "unit": "ms",
+   "what": "Cross-correlation latency of the slowest-following active arm (dataset statistics use this).",
+   "how": "max over active arms of lag_ms.<feature>",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tracking_error.lag_ms.action.arm": {
+   "key": "lag_ms.action.arm",
+   "critic": "tracking_error",
+   "label": "Follower lag",
+   "unit": "ms",
+   "what": "The cross-correlation lag in milliseconds. This is the delay between the recorded command topic and the recorded state topic (IK, controller, transport). Everything before the command topic (VR tracking, network) is NOT included.",
+   "how": "lag_xcorr_frames / fps * 1000",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.lag_xcorr_frames.action.arm": {
+   "key": "lag_xcorr_frames.action.arm",
+   "critic": "tracking_error",
+   "label": "Follower lag (cross-correlation)",
+   "unit": "frames",
+   "what": "Sub-frame estimate of the command-to-state delay from the cross-correlation of the command and state velocities (velocities give a sharp peak, positions do not).",
+   "how": "Peak of corr(v_action[t], v_state[t+k]) over k, refined by parabolic interpolation around the peak.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.pos_err_mean_mm": {
+   "key": "pos_err_mean_mm",
+   "critic": "tracking_error",
+   "label": "Position error, worst active arm",
+   "unit": "mm",
+   "what": "Lag-compensated mean position error of the worst active arm (drives the score and the outlier flag).",
+   "how": "max over active arms of pos_err_mean_mm.<feature>",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tracking_error.pos_err_mean_mm.action.arm": {
+   "key": "pos_err_mean_mm.action.arm",
+   "critic": "tracking_error",
+   "label": "Position error (lag-compensated)",
+   "unit": "mm",
+   "what": "Mean distance between command and measured position after shifting the state back by the estimated follower lag. What remains is controller damping / real tracking error, not latency.",
+   "how": "mean |action_xyz[t] - state_xyz[t + lag]|",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.pos_err_p95_mm.action.arm": {
+   "key": "pos_err_p95_mm.action.arm",
+   "critic": "tracking_error",
+   "label": "Position error p95 (lag-compensated)",
+   "unit": "mm",
+   "what": "95th percentile of the lag-compensated position error.",
+   "how": "np.percentile(err, 95)",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.pos_err_raw_mean_mm.action.arm": {
+   "key": "pos_err_raw_mean_mm.action.arm",
+   "critic": "tracking_error",
+   "label": "Raw position error",
+   "unit": "mm",
+   "what": "Mean distance between commanded and measured position WITHOUT lag compensation. Contains the pure latency effect, so it is large during fast motion.",
+   "how": "mean |action_xyz - state_xyz| over the episode.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.rot_err_mean_deg.action.arm": {
+   "key": "rot_err_mean_deg.action.arm",
+   "critic": "tracking_error",
+   "label": "Orientation error",
+   "unit": "deg",
+   "what": "Mean geodesic angle between commanded and measured end-effector orientation (rot6d, quaternion or euler), lag-compensated.",
+   "how": "mean angle(R_action^T R_state)",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tracking_error.stall_s.action.arm": {
+   "key": "stall_s.action.arm",
+   "critic": "tracking_error",
+   "label": "Longest not-following span",
+   "unit": "s",
+   "what": "Longest stretch where the position error stayed above stall_mm: the follower did not move although it was commanded to.",
+   "how": "Longest run of err > stall_mm, in seconds.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "duplication.action_dup_rate": {
+   "key": "action_dup_rate",
+   "critic": "duplication",
+   "label": "Frozen command rate",
+   "unit": "fraction",
+   "what": "Share of frames whose whole command vector is identical to the previous frame: the teleop stream stalled.",
+   "how": "mean(diff(action) == 0 over all dims)",
+   "better": "lower",
+   "per_feature": false
+  },
+  "duplication.action_dup_run_s": {
+   "key": "action_dup_run_s",
+   "critic": "duplication",
+   "label": "Longest frozen command",
+   "unit": "s",
+   "what": "Longest run of identical consecutive command vectors.",
+   "how": "longest_run / fps",
+   "better": "lower",
+   "per_feature": false
+  },
+  "duplication.all_cams_dup_run_s": {
+   "key": "all_cams_dup_run_s",
+   "critic": "duplication",
+   "label": "All cameras frozen",
+   "unit": "s",
+   "what": "Longest span where every camera repeated its frame at the same time: a pipeline stall.",
+   "how": "longest_run(AND over cameras of dup_mask) / fps",
+   "better": "lower",
+   "per_feature": false
+  },
+  "duplication.state_dup_rate": {
+   "key": "state_dup_rate",
+   "critic": "duplication",
+   "label": "Frozen state rate",
+   "unit": "fraction",
+   "what": "Share of frames whose whole state vector is identical to the previous frame.",
+   "how": "mean(diff(state) == 0 over all dims)",
+   "better": "lower",
+   "per_feature": false
+  },
+  "duplication.state_dup_run_s": {
+   "key": "state_dup_run_s",
+   "critic": "duplication",
+   "label": "Longest frozen state",
+   "unit": "s",
+   "what": "Longest run of identical consecutive state vectors.",
+   "how": "longest_run / fps",
+   "better": "lower",
+   "per_feature": false
+  },
+  "duplication.video_dup_rate.observation.images.front": {
+   "key": "video_dup_rate.observation.images.front",
+   "critic": "duplication",
+   "label": "Repeated frames (raw)",
+   "unit": "fraction",
+   "what": "Share of consecutive frames that are near-identical, over the whole episode. A rig property (USB bandwidth, static scene).",
+   "how": "mean |gray_t - gray_(t-1)| on 8x thumbnails < near_dup_eps",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "duplication.video_dup_rate.observation.images.wrist": {
+   "key": "video_dup_rate.observation.images.wrist",
+   "critic": "duplication",
+   "label": "Repeated frames (raw)",
+   "unit": "fraction",
+   "what": "Share of consecutive frames that are near-identical, over the whole episode. A rig property (USB bandwidth, static scene).",
+   "how": "mean |gray_t - gray_(t-1)| on 8x thumbnails < near_dup_eps",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "duplication.video_dup_rate_max": {
+   "key": "video_dup_rate_max",
+   "critic": "duplication",
+   "label": "Worst camera repeat rate while moving",
+   "unit": "fraction",
+   "what": "Maximum over cameras of video_dup_rate_moving.",
+   "how": "max over cameras",
+   "better": "lower",
+   "per_feature": false
+  },
+  "duplication.video_dup_rate_moving.observation.images.front": {
+   "key": "video_dup_rate_moving.observation.images.front",
+   "critic": "duplication",
+   "label": "Repeated frames while moving",
+   "unit": "fraction",
+   "what": "Share of repeated frames restricted to frames where the robot moved. A moving arm never produces identical images, so this is a real camera stall.",
+   "how": "dup_mask & moving_mask, divided by moving frames.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "duplication.video_dup_rate_moving.observation.images.wrist": {
+   "key": "video_dup_rate_moving.observation.images.wrist",
+   "critic": "duplication",
+   "label": "Repeated frames while moving",
+   "unit": "fraction",
+   "what": "Share of repeated frames restricted to frames where the robot moved. A moving arm never produces identical images, so this is a real camera stall.",
+   "how": "dup_mask & moving_mask, divided by moving frames.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "duplication.video_dup_run_max_s": {
+   "key": "video_dup_run_max_s",
+   "critic": "duplication",
+   "label": "Longest camera freeze while moving",
+   "unit": "s",
+   "what": "Longest frozen run on the wrist (run_cameras) cameras while the robot moved.",
+   "how": "longest run / fps",
+   "better": "lower",
+   "per_feature": false
+  },
+  "duplication.video_dup_run_moving.observation.images.front": {
+   "key": "video_dup_run_moving.observation.images.front",
+   "critic": "duplication",
+   "label": "Longest camera freeze while moving",
+   "unit": "frames",
+   "what": "Longest run of repeated frames while the robot moved.",
+   "how": "longest_run(dup_mask & moving_mask)",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "duplication.video_dup_run_moving.observation.images.wrist": {
+   "key": "video_dup_run_moving.observation.images.wrist",
+   "critic": "duplication",
+   "label": "Longest camera freeze while moving",
+   "unit": "frames",
+   "what": "Longest run of repeated frames while the robot moved.",
+   "how": "longest_run(dup_mask & moving_mask)",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "image_quality.brightness.observation.images.front": {
+   "key": "brightness.observation.images.front",
+   "critic": "image_quality",
+   "label": "Mean brightness",
+   "unit": "0..255",
+   "what": "Average gray level of the camera over the episode.",
+   "how": "mean of per-frame mean(gray)",
+   "better": "target",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "image_quality.brightness.observation.images.wrist": {
+   "key": "brightness.observation.images.wrist",
+   "critic": "image_quality",
+   "label": "Mean brightness",
+   "unit": "0..255",
+   "what": "Average gray level of the camera over the episode.",
+   "how": "mean of per-frame mean(gray)",
+   "better": "target",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "image_quality.clip_high.observation.images.front": {
+   "key": "clip_high.observation.images.front",
+   "critic": "image_quality",
+   "label": "Blown-out pixels",
+   "unit": "fraction",
+   "what": "Share of pixels brighter than 245: over-exposure, glare, reflections (a white glossy table, sunlight on a tray).",
+   "how": "mean(gray > 245) over sampled frames",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "image_quality.clip_high.observation.images.wrist": {
+   "key": "clip_high.observation.images.wrist",
+   "critic": "image_quality",
+   "label": "Blown-out pixels",
+   "unit": "fraction",
+   "what": "Share of pixels brighter than 245: over-exposure, glare, reflections (a white glossy table, sunlight on a tray).",
+   "how": "mean(gray > 245) over sampled frames",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "image_quality.clip_low.observation.images.front": {
+   "key": "clip_low.observation.images.front",
+   "critic": "image_quality",
+   "label": "Black pixels",
+   "unit": "fraction",
+   "what": "Share of pixels darker than 10: under-exposure or back-light (a wrist camera looking into a window darkens the object).",
+   "how": "mean(gray < 10) over sampled frames",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "image_quality.clip_low.observation.images.wrist": {
+   "key": "clip_low.observation.images.wrist",
+   "critic": "image_quality",
+   "label": "Black pixels",
+   "unit": "fraction",
+   "what": "Share of pixels darker than 10: under-exposure or back-light (a wrist camera looking into a window darkens the object).",
+   "how": "mean(gray < 10) over sampled frames",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "image_quality.neg_sharpness_min": {
+   "key": "neg_sharpness_min",
+   "critic": "image_quality",
+   "label": "Negated minimum sharpness",
+   "unit": "Laplacian var",
+   "what": "Helper: -min over cameras of sharpness_p10, for the BLUR_OUTLIER rule.",
+   "how": "-min(sharpness_p10.<camera>)",
+   "better": "info",
+   "per_feature": false
+  },
+  "image_quality.sharpness_p10.observation.images.front": {
+   "key": "sharpness_p10.observation.images.front",
+   "critic": "image_quality",
+   "label": "Sharpness p10",
+   "unit": "Laplacian var",
+   "what": "10th percentile of the per-frame Laplacian variance: how blurry the blurriest 10 % of frames are (motion blur, defocus).",
+   "how": "np.percentile(var(Laplacian(gray_halfres)), 10)",
+   "better": "higher",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "image_quality.sharpness_p10.observation.images.wrist": {
+   "key": "sharpness_p10.observation.images.wrist",
+   "critic": "image_quality",
+   "label": "Sharpness p10",
+   "unit": "Laplacian var",
+   "what": "10th percentile of the per-frame Laplacian variance: how blurry the blurriest 10 % of frames are (motion blur, defocus).",
+   "how": "np.percentile(var(Laplacian(gray_halfres)), 10)",
+   "better": "higher",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "image_quality.size.observation.images.front": {
+   "key": "size.observation.images.front",
+   "critic": "image_quality",
+   "label": "Frame size",
+   "unit": "px",
+   "what": "Decoded [width, height] of the camera.",
+   "how": "from the first decoded frame",
+   "better": "target",
+   "per_feature": true,
+   "feature": "observation.images.front"
+  },
+  "image_quality.size.observation.images.wrist": {
+   "key": "size.observation.images.wrist",
+   "critic": "image_quality",
+   "label": "Frame size",
+   "unit": "px",
+   "what": "Decoded [width, height] of the camera.",
+   "how": "from the first decoded frame",
+   "better": "target",
+   "per_feature": true,
+   "feature": "observation.images.wrist"
+  },
+  "grasp_cycles.active_frac": {
+   "key": "active_frac",
+   "critic": "grasp_cycles",
+   "label": "Active time",
+   "unit": "fraction",
+   "what": "Share of the episode where the active arm's command moved faster than 2 cm/s. Low values mean long waiting phases the policy will learn as 'do nothing'.",
+   "how": "mean(|v_action| > 0.02 m/s)",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.carry": {
+   "key": "carry",
+   "critic": "grasp_cycles",
+   "label": "Carry distance",
+   "unit": "m",
+   "what": "How far the wrist moved from the grasp pose while the hand was closed, per cycle.",
+   "how": "max |state_xyz - state_xyz[grasp]| during the hold",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.close_dur_median_s": {
+   "key": "close_dur_median_s",
+   "critic": "grasp_cycles",
+   "label": "Closing duration (median)",
+   "unit": "s",
+   "what": "Median of close_dur_s over the cycles.",
+   "how": "median",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.close_dur_s": {
+   "key": "close_dur_s",
+   "critic": "grasp_cycles",
+   "label": "Closing duration",
+   "unit": "s",
+   "what": "How long each closing takes from open (15 % of swing) to closed (85 % of swing). Slow closings mean hesitant or careful grasping; from the commanded hand signal when available.",
+   "how": "frames between the 15 % and 85 % crossings around each grasp keyframe / fps",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.closed_frac": {
+   "key": "closed_frac",
+   "critic": "grasp_cycles",
+   "label": "Time closed",
+   "unit": "fraction",
+   "what": "Share of the episode with the hand more than half closed.",
+   "how": "mean(signal > lo + 0.5 swing)",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.expected_cycles": {
+   "key": "expected_cycles",
+   "critic": "grasp_cycles",
+   "label": "Expected cycles",
+   "unit": "count",
+   "what": "Repetitions per episode from task.expected_cycles.",
+   "how": "spec",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.grasp_frames": {
+   "key": "grasp_frames",
+   "critic": "grasp_cycles",
+   "label": "Grasp keyframes",
+   "unit": "frame",
+   "what": "Frame index where each grasp closed.",
+   "how": "hysteresis crossing",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.gripper_feature": {
+   "key": "gripper_feature",
+   "critic": "grasp_cycles",
+   "label": "Closure signal",
+   "unit": "feature",
+   "what": "The state feature (and dims) used as the hand/gripper closure signal.",
+   "how": "robot.gripper or auto-detected",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.hold_s": {
+   "key": "hold_s",
+   "critic": "grasp_cycles",
+   "label": "Hold durations",
+   "unit": "s",
+   "what": "How long the object was held in each cycle (grasp to release).",
+   "how": "(release - grasp) / fps per cycle",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.idle_closures": {
+   "key": "idle_closures",
+   "critic": "grasp_cycles",
+   "label": "Idle closures",
+   "unit": "count",
+   "what": "Hand closures during which the wrist did not carry anything (operator squeezing while waiting). Not counted as attempts.",
+   "how": "closures with carry < min_carry",
+   "better": "lower",
+   "per_feature": false
+  },
+  "grasp_cycles.n_cycles": {
+   "key": "n_cycles",
+   "critic": "grasp_cycles",
+   "label": "Grasp cycles",
+   "unit": "count",
+   "what": "Close→open cycles of the hand that carried the object (wrist moved ≥ min_carry while closed). One task repetition = one cycle.",
+   "how": "Hysteresis on the smoothed closure signal, idle closures removed, re-grasps within merge_gap_s merged.",
+   "better": "target",
+   "per_feature": false
+  },
+  "grasp_cycles.regrasps": {
+   "key": "regrasps",
+   "critic": "grasp_cycles",
+   "label": "Re-grasps",
+   "unit": "count",
+   "what": "Closures that re-closed within merge_gap_s of a release: fumbles inside one attempt.",
+   "how": "merged cycle count",
+   "better": "lower",
+   "per_feature": false
+  },
+  "grasp_cycles.release_frames": {
+   "key": "release_frames",
+   "critic": "grasp_cycles",
+   "label": "Release keyframes",
+   "unit": "frame",
+   "what": "Frame index where each grasp opened again (null = still closed at the end).",
+   "how": "hysteresis crossing",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.settle_before_close_median_s": {
+   "key": "settle_before_close_median_s",
+   "critic": "grasp_cycles",
+   "label": "Settle time before closing (median)",
+   "unit": "s",
+   "what": "Median of settle_before_close_s over the cycles.",
+   "how": "median",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.settle_before_close_s": {
+   "key": "settle_before_close_s",
+   "critic": "grasp_cycles",
+   "label": "Settle time before closing",
+   "unit": "s",
+   "what": "How long the wrist was already slow (< 3 cm/s) before the hand started closing. 0 = the operator closed while still approaching.",
+   "how": "run of command speed < 0.03 m/s immediately before close_start / fps",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.swing": {
+   "key": "swing",
+   "critic": "grasp_cycles",
+   "label": "Closure swing",
+   "unit": "signal units",
+   "what": "Difference between the 98th and 2nd percentile of the closure signal: how far the hand actually opens and closes.",
+   "how": "p98 - p2 of the smoothed closure signal",
+   "better": "info",
+   "per_feature": false
+  },
+  "grasp_cycles.wrist_move_during_close_median_mm": {
+   "key": "wrist_move_during_close_median_mm",
+   "critic": "grasp_cycles",
+   "label": "Wrist motion while closing (median)",
+   "unit": "mm",
+   "what": "Median of wrist_move_during_close_mm over the cycles.",
+   "how": "median",
+   "better": "lower",
+   "per_feature": false
+  },
+  "grasp_cycles.wrist_move_during_close_mm": {
+   "key": "wrist_move_during_close_mm",
+   "critic": "grasp_cycles",
+   "label": "Wrist motion while closing",
+   "unit": "mm",
+   "what": "Distance the wrist travelled while the hand was closing, per cycle. A clean grasp stops first and then closes (a few mm); large values mean grasping on the move or correcting during the close.",
+   "how": "|state_xyz[close_end] - state_xyz[close_start]|",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.finger_cmd_speed_p95": {
+   "key": "finger_cmd_speed_p95",
+   "critic": "tremor",
+   "label": "Finger command speed p95",
+   "unit": "units/s",
+   "what": "95th percentile of the summed absolute change of the hand/gripper command per second: twitchy finger commands between grasps.",
+   "how": "p95 of sum |diff(hand_action)| × fps",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.hf5_share_cmd": {
+   "key": "hf5_share_cmd",
+   "critic": "tremor",
+   "label": "Command energy above 5 Hz",
+   "unit": "fraction",
+   "what": "Share of the COMMAND velocity power above 5 Hz (of everything above 0.3 Hz). Human hand tremor sits at 8–12 Hz; a large share here means the operator's input device transmits it and the policy will learn it as target.",
+   "how": "Welch PSD (256-sample Hann segments) of the command velocity per axis, summed; power(f > 5 Hz) / power(f > 0.3 Hz). Worst active arm.",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.hf5_share_cmd.action.arm": {
+   "key": "hf5_share_cmd.action.arm",
+   "critic": "tremor",
+   "label": "Command energy above 5 Hz per feature",
+   "unit": "fraction",
+   "what": "hf5_share_cmd for one arm.",
+   "how": "See hf5_share_cmd.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tremor.hf5_share_state": {
+   "key": "hf5_share_state",
+   "critic": "tremor",
+   "label": "Robot energy above 5 Hz",
+   "unit": "fraction",
+   "what": "Same as hf5_share_cmd for the measured robot state. Much smaller than the command share = the robot's controller filters the tremor; similar = the robot itself vibrates.",
+   "how": "Welch PSD of the state velocity.",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.hf5_share_state.action.arm": {
+   "key": "hf5_share_state.action.arm",
+   "critic": "tremor",
+   "label": "Robot energy above 5 Hz per feature",
+   "unit": "fraction",
+   "what": "hf5_share_state for one arm.",
+   "how": "See hf5_share_state.",
+   "better": "lower",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tremor.hold_jitter_cmd_mm": {
+   "key": "hold_jitter_cmd_mm",
+   "critic": "tremor",
+   "label": "Command jitter while holding still",
+   "unit": "mm",
+   "what": "Standard deviation of the commanded position (linear trend removed) inside hold phases: how much the 'still' hand actually wobbles in the command.",
+   "how": "std of the detrended 3-D command position, mean over hold segments, ×1000",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.hold_jitter_state_mm": {
+   "key": "hold_jitter_state_mm",
+   "critic": "tremor",
+   "label": "Robot jitter while holding still",
+   "unit": "mm",
+   "what": "Same as hold_jitter_cmd_mm for the measured robot position.",
+   "how": "std of the detrended state position inside hold phases",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.hold_rms_speed_cmd_mms": {
+   "key": "hold_rms_speed_cmd_mms",
+   "critic": "tremor",
+   "label": "Command speed while holding still",
+   "unit": "mm/s",
+   "what": "RMS speed of the command inside hold phases. A truly still hand gives a few mm/s; 15–25 mm/s means the command never rests and the policy learns to fidget at the grasp.",
+   "how": "sqrt(mean(|v_action|²)) over hold frames ×1000",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.hold_rms_speed_state_mms": {
+   "key": "hold_rms_speed_state_mms",
+   "critic": "tremor",
+   "label": "Robot speed while holding still",
+   "unit": "mm/s",
+   "what": "Same as hold_rms_speed_cmd_mms for the measured state.",
+   "how": "sqrt(mean(|v_state|²)) over hold frames ×1000",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.hold_segments": {
+   "key": "hold_segments",
+   "critic": "tremor",
+   "label": "Hold phases",
+   "unit": "count",
+   "what": "Number of phases ≥ 1 s where the commanded speed stayed below 5 cm/s (approach end, grasp, release, waiting).",
+   "how": "runs of |v_action| < hold_speed_mps longer than hold_min_s",
+   "better": "info",
+   "per_feature": false
+  },
+  "tremor.hold_total_s": {
+   "key": "hold_total_s",
+   "critic": "tremor",
+   "label": "Time in hold phases",
+   "unit": "s",
+   "what": "Total duration of the hold phases.",
+   "how": "sum of run lengths / fps",
+   "better": "info",
+   "per_feature": false
+  },
+  "tremor.rot_speed_p95_cmd_deg_s": {
+   "key": "rot_speed_p95_cmd_deg_s",
+   "critic": "tremor",
+   "label": "Commanded rotation speed p95",
+   "unit": "deg/s",
+   "what": "95th percentile of the commanded end-effector angular speed. High values with a low state value = rotational noise in the input device.",
+   "how": "geodesic angle between consecutive command orientations × fps, p95",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.rot_speed_p95_state_deg_s": {
+   "key": "rot_speed_p95_state_deg_s",
+   "critic": "tremor",
+   "label": "Measured rotation speed p95",
+   "unit": "deg/s",
+   "what": "Same as rot_speed_p95_cmd_deg_s for the robot state.",
+   "how": "geodesic angle between consecutive state orientations × fps, p95",
+   "better": "lower",
+   "per_feature": false
+  },
+  "tremor.tremor_peak_hz_cmd": {
+   "key": "tremor_peak_hz_cmd",
+   "critic": "tremor",
+   "label": "Dominant tremor frequency",
+   "unit": "Hz",
+   "what": "Frequency of the strongest command-velocity peak above 3 Hz. 8–12 Hz = physiological hand tremor from a hand-held or hand-tracked input device.",
+   "how": "argmax of the command velocity PSD for f > 3 Hz.",
+   "better": "info",
+   "per_feature": false
+  },
+  "tremor.tremor_peak_hz_cmd.action.arm": {
+   "key": "tremor_peak_hz_cmd.action.arm",
+   "critic": "tremor",
+   "label": "Dominant tremor frequency per feature",
+   "unit": "Hz",
+   "what": "tremor_peak_hz_cmd for one arm.",
+   "how": "See tremor_peak_hz_cmd.",
+   "better": "info",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "tremor.tremor_source": {
+   "key": "tremor_source",
+   "critic": "tremor",
+   "label": "Where the tremor comes from",
+   "unit": "label",
+   "what": "'input_device' when the command carries clearly more high-frequency energy than the robot state (the robot filters it: fix the teleop input), 'robot' when the state carries as much or more (mechanical vibration / controller), 'none' when both are low.",
+   "how": "ratio of hf5_share_cmd to hf5_share_state against thresholds",
+   "better": "info",
+   "per_feature": false
+  },
+  "normalization.action_equals_state.action.arm": {
+   "key": "action_equals_state.action.arm",
+   "critic": "normalization",
+   "label": "Action is a copy of state",
+   "unit": "bool",
+   "what": "True when the action of this feature never differs from the state by more than 1 % of its range: the 'command' is a readback, not an operator intent, and carries no lead over the robot.",
+   "how": "max |a - s| / range < 0.01",
+   "better": "info",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "normalization.action_equals_state.action.gripper": {
+   "key": "action_equals_state.action.gripper",
+   "critic": "normalization",
+   "label": "Action is a copy of state",
+   "unit": "bool",
+   "what": "True when the action of this feature never differs from the state by more than 1 % of its range: the 'command' is a readback, not an operator intent, and carries no lead over the robot.",
+   "how": "max |a - s| / range < 0.01",
+   "better": "info",
+   "per_feature": true,
+   "feature": "action.gripper"
+  },
+  "normalization.dead_dims.action.arm": {
+   "key": "dead_dims.action.arm",
+   "critic": "normalization",
+   "label": "Constant dimensions",
+   "unit": "list",
+   "what": "Dimensions of this action feature that never change inside the episode (range < 1e-6): they carry no information for the policy (e.g. an unused thumb yaw). Dataset-wide list in the run summary.",
+   "how": "ptp(x) < 1e-6 per dimension",
+   "better": "info",
+   "per_feature": true,
+   "feature": "action.arm"
+  },
+  "normalization.dead_dims.action.gripper": {
+   "key": "dead_dims.action.gripper",
+   "critic": "normalization",
+   "label": "Constant dimensions",
+   "unit": "list",
+   "what": "Dimensions of this action feature that never change inside the episode (range < 1e-6): they carry no information for the policy (e.g. an unused thumb yaw). Dataset-wide list in the run summary.",
+   "how": "ptp(x) < 1e-6 per dimension",
+   "better": "info",
+   "per_feature": true,
+   "feature": "action.gripper"
+  },
+  "normalization.zero_frames": {
+   "key": "zero_frames",
+   "critic": "normalization",
+   "label": "All-zero pose frames",
+   "unit": "count",
+   "what": "Frames where a cartesian position is exactly (0, 0, 0) or a whole joint/hand vector is exactly 0 while its neighbours are not: a transport dropout. A single such frame drags the dataset's min/max normalisation range to 0 and destroys the action resolution for the whole training run.",
+   "how": "count of rows with |x|.sum() == 0 (cartesian: xyz only)",
+   "better": "lower",
+   "per_feature": false
+  },
+  "diversity.end_pos_m": {
+   "key": "end_pos_m",
+   "critic": "diversity",
+   "label": "End pose",
+   "unit": "m",
+   "what": "Wrist position in the last frame.",
+   "how": "state_xyz[-1]",
+   "better": "info",
+   "per_feature": false
+  },
+  "diversity.grasp_offset_from_median_cm": {
+   "key": "grasp_offset_from_median_cm",
+   "critic": "diversity",
+   "label": "Grasp offset from the dataset median",
+   "unit": "cm",
+   "what": "Largest distance of this episode's grasp positions from the median grasp position of the whole run. Episodes far from the median are the ones that add spatial variation; a run where every episode is < 2 cm from the median has essentially one object position.",
+   "how": "max over grasps |grasp_pos - median_grasp_pos| ×100 (dataset-relative, filled in after all episodes)",
+   "better": "higher",
+   "per_feature": false
+  },
+  "diversity.grasp_pos_m": {
+   "key": "grasp_pos_m",
+   "critic": "diversity",
+   "label": "Grasp positions",
+   "unit": "m",
+   "what": "Wrist position (x, y, z) of the active arm at each grasp keyframe: where the object was picked.",
+   "how": "state_xyz[grasp_frame]",
+   "better": "info",
+   "per_feature": false
+  },
+  "diversity.n_grasps": {
+   "key": "n_grasps",
+   "critic": "diversity",
+   "label": "Grasps in this episode",
+   "unit": "count",
+   "what": "Grasp keyframes used for the workspace statistics.",
+   "how": "from grasp_cycles",
+   "better": "info",
+   "per_feature": false
+  },
+  "diversity.release_pos_m": {
+   "key": "release_pos_m",
+   "critic": "diversity",
+   "label": "Release positions",
+   "unit": "m",
+   "what": "Wrist position at each release keyframe: where the object was placed.",
+   "how": "state_xyz[release_frame]",
+   "better": "info",
+   "per_feature": false
+  },
+  "diversity.start_pos_m": {
+   "key": "start_pos_m",
+   "critic": "diversity",
+   "label": "Start pose",
+   "unit": "m",
+   "what": "Wrist position in the first frame.",
+   "how": "state_xyz[0]",
+   "better": "info",
+   "per_feature": false
+  },
+  "diversity.wrist_feature": {
+   "key": "wrist_feature",
+   "critic": "diversity",
+   "label": "Wrist feature",
+   "unit": "feature",
+   "what": "The cartesian state feature whose xyz is sampled at the keyframes.",
+   "how": "first active cartesian pair (elbows excluded)",
+   "better": "info",
+   "per_feature": false
+  }
+ },
+ "session_profile": {
+  "groups": [
+   {
+    "id": "teleop",
+    "title": "Teleoperation: command vs. robot",
+    "intro": "How faithfully and how quickly the robot reproduced the operator's command, and how clean the command itself was. This is what the policy will imitate."
+   },
+   {
+    "id": "grasp",
+    "title": "Grasp behaviour",
+    "intro": "How the operator grasped: how many attempts per episode, how long the closing took, whether the hand had stopped before it closed."
+   },
+   {
+    "id": "diversity",
+    "title": "Variation across the session",
+    "intro": "What the demonstrations cover. A policy only learns to correct towards an object it has seen in different places."
+   },
+   {
+    "id": "hygiene",
+    "title": "Data hygiene for training",
+    "intro": "Artifacts that do not spoil a single episode but spoil the training set: dropout frames in the normalisation statistics, idle arms that move, frozen streams, stalled cameras."
+   }
+  ],
+  "indicators": [
+   {
+    "id": "latency_ms",
+    "group": "teleop",
+    "label": "Teleop latency: command → robot",
+    "unit": "ms",
+    "value": 166.66363157816545,
+    "text_value": null,
+    "display": "167",
+    "aggregate": "median",
+    "low": 0.0,
+    "high": 176.65919888802068,
+    "n": 4,
+    "status": "warn",
+    "better": "lower",
+    "good": 100.0,
+    "bad": 300.0,
+    "series": {
+     "0": 157.2783,
+     "1": 176.0489,
+     "2": 0.0,
+     "3": 176.6592
+    },
+    "what": "Delay between the recorded command (action) and the recorded robot state (observation), from the cross-correlation of their velocities. Measures IK, controller and transport between the two topics; VR tracking and network before the command topic are not included. Thresholds: a tight position controller stays under 100 ms; above 300 ms the operator visibly fights the delay (tracking_error params latency_good_ms / latency_bad_ms).",
+    "so_what": "The operator only sees the robot's reaction this much later and compensates visually: overshoot and re-corrections near the object end up in the demonstrations. A policy trained on the raw command must reproduce that lead over the robot; anything that changes the controller latency at inference time changes the policy's behaviour.",
+    "action": "hand the number to the teleop / controller team; re-measure after every change to the control chain",
+    "source": "tracking_error.lag_ms",
+    "display_extra": "0–177 ms across episodes · 1.7 frames at 10 fps"
+   },
+   {
+    "id": "latency_share",
+    "group": "teleop",
+    "label": "Share of the tracking gap that is pure delay",
+    "unit": "%",
+    "value": 94.88236383257964,
+    "text_value": null,
+    "display": "94.9",
+    "aggregate": "median",
+    "low": 45.87733773789202,
+    "high": 95.25752240983529,
+    "n": 4,
+    "status": "info",
+    "better": "info",
+    "good": null,
+    "bad": null,
+    "series": {
+     "0": 95.2575,
+     "1": 94.5216,
+     "2": 45.8773,
+     "3": 95.2431
+    },
+    "what": "How much of the visible distance between commanded and measured position disappears once the state is shifted by the latency. The rest is controller damping or real tracking error.",
+    "so_what": "Near 100 % means the robot follows precisely, just late; a low share means it also does not reach the commanded pose.",
+    "action": "",
+    "source": ""
+   },
+   {
+    "id": "tracking_error_mm",
+    "group": "teleop",
+    "label": "Tracking error after latency compensation",
+    "unit": "mm",
+    "value": 1.6149340934462986,
+    "text_value": null,
+    "display": "1.6",
+    "aggregate": "median",
+    "low": 1.610781858797523,
+    "high": 18.262953570599965,
+    "n": 4,
+    "status": "good",
+    "better": "lower",
+    "good": 8.0,
+    "bad": 40.0,
+    "series": {
+     "0": 1.612,
+     "1": 1.6108,
+     "2": 18.263,
+     "3": 1.6179
+    },
+    "what": "Lag-compensated mean position error of the worst active arm (drives the score and the outlier flag).",
+    "so_what": "Residual gap between where the operator pointed and where the robot went, delay removed: damping, gains, payload.",
+    "action": "check controller gains and payload if this is high",
+    "source": "tracking_error.pos_err_mean_mm"
+   },
+   {
+    "id": "tremor_cmd",
+    "group": "teleop",
+    "label": "Tremor in the command (velocity power > 5 Hz)",
+    "unit": "%",
+    "value": 0.0,
+    "text_value": null,
+    "display": "0",
+    "aggregate": "median",
+    "low": 0.0,
+    "high": 0.0,
+    "n": 4,
+    "status": "good",
+    "better": "lower",
+    "good": 5.0,
+    "bad": 35.0,
+    "series": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0
+    },
+    "what": "Share of the commanded wrist velocity power above 5 Hz. Human hand tremor sits at 8–12 Hz; a hand-held or hand-tracked input device passes it straight into the command.",
+    "so_what": "The policy learns the shaking as its target. The robot state shows how much the controller filters away.",
+    "action": "support the operator's arm, lower the input sensitivity, add a filter on the teleop side, or low-pass the actions before training",
+    "source": "none",
+    "state_series": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0
+    },
+    "state_value": 0.0,
+    "peak_hz": 3.0508474576271185,
+    "display_extra": "robot state 0 % · peak 3.1 Hz · source: none"
+   },
+   {
+    "id": "hold_rms_cmd",
+    "group": "teleop",
+    "label": "Command motion while the hand should be still",
+    "unit": "mm/s",
+    "value": 0.0,
+    "text_value": null,
+    "display": "0",
+    "aggregate": "median",
+    "low": 0.0,
+    "high": 0.0,
+    "n": 1,
+    "status": "good",
+    "better": "lower",
+    "good": 5.0,
+    "bad": 40.0,
+    "series": {
+     "2": 0.0
+    },
+    "what": "RMS speed of the command inside hold phases. A truly still hand gives a few mm/s; 15–25 mm/s means the command never rests and the policy learns to fidget at the grasp.",
+    "so_what": "A truly resting hand gives a few mm/s. Higher values mean the command never rests before or during the grasp and the policy learns to fidget at the object.",
+    "action": "give the operator a clutch / hold, or pause deliberately before closing",
+    "source": "tremor.hold_rms_speed_cmd_mms"
+   },
+   {
+    "id": "spikes_per_min",
+    "group": "teleop",
+    "label": "Implausible command jumps",
+    "unit": "/min",
+    "value": 0.0,
+    "text_value": null,
+    "display": "0",
+    "aggregate": "median",
+    "low": 0.0,
+    "high": 9.23076923076923,
+    "n": 4,
+    "status": "good",
+    "better": "lower",
+    "good": 0.0,
+    "bad": 3.0,
+    "series": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 9.2308,
+     "3": 0.0
+    },
+    "what": "Command spikes normalised by episode length.",
+    "so_what": "Single-frame jumps the robot cannot execute; a training target no policy should learn.",
+    "action": "check the input device and transport for dropouts",
+    "source": "smoothness.spike_rate_per_min"
+   },
+   {
+    "id": "cycles",
+    "group": "grasp",
+    "label": "Grasp cycles per episode",
+    "unit": "",
+    "value": 1.0,
+    "text_value": null,
+    "display": "1.0",
+    "aggregate": "median",
+    "low": 0.0,
+    "high": 1.0,
+    "n": 4,
+    "status": "info",
+    "better": "info",
+    "good": null,
+    "bad": null,
+    "series": {
+     "0": 1.0,
+     "1": 1.0,
+     "2": 1.0,
+     "3": 0.0
+    },
+    "what": "Close→open cycles of the hand that carried the object (wrist moved ≥ min_carry while closed). One task repetition = one cycle.",
+    "so_what": "One cycle = one pick-and-place attempt that carried the object.",
+    "action": "",
+    "source": "grasp_cycles.n_cycles",
+    "display_extra": "expected 1"
+   },
+   {
+    "id": "close_dur_s",
+    "group": "grasp",
+    "label": "Closing duration",
+    "unit": "s",
+    "value": 0.1,
+    "text_value": null,
+    "display": "0.1",
+    "aggregate": "median",
+    "low": 0.1,
+    "high": 0.1,
+    "n": 3,
+    "status": "info",
+    "better": "info",
+    "good": null,
+    "bad": null,
+    "series": {
+     "0": 0.1,
+     "1": 0.1,
+     "2": 0.1
+    },
+    "what": "Median of close_dur_s over the cycles.",
+    "so_what": "Time from open to closed hand around each grasp. Long closings mean hesitant or careful grasping.",
+    "action": "",
+    "source": "grasp_cycles.close_dur_median_s"
+   },
+   {
+    "id": "wrist_move_close_mm",
+    "group": "grasp",
+    "label": "Wrist motion while closing",
+    "unit": "mm",
+    "value": 13.1,
+    "text_value": null,
+    "display": "13.1",
+    "aggregate": "median",
+    "low": 10.5,
+    "high": 14.7,
+    "n": 3,
+    "status": "warn",
+    "better": "lower",
+    "good": 5.0,
+    "bad": 30.0,
+    "series": {
+     "0": 14.7,
+     "1": 10.5,
+     "2": 13.1
+    },
+    "what": "Median of wrist_move_during_close_mm over the cycles.",
+    "so_what": "A clean grasp stops, then closes (a few mm). Larger values mean grasping on the move or correcting during the close - exactly the phase where the policy fails first.",
+    "action": "train operators to stop, close, pause, lift",
+    "source": "grasp_cycles.wrist_move_during_close_median_mm"
+   },
+   {
+    "id": "settle_s",
+    "group": "grasp",
+    "label": "Settle time before closing",
+    "unit": "s",
+    "value": 0.0,
+    "text_value": null,
+    "display": "0",
+    "aggregate": "median",
+    "low": 0.0,
+    "high": 0.0,
+    "n": 3,
+    "status": "bad",
+    "better": "higher",
+    "good": 0.5,
+    "bad": 0.1,
+    "series": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0
+    },
+    "what": "Median of settle_before_close_s over the cycles.",
+    "so_what": "How long the wrist had already been slow before the hand started closing. 0 means the operator closed while still approaching.",
+    "action": "pause about half a second before closing; it also makes later annotation trivial",
+    "source": "grasp_cycles.settle_before_close_median_s"
+   },
+   {
+    "id": "active_frac",
+    "group": "grasp",
+    "label": "Share of the episode with the arm moving",
+    "unit": "%",
+    "value": 98.33333333333333,
+    "text_value": null,
+    "display": "98.3",
+    "aggregate": "median",
+    "low": 75.38461538461539,
+    "high": 98.57142857142858,
+    "n": 4,
+    "status": "info",
+    "better": "info",
+    "good": null,
+    "bad": null,
+    "series": {
+     "0": 98.3333,
+     "1": 98.5714,
+     "2": 75.3846,
+     "3": 98.3333
+    },
+    "what": "",
+    "so_what": "The rest is waiting: resets, a person in the workspace, idle time. With one task string the policy learns 'do nothing' from those frames.",
+    "action": "cut episodes at the reset phases or record one attempt per episode",
+    "source": ""
+   },
+   {
+    "id": "grasp_spread_cm",
+    "group": "diversity",
+    "label": "Spread of the grasp positions",
+    "unit": "cm",
+    "value": 0.22,
+    "text_value": null,
+    "display": "0.22",
+    "aggregate": "median",
+    "low": null,
+    "high": null,
+    "n": 0,
+    "status": "bad",
+    "better": "higher",
+    "good": 5.0,
+    "bad": 3.0,
+    "series": {},
+    "what": "Robust standard deviation (1.4826 × MAD) of the wrist position at the grasp keyframes over the whole run, horizontal axes, in cm. It is the spread of the object positions the policy has seen.",
+    "so_what": "Below a few cm the approach can be replayed from memory and no visual correction is ever demonstrated. Since the object was always in the same place, a small offset at inference has no counterpart in the data.",
+    "action": "randomise the object position over the workspace between episodes",
+    "source": "",
+    "display_extra": "robust std x/y/z 0.04/0.22/0.31 cm · range 0.23/0.57/0.65 cm · 3 grasps"
+   },
+   {
+    "id": "start_spread_cm",
+    "group": "diversity",
+    "label": "Spread of the start pose",
+    "unit": "cm",
+    "value": 0.12,
+    "text_value": null,
+    "display": "0.12",
+    "aggregate": "median",
+    "low": null,
+    "high": null,
+    "n": 0,
+    "status": "info",
+    "better": "info",
+    "good": null,
+    "bad": null,
+    "series": {},
+    "what": "Standard deviation of the wrist position in the first frame across episodes (largest axis).",
+    "so_what": "Varied start poses are good: the policy must not depend on one initial configuration.",
+    "action": "",
+    "source": ""
+   },
+   {
+    "id": "duration_s",
+    "group": "diversity",
+    "label": "Episode duration",
+    "unit": "s",
+    "value": 6.25,
+    "text_value": null,
+    "display": "6",
+    "aggregate": "median",
+    "low": 6.0,
+    "high": 7.0,
+    "n": 4,
+    "status": "info",
+    "better": "info",
+    "good": null,
+    "bad": null,
+    "series": {
+     "0": 6.0,
+     "1": 7.0,
+     "2": 6.5,
+     "3": 6.0
+    },
+    "what": "Episode length in seconds.",
+    "so_what": "Long episodes usually pack several attempts and waiting phases; one attempt per episode is easier to train and to filter.",
+    "action": "",
+    "source": "duration.duration_s"
+   },
+   {
+    "id": "zero_frames",
+    "group": "hygiene",
+    "label": "All-zero dropout rows",
+    "unit": "rows",
+    "value": 0.0,
+    "text_value": null,
+    "display": "0",
+    "aggregate": "sum",
+    "low": 0.0,
+    "high": 0.0,
+    "n": 4,
+    "status": "good",
+    "better": "lower",
+    "good": 0.0,
+    "bad": 1.0,
+    "series": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0
+    },
+    "what": "Rows where a pose or joint vector is exactly zero (counted per feature): a transport dropout, not a real pose.",
+    "so_what": "One such frame drags the dataset's min/max normalisation range to 0. The policy then trains at a fraction of its action resolution on the affected axes.",
+    "action": "remove or repair those frames, then recompute meta/stats.json",
+    "source": ""
+   },
+   {
+    "id": "action_frozen",
+    "group": "hygiene",
+    "label": "Frozen command stream",
+    "unit": "%",
+    "value": 0.0,
+    "text_value": null,
+    "display": "0",
+    "aggregate": "median",
+    "low": 0.0,
+    "high": 21.875,
+    "n": 4,
+    "status": "good",
+    "better": "lower",
+    "good": 2.0,
+    "bad": 20.0,
+    "series": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 21.875,
+     "3": 0.0
+    },
+    "what": "",
+    "so_what": "Frames whose whole command vector repeats the previous one: the teleop link stalled.",
+    "action": "check the teleop link and recorder loop rate",
+    "source": ""
+   },
+   {
+    "id": "camera_stall",
+    "group": "hygiene",
+    "label": "Repeated camera frames while moving",
+    "unit": "%",
+    "value": 0.0,
+    "text_value": null,
+    "display": "0",
+    "aggregate": "median",
+    "low": 0.0,
+    "high": 0.0,
+    "n": 4,
+    "status": "good",
+    "better": "lower",
+    "good": 35.0,
+    "bad": 70.0,
+    "series": {
+     "0": 0.0,
+     "1": 0.0,
+     "2": 0.0,
+     "3": 0.0
+    },
+    "what": "",
+    "so_what": "A moving arm never produces identical images; repeats while moving are camera stalls (USB bandwidth).",
+    "action": "check camera bandwidth and hubs",
+    "source": ""
+   }
+  ],
+  "cameras": [
+   {
+    "camera": "observation.images.front",
+    "short": "front",
+    "dup_rate": 0.0,
+    "dup_rate_moving": 0.0,
+    "brightness": 112.07327008928571,
+    "clip_high": 0.0,
+    "clip_low": 0.0,
+    "sharpness_p10": 165.06347696614586
+   },
+   {
+    "camera": "observation.images.wrist",
+    "short": "wrist",
+    "dup_rate": 0.0,
+    "dup_rate_moving": 0.0,
+    "brightness": 147.87491939484124,
+    "clip_high": 0.0,
+    "clip_low": 0.0,
+    "sharpness_p10": 241.5959687782118
+   }
+  ],
+  "grasp_points": [
+   [
+    0.4976,
+    -0.0101,
+    0.89
+   ],
+   [
+    0.4979,
+    -0.0143,
+    0.8879
+   ],
+   [
+    0.4999,
+    -0.0086,
+    0.8944
+   ]
+  ],
+  "status_counts": {
+   "warn": 2,
+   "info": 6,
+   "good": 7,
+   "bad": 2
+  },
+  "headline": "2 indicator(s) out of range: spread of the grasp positions 0.22 cm; settle time before closing 0 s. 2 to watch: wrist motion while closing 13.1 mm; teleop latency: command → robot 167 ms."
+ },
+ "timing_s": {
+  "hard_s": 1.6370244026184082,
+  "soft_s": 0.03170299530029297,
+  "total_s": 1.6772501468658447
+ },
+ "episodes": [
+  {
+   "episode": 0,
+   "task": "put the red block in the box",
+   "length": 60,
+   "duration_s": 6.0,
+   "hard": [
+    {
+     "id": "integrity",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.5,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "length": 60,
+      "meta_length": 60,
+      "timestamp_gaps": 0,
+      "dt_max_s": 0.10000038146972656,
+      "timestamps_synthetic": true,
+      "nan_features": [],
+      "video_frames.observation.images.front": 60,
+      "video_frames.observation.images.wrist": 60,
+      "video_mismatch_cameras": []
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "duration",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "duration_s": 6.0,
+      "neg_duration_s": -6.0,
+      "frames": 60,
+      "fps": 10.0,
+      "min_s": 5.0,
+      "max_s": 300.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "smoothness",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "ldj_median.action.arm": -7.428434973752438,
+      "hf_ratio.action.arm": 0.00002507292851442312,
+      "accel_max.action.arm": 0.28129062324443044,
+      "spikes.action.arm": 0,
+      "ldj_median": -7.428434973752438,
+      "neg_ldj_median": 7.428434973752438,
+      "hf_ratio": 0.00002507292851442312,
+      "spikes": 0,
+      "spike_rate_per_min": 0.0,
+      "hesitation_s": 0.0,
+      "speed_p95": 0.23170307242424906
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "tracking_error",
+     "kind": "hard",
+     "weight": 1.5,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.1,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "pos_err_raw_mean_mm.action.arm": 33.9903161336681,
+      "pos_err_mean_mm.action.arm": 1.6119831254653472,
+      "pos_err_p95_mm.action.arm": 2.470620358904621,
+      "lag_err_share.action.arm": 0.9525752240983529,
+      "lag_xcorr_frames.action.arm": 1.5727833316578825,
+      "lag_ms.action.arm": 157.27833316578827,
+      "lag_corr.action.arm": 0.8638386183264997,
+      "stall_s.action.arm": 0.0,
+      "rot_err_mean_deg.action.arm": 0.0,
+      "lag_frames.action.arm": 2,
+      "hand_err_norm.action.gripper": 0.0,
+      "pos_err_mean_mm": 1.6119831254653472,
+      "lag_ms": 157.27833316578827,
+      "lag_err_share": 0.9525752240983529
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "duplication",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.1,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "video_dup_rate.observation.images.front": 0.0,
+      "video_dup_rate_moving.observation.images.front": 0.0,
+      "video_dup_run_moving.observation.images.front": 0,
+      "video_dup_rate.observation.images.wrist": 0.0,
+      "video_dup_rate_moving.observation.images.wrist": 0.0,
+      "video_dup_run_moving.observation.images.wrist": 0,
+      "video_dup_rate_max": 0.0,
+      "video_dup_run_max_s": 0.0,
+      "all_cams_dup_run_s": 0.0,
+      "action_dup_rate": 0.0,
+      "action_dup_run_s": 0.0,
+      "state_dup_rate": 0.0,
+      "state_dup_run_s": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "image_quality",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "brightness.observation.images.front": 111.62859375,
+      "clip_high.observation.images.front": 0.0,
+      "clip_low.observation.images.front": 0.0,
+      "sharpness_p10.observation.images.front": 165.88024641927083,
+      "size.observation.images.front": [
+       160,
+       120
+      ],
+      "brightness.observation.images.wrist": 147.2328298611111,
+      "clip_high.observation.images.wrist": 0.0,
+      "clip_low.observation.images.wrist": 0.0,
+      "sharpness_p10.observation.images.wrist": 241.7171140972222,
+      "size.observation.images.wrist": [
+       160,
+       120
+      ],
+      "neg_sharpness_min": -165.88024641927083
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "sensor_limits",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {},
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "grasp_cycles",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "n_cycles": 1,
+      "expected_cycles": 1,
+      "gripper_feature": "observation.state.gripper",
+      "swing": 1.0,
+      "closed_frac": 0.4,
+      "hold_s": [
+       2.5
+      ],
+      "grasp_frames": [
+       18
+      ],
+      "release_frames": [
+       43
+      ],
+      "regrasps": 0,
+      "idle_closures": 0,
+      "carry": [
+       0.378
+      ],
+      "active_frac": 0.9833333333333333,
+      "close_dur_s": [
+       0.1
+      ],
+      "close_dur_median_s": 0.1,
+      "wrist_move_during_close_mm": [
+       14.7
+      ],
+      "wrist_move_during_close_median_mm": 14.7,
+      "settle_before_close_s": [
+       0.0
+      ],
+      "settle_before_close_median_s": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "tremor",
+     "kind": "hard",
+     "weight": 0.5,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "hf5_share_cmd.action.arm": 0.0,
+      "hf5_share_state.action.arm": 0.0,
+      "tremor_peak_hz_cmd.action.arm": 3.0508474576271185,
+      "hf5_share_cmd": 0.0,
+      "hf5_share_state": 0.0,
+      "tremor_peak_hz_cmd": 3.0508474576271185,
+      "tremor_source": "none",
+      "hold_segments": 0,
+      "hold_total_s": 0.0,
+      "hold_jitter_cmd_mm": null,
+      "hold_jitter_state_mm": null,
+      "hold_rms_speed_cmd_mms": null,
+      "hold_rms_speed_state_mms": null,
+      "rot_speed_p95_cmd_deg_s": 0.0,
+      "rot_speed_p95_state_deg_s": 0.0,
+      "finger_cmd_speed_p95": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "normalization",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "_range.observation.state.arm": [
+       [
+        0.09873031824827194,
+        -0.10058552771806717,
+        0.8487868309020996,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        0.5007060170173645,
+        0.10094708204269409,
+        0.9508909583091736,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ]
+      ],
+      "_range.action.arm": [
+       [
+        0.10000000149011612,
+        -0.10000000149011612,
+        0.8502739071846008,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        0.5,
+        0.10000000149011612,
+        0.9497261047363281,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ]
+      ],
+      "dead_dims.action.arm": [
+       "r0",
+       "r1",
+       "r2",
+       "r3",
+       "r4",
+       "r5"
+      ],
+      "_range.observation.state.gripper": [
+       [
+        0.0
+       ],
+       [
+        1.0
+       ]
+      ],
+      "_range.action.gripper": [
+       [
+        0.0
+       ],
+       [
+        1.0
+       ]
+      ],
+      "zero_frames": 0,
+      "_episode": 0,
+      "action_equals_state.action.arm": false,
+      "action_equals_state.action.gripper": true
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "diversity",
+     "kind": "hard",
+     "weight": 0.0,
+     "score": null,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "wrist_feature": "observation.state.arm",
+      "n_grasps": 1,
+      "grasp_pos_m": [
+       [
+        0.4976,
+        -0.0101,
+        0.89
+       ]
+      ],
+      "release_pos_m": [
+       [
+        0.1163,
+        -0.0417,
+        0.9374
+       ]
+      ],
+      "start_pos_m": [
+       0.3001,
+       0.0999,
+       0.9006
+      ],
+      "end_pos_m": [
+       0.2392,
+       0.0932,
+       0.8704
+      ],
+      "grasp_offset_from_median_cm": 0.030000000000002247
+     },
+     "evidence": [],
+     "error": null
+    }
+   ],
+   "soft": [
+    {
+     "id": "vlm.summary",
+     "kind": "soft",
+     "weight": 0.0,
+     "score": null,
+     "gate": false,
+     "gate_below": 0.0,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {},
+     "evidence": [],
+     "error": "ModuleNotFoundError: No module named 'google'"
+    }
+   ],
+   "score": {
+    "episode": 0,
+    "hard_score": 1.0,
+    "soft_score": null,
+    "total": 1.0,
+    "verdict": "accept",
+    "gates_failed": [],
+    "flags": [],
+    "reasons": []
+   },
+   "keyframes": {
+    "grasp": [
+     18
+    ],
+    "release": [
+     43
+    ]
+   },
+   "error": null
+  },
+  {
+   "episode": 1,
+   "task": "put the red block in the box",
+   "length": 70,
+   "duration_s": 7.0,
+   "hard": [
+    {
+     "id": "integrity",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.5,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "length": 70,
+      "meta_length": 70,
+      "timestamp_gaps": 0,
+      "dt_max_s": 0.10000038146972656,
+      "timestamps_synthetic": true,
+      "nan_features": [],
+      "video_frames.observation.images.front": 70,
+      "video_frames.observation.images.wrist": 70,
+      "video_mismatch_cameras": []
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "duration",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "duration_s": 7.0,
+      "neg_duration_s": -7.0,
+      "frames": 70,
+      "fps": 10.0,
+      "min_s": 5.0,
+      "max_s": 300.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "smoothness",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "ldj_median.action.arm": -7.091096321606366,
+      "hf_ratio.action.arm": 0.000011314105393987642,
+      "accel_max.action.arm": 0.2071612827858657,
+      "spikes.action.arm": 0,
+      "ldj_median": -7.091096321606366,
+      "neg_ldj_median": 7.091096321606366,
+      "hf_ratio": 0.000011314105393987642,
+      "spikes": 0,
+      "spike_rate_per_min": 0.0,
+      "hesitation_s": 0.0,
+      "speed_p95": 0.19915733339889954
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "tracking_error",
+     "kind": "hard",
+     "weight": 1.5,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.1,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "pos_err_raw_mean_mm.action.arm": 29.402302046211176,
+      "pos_err_mean_mm.action.arm": 1.610781858797523,
+      "pos_err_p95_mm.action.arm": 2.8168998741664013,
+      "lag_err_share.action.arm": 0.9452157910538475,
+      "lag_xcorr_frames.action.arm": 1.7604892999054265,
+      "lag_ms.action.arm": 176.04892999054263,
+      "lag_corr.action.arm": 0.8232597116017532,
+      "stall_s.action.arm": 0.0,
+      "rot_err_mean_deg.action.arm": 0.0,
+      "lag_frames.action.arm": 2,
+      "hand_err_norm.action.gripper": 0.0,
+      "pos_err_mean_mm": 1.610781858797523,
+      "lag_ms": 176.04892999054263,
+      "lag_err_share": 0.9452157910538475
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "duplication",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.1,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "video_dup_rate.observation.images.front": 0.0,
+      "video_dup_rate_moving.observation.images.front": 0.0,
+      "video_dup_run_moving.observation.images.front": 0,
+      "video_dup_rate.observation.images.wrist": 0.0,
+      "video_dup_rate_moving.observation.images.wrist": 0.0,
+      "video_dup_run_moving.observation.images.wrist": 0,
+      "video_dup_rate_max": 0.0,
+      "video_dup_run_max_s": 0.0,
+      "all_cams_dup_run_s": 0.0,
+      "action_dup_rate": 0.0,
+      "action_dup_run_s": 0.0,
+      "state_dup_rate": 0.0,
+      "state_dup_run_s": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "image_quality",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "brightness.observation.images.front": 112.51794642857143,
+      "clip_high.observation.images.front": 0.0,
+      "clip_low.observation.images.front": 0.0,
+      "sharpness_p10.observation.images.front": 165.0861219618056,
+      "size.observation.images.front": [
+       160,
+       120
+      ],
+      "brightness.observation.images.wrist": 148.5170089285714,
+      "clip_high.observation.images.wrist": 0.0,
+      "clip_low.observation.images.wrist": 0.0,
+      "sharpness_p10.observation.images.wrist": 241.47482345920142,
+      "size.observation.images.wrist": [
+       160,
+       120
+      ],
+      "neg_sharpness_min": -165.0861219618056
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "sensor_limits",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {},
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "grasp_cycles",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "n_cycles": 1,
+      "expected_cycles": 1,
+      "gripper_feature": "observation.state.gripper",
+      "swing": 1.0,
+      "closed_frac": 0.4,
+      "hold_s": [
+       2.9
+      ],
+      "grasp_frames": [
+       21
+      ],
+      "release_frames": [
+       50
+      ],
+      "regrasps": 0,
+      "idle_closures": 0,
+      "carry": [
+       0.379
+      ],
+      "active_frac": 0.9857142857142858,
+      "close_dur_s": [
+       0.1
+      ],
+      "close_dur_median_s": 0.1,
+      "wrist_move_during_close_mm": [
+       10.5
+      ],
+      "wrist_move_during_close_median_mm": 10.5,
+      "settle_before_close_s": [
+       0.0
+      ],
+      "settle_before_close_median_s": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "tremor",
+     "kind": "hard",
+     "weight": 0.5,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "hf5_share_cmd.action.arm": 0.0,
+      "hf5_share_state.action.arm": 0.0,
+      "tremor_peak_hz_cmd.action.arm": 3.0434782608695654,
+      "hf5_share_cmd": 0.0,
+      "hf5_share_state": 0.0,
+      "tremor_peak_hz_cmd": 3.0434782608695654,
+      "tremor_source": "none",
+      "hold_segments": 0,
+      "hold_total_s": 0.0,
+      "hold_jitter_cmd_mm": null,
+      "hold_jitter_state_mm": null,
+      "hold_rms_speed_cmd_mms": null,
+      "hold_rms_speed_state_mms": null,
+      "rot_speed_p95_cmd_deg_s": 0.0,
+      "rot_speed_p95_state_deg_s": 0.0,
+      "finger_cmd_speed_p95": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "normalization",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "_range.observation.state.arm": [
+       [
+        0.10072003304958344,
+        -0.10041245818138123,
+        0.8485673666000366,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        0.4998683035373688,
+        0.10223831981420517,
+        0.9514802694320679,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ]
+      ],
+      "_range.action.arm": [
+       [
+        0.10020138323307037,
+        -0.10000000149011612,
+        0.8500503301620483,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        0.49979862570762634,
+        0.10000000149011612,
+        0.9499496817588806,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ]
+      ],
+      "dead_dims.action.arm": [
+       "r0",
+       "r1",
+       "r2",
+       "r3",
+       "r4",
+       "r5"
+      ],
+      "_range.observation.state.gripper": [
+       [
+        0.0
+       ],
+       [
+        1.0
+       ]
+      ],
+      "_range.action.gripper": [
+       [
+        0.0
+       ],
+       [
+        1.0
+       ]
+      ],
+      "zero_frames": 0,
+      "_episode": 1,
+      "action_equals_state.action.arm": false,
+      "action_equals_state.action.gripper": true
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "diversity",
+     "kind": "hard",
+     "weight": 0.0,
+     "score": null,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "wrist_feature": "observation.state.arm",
+      "n_grasps": 1,
+      "grasp_pos_m": [
+       [
+        0.4979,
+        -0.0143,
+        0.8879
+       ]
+      ],
+      "release_pos_m": [
+       [
+        0.1161,
+        -0.039,
+        0.9368
+       ]
+      ],
+      "start_pos_m": [
+       0.3006,
+       0.1022,
+       0.8999
+      ],
+      "end_pos_m": [
+       0.2459,
+       0.0966,
+       0.872
+      ],
+      "grasp_offset_from_median_cm": 0.4695742752749555
+     },
+     "evidence": [],
+     "error": null
+    }
+   ],
+   "soft": [
+    {
+     "id": "vlm.summary",
+     "kind": "soft",
+     "weight": 0.0,
+     "score": null,
+     "gate": false,
+     "gate_below": 0.0,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {},
+     "evidence": [],
+     "error": "ModuleNotFoundError: No module named 'google'"
+    }
+   ],
+   "score": {
+    "episode": 1,
+    "hard_score": 1.0,
+    "soft_score": null,
+    "total": 1.0,
+    "verdict": "accept",
+    "gates_failed": [],
+    "flags": [],
+    "reasons": []
+   },
+   "keyframes": {
+    "grasp": [
+     21
+    ],
+    "release": [
+     50
+    ]
+   },
+   "error": null
+  },
+  {
+   "episode": 2,
+   "task": "put the red block in the box",
+   "length": 65,
+   "duration_s": 6.5,
+   "hard": [
+    {
+     "id": "integrity",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.5,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "length": 65,
+      "meta_length": 65,
+      "timestamp_gaps": 0,
+      "dt_max_s": 0.10000038146972656,
+      "timestamps_synthetic": true,
+      "nan_features": [],
+      "video_frames.observation.images.front": 65,
+      "video_frames.observation.images.wrist": 65,
+      "video_mismatch_cameras": []
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "duration",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "duration_s": 6.5,
+      "neg_duration_s": -6.5,
+      "frames": 65,
+      "fps": 10.0,
+      "min_s": 5.0,
+      "max_s": 300.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "smoothness",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 0.6469779380419547,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [
+      "ACTION_SPIKES"
+     ],
+     "metrics": {
+      "ldj_median.action.arm": -10.64898748153681,
+      "hf_ratio.action.arm": 0.1706594145230798,
+      "accel_max.action.arm": 22.905400511700805,
+      "spikes.action.arm": 1,
+      "ldj_median": -10.64898748153681,
+      "neg_ldj_median": 10.64898748153681,
+      "hf_ratio": 0.1706594145230798,
+      "spikes": 1,
+      "spike_rate_per_min": 9.23076923076923,
+      "hesitation_s": 1.5,
+      "speed_p95": 0.21394479343699724
+     },
+     "evidence": [
+      "1 single-frame action jumps (9.2/min)"
+     ],
+     "error": null
+    },
+    {
+     "id": "tracking_error",
+     "kind": "hard",
+     "weight": 1.5,
+     "score": 0.8364873418963544,
+     "gate": true,
+     "gate_below": 0.1,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "pos_err_raw_mean_mm.action.arm": 33.74363493457732,
+      "pos_err_mean_mm.action.arm": 18.262953570599965,
+      "pos_err_p95_mm.action.arm": 43.58423174600078,
+      "lag_err_share.action.arm": 0.4587733773789202,
+      "lag_xcorr_frames.action.arm": 0.0,
+      "lag_ms.action.arm": 0.0,
+      "lag_corr.action.arm": 0.997690793447913,
+      "stall_s.action.arm": 1.6,
+      "rot_err_mean_deg.action.arm": 0.0,
+      "lag_frames.action.arm": 2,
+      "hand_err_norm.action.gripper": 0.0,
+      "pos_err_mean_mm": 18.262953570599965,
+      "lag_ms": 0.0,
+      "lag_err_share": 0.4587733773789202
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "duplication",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 0.18050892857142853,
+     "gate": true,
+     "gate_below": 0.1,
+     "gate_failed": true,
+     "flags": [
+      "LAGGY"
+     ],
+     "metrics": {
+      "video_dup_rate.observation.images.front": 0.1875,
+      "video_dup_rate_moving.observation.images.front": 0.0,
+      "video_dup_run_moving.observation.images.front": 0,
+      "video_dup_rate.observation.images.wrist": 0.1875,
+      "video_dup_rate_moving.observation.images.wrist": 0.0,
+      "video_dup_run_moving.observation.images.wrist": 0,
+      "video_dup_rate_max": 0.0,
+      "video_dup_run_max_s": 0.0,
+      "all_cams_dup_run_s": 1.1,
+      "action_dup_rate": 0.21875,
+      "action_dup_run_s": 1.2000000000000002,
+      "state_dup_rate": 0.21875,
+      "state_dup_run_s": 1.2000000000000002
+     },
+     "evidence": [
+      "command vector frozen in 21.9% of frames, longest 1.20s"
+     ],
+     "error": null
+    },
+    {
+     "id": "image_quality",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "brightness.observation.images.front": 110.92570512820514,
+      "clip_high.observation.images.front": 0.0,
+      "clip_low.observation.images.front": 0.0,
+      "sharpness_p10.observation.images.front": 165.0408319704861,
+      "size.observation.images.front": [
+       160,
+       120
+      ],
+      "brightness.observation.images.wrist": 146.24360576923078,
+      "clip_high.observation.images.wrist": 0.0,
+      "clip_low.observation.images.wrist": 0.0,
+      "sharpness_p10.observation.images.wrist": 247.85135885416665,
+      "size.observation.images.wrist": [
+       160,
+       120
+      ],
+      "neg_sharpness_min": -165.0408319704861
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "sensor_limits",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {},
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "grasp_cycles",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "n_cycles": 1,
+      "expected_cycles": 1,
+      "gripper_feature": "observation.state.gripper",
+      "swing": 1.0,
+      "closed_frac": 0.4,
+      "hold_s": [
+       2.7
+      ],
+      "grasp_frames": [
+       19
+      ],
+      "release_frames": [
+       46
+      ],
+      "regrasps": 0,
+      "idle_closures": 0,
+      "carry": [
+       0.177
+      ],
+      "active_frac": 0.7538461538461538,
+      "close_dur_s": [
+       0.1
+      ],
+      "close_dur_median_s": 0.1,
+      "wrist_move_during_close_mm": [
+       13.1
+      ],
+      "wrist_move_during_close_median_mm": 13.1,
+      "settle_before_close_s": [
+       0.0
+      ],
+      "settle_before_close_median_s": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "tremor",
+     "kind": "hard",
+     "weight": 0.5,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "hf5_share_cmd.action.arm": 0.0,
+      "hf5_share_state.action.arm": 0.0,
+      "tremor_peak_hz_cmd.action.arm": 3.125,
+      "hf5_share_cmd": 0.0,
+      "hf5_share_state": 0.0,
+      "tremor_peak_hz_cmd": 3.125,
+      "tremor_source": "none",
+      "hold_segments": 1,
+      "hold_total_s": 1.5,
+      "hold_jitter_cmd_mm": 0.0,
+      "hold_jitter_state_mm": 6.234060604045608e-14,
+      "hold_rms_speed_cmd_mms": 0.0,
+      "hold_rms_speed_state_mms": 0.0,
+      "rot_speed_p95_cmd_deg_s": 0.0,
+      "rot_speed_p95_state_deg_s": 0.0,
+      "finger_cmd_speed_p95": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "normalization",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "_range.observation.state.arm": [
+       [
+        0.09972334653139114,
+        -0.0963158905506134,
+        0.8498713970184326,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        0.5009530782699585,
+        0.10216642171144485,
+        0.9507360458374023,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ]
+      ],
+      "_range.action.arm": [
+       [
+        0.10005839914083481,
+        -0.09988322108983994,
+        0.8500146269798279,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        0.4999416172504425,
+        0.10000000149011612,
+        0.9499853849411011,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ]
+      ],
+      "dead_dims.action.arm": [
+       "r0",
+       "r1",
+       "r2",
+       "r3",
+       "r4",
+       "r5"
+      ],
+      "_range.observation.state.gripper": [
+       [
+        0.0
+       ],
+       [
+        1.0
+       ]
+      ],
+      "_range.action.gripper": [
+       [
+        0.0
+       ],
+       [
+        1.0
+       ]
+      ],
+      "zero_frames": 0,
+      "_episode": 2,
+      "action_equals_state.action.arm": false,
+      "action_equals_state.action.gripper": true
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "diversity",
+     "kind": "hard",
+     "weight": 0.0,
+     "score": null,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "wrist_feature": "observation.state.arm",
+      "n_grasps": 1,
+      "grasp_pos_m": [
+       [
+        0.4999,
+        -0.0086,
+        0.8944
+       ]
+      ],
+      "release_pos_m": [
+       [
+        0.348,
+        -0.0963,
+        0.8748
+       ]
+      ],
+      "start_pos_m": [
+       0.302,
+       0.0999,
+       0.9002
+      ],
+      "end_pos_m": [
+       0.2404,
+       0.0952,
+       0.8726
+      ],
+      "grasp_offset_from_median_cm": 0.5060632371551963
+     },
+     "evidence": [],
+     "error": null
+    }
+   ],
+   "soft": [
+    {
+     "id": "vlm.summary",
+     "kind": "soft",
+     "weight": 0.0,
+     "score": null,
+     "gate": false,
+     "gate_below": 0.0,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {},
+     "evidence": [],
+     "error": "ModuleNotFoundError: No module named 'google'"
+    }
+   ],
+   "score": {
+    "episode": 2,
+    "hard_score": 0.8582217879457914,
+    "soft_score": null,
+    "total": 0.8582217879457914,
+    "verdict": "reject",
+    "gates_failed": [
+     "duplication"
+    ],
+    "flags": [
+     "ACTION_SPIKES",
+     "LAGGY"
+    ],
+    "reasons": [
+     "command vector frozen in 21.9% of frames, longest 1.20s"
+    ]
+   },
+   "keyframes": {
+    "grasp": [
+     19
+    ],
+    "release": [
+     46
+    ]
+   },
+   "error": null
+  },
+  {
+   "episode": 3,
+   "task": "put the red block in the box",
+   "length": 60,
+   "duration_s": 6.0,
+   "hard": [
+    {
+     "id": "integrity",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.5,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "length": 60,
+      "meta_length": 60,
+      "timestamp_gaps": 0,
+      "dt_max_s": 0.10000038146972656,
+      "timestamps_synthetic": true,
+      "nan_features": [],
+      "video_frames.observation.images.front": 60,
+      "video_frames.observation.images.wrist": 60,
+      "video_mismatch_cameras": []
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "duration",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "duration_s": 6.0,
+      "neg_duration_s": -6.0,
+      "frames": 60,
+      "fps": 10.0,
+      "min_s": 5.0,
+      "max_s": 300.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "smoothness",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "ldj_median.action.arm": -7.428434973752438,
+      "hf_ratio.action.arm": 0.00002507292851442312,
+      "accel_max.action.arm": 0.28129062324443044,
+      "spikes.action.arm": 0,
+      "ldj_median": -7.428434973752438,
+      "neg_ldj_median": 7.428434973752438,
+      "hf_ratio": 0.00002507292851442312,
+      "spikes": 0,
+      "spike_rate_per_min": 0.0,
+      "hesitation_s": 0.0,
+      "speed_p95": 0.23170307242424906
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "tracking_error",
+     "kind": "hard",
+     "weight": 1.5,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.1,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "pos_err_raw_mean_mm.action.arm": 34.01167940091414,
+      "pos_err_mean_mm.action.arm": 1.61788506142725,
+      "pos_err_p95_mm.action.arm": 2.5090252472578247,
+      "lag_err_share.action.arm": 0.9524314855977454,
+      "lag_xcorr_frames.action.arm": 1.7665919888802069,
+      "lag_ms.action.arm": 176.65919888802068,
+      "lag_corr.action.arm": 0.8647797241032427,
+      "stall_s.action.arm": 0.0,
+      "rot_err_mean_deg.action.arm": 0.0,
+      "lag_frames.action.arm": 2,
+      "hand_err_norm.action.gripper": 0.0,
+      "pos_err_mean_mm": 1.61788506142725,
+      "lag_ms": 176.65919888802068,
+      "lag_err_share": 0.9524314855977454
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "duplication",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": true,
+     "gate_below": 0.1,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "video_dup_rate.observation.images.front": 0.0,
+      "video_dup_rate_moving.observation.images.front": 0.0,
+      "video_dup_run_moving.observation.images.front": 0,
+      "video_dup_rate.observation.images.wrist": 0.0,
+      "video_dup_rate_moving.observation.images.wrist": 0.0,
+      "video_dup_run_moving.observation.images.wrist": 0,
+      "video_dup_rate_max": 0.0,
+      "video_dup_run_max_s": 0.0,
+      "all_cams_dup_run_s": 0.0,
+      "action_dup_rate": 0.0,
+      "action_dup_run_s": 0.0,
+      "state_dup_rate": 0.0,
+      "state_dup_run_s": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "image_quality",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "brightness.observation.images.front": 117.8607986111111,
+      "clip_high.observation.images.front": 0.0,
+      "clip_low.observation.images.front": 0.0,
+      "sharpness_p10.observation.images.front": 162.25898315972222,
+      "size.observation.images.front": [
+       160,
+       120
+      ],
+      "brightness.observation.images.wrist": 156.27460069444444,
+      "clip_high.observation.images.wrist": 0.0,
+      "clip_low.observation.images.wrist": 0.0,
+      "sharpness_p10.observation.images.wrist": 240.9975669357639,
+      "size.observation.images.wrist": [
+       160,
+       120
+      ],
+      "neg_sharpness_min": -162.25898315972222
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "sensor_limits",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {},
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "grasp_cycles",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 0.0,
+     "gate": true,
+     "gate_below": 0.2,
+     "gate_failed": true,
+     "flags": [
+      "NOGRASP"
+     ],
+     "metrics": {
+      "n_cycles": 0,
+      "expected_cycles": 1,
+      "gripper_feature": "observation.state.gripper",
+      "swing": 0.0,
+      "closed_frac": 0.0,
+      "hold_s": [],
+      "grasp_frames": [],
+      "release_frames": [],
+      "regrasps": 0,
+      "idle_closures": 0,
+      "carry": [],
+      "active_frac": 0.9833333333333333
+     },
+     "evidence": [
+      "gripper never closed on anything"
+     ],
+     "error": null
+    },
+    {
+     "id": "tremor",
+     "kind": "hard",
+     "weight": 0.5,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "hf5_share_cmd.action.arm": 0.0,
+      "hf5_share_state.action.arm": 0.0,
+      "tremor_peak_hz_cmd.action.arm": 3.0508474576271185,
+      "hf5_share_cmd": 0.0,
+      "hf5_share_state": 0.0,
+      "tremor_peak_hz_cmd": 3.0508474576271185,
+      "tremor_source": "none",
+      "hold_segments": 0,
+      "hold_total_s": 0.0,
+      "hold_jitter_cmd_mm": null,
+      "hold_jitter_state_mm": null,
+      "hold_rms_speed_cmd_mms": null,
+      "hold_rms_speed_state_mms": null,
+      "rot_speed_p95_cmd_deg_s": 0.0,
+      "rot_speed_p95_state_deg_s": 0.0,
+      "finger_cmd_speed_p95": 0.0
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "normalization",
+     "kind": "hard",
+     "weight": 1.0,
+     "score": 1.0,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "_range.observation.state.arm": [
+       [
+        0.10048425197601318,
+        -0.10111605376005173,
+        0.847675085067749,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        0.5001062750816345,
+        0.1014670580625534,
+        0.9517971277236938,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ]
+      ],
+      "_range.action.arm": [
+       [
+        0.10000000149011612,
+        -0.10000000149011612,
+        0.8502739071846008,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ],
+       [
+        0.5,
+        0.10000000149011612,
+        0.9497261047363281,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+       ]
+      ],
+      "dead_dims.action.arm": [
+       "r0",
+       "r1",
+       "r2",
+       "r3",
+       "r4",
+       "r5"
+      ],
+      "_range.observation.state.gripper": [
+       [
+        0.0
+       ],
+       [
+        0.0
+       ]
+      ],
+      "_range.action.gripper": [
+       [
+        0.0
+       ],
+       [
+        0.0
+       ]
+      ],
+      "dead_dims.action.gripper": [
+       "gripper"
+      ],
+      "zero_frames": 0,
+      "_episode": 3,
+      "action_equals_state.action.arm": false
+     },
+     "evidence": [],
+     "error": null
+    },
+    {
+     "id": "diversity",
+     "kind": "hard",
+     "weight": 0.0,
+     "score": null,
+     "gate": false,
+     "gate_below": 0.2,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {
+      "wrist_feature": "observation.state.arm",
+      "n_grasps": 0,
+      "grasp_pos_m": [],
+      "release_pos_m": [],
+      "start_pos_m": [
+       0.2987,
+       0.0993,
+       0.9009
+      ],
+      "end_pos_m": [
+       0.2381,
+       0.0934,
+       0.8715
+      ]
+     },
+     "evidence": [],
+     "error": null
+    }
+   ],
+   "soft": [
+    {
+     "id": "vlm.summary",
+     "kind": "soft",
+     "weight": 0.0,
+     "score": null,
+     "gate": false,
+     "gate_below": 0.0,
+     "gate_failed": false,
+     "flags": [],
+     "metrics": {},
+     "evidence": [],
+     "error": "ModuleNotFoundError: No module named 'google'"
+    }
+   ],
+   "score": {
+    "episode": 3,
+    "hard_score": 0.9,
+    "soft_score": null,
+    "total": 0.9,
+    "verdict": "reject",
+    "gates_failed": [
+     "grasp_cycles"
+    ],
+    "flags": [
+     "NOGRASP"
+    ],
+    "reasons": [
+     "gripper never closed on anything"
+    ]
+   },
+   "keyframes": {
+    "grasp": [],
+    "release": []
+   },
+   "error": null
+  }
+ ]
+}

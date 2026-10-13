@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789033061887,
+      "tag": "0000_gym_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789370025134,
+      "tag": "0001_teleop_windows_and_downtime",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790013493614,
+      "tag": "0002_skills_blocks_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790063060181,
+      "tag": "0003_natural_bill_hollister",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790065973813,
+      "tag": "0004_human_review_and_evaluation_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790088628448,
+      "tag": "0005_black_iron_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790101385112,
+      "tag": "0006_condemned_quasar",
+      "breakpoints": true
+    }
+  ]
+}

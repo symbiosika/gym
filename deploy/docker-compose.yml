@@ -1,0 +1,160 @@
+# The published images (ghcr.io by default, see IMAGE_PREFIX), behind Traefik, next to a
+# Postgres. This is the deploy side of .github/workflows/build.yml — nothing is
+# built here. For a build from source use ../docker-compose.prod.yml instead.
+#
+#   docker login ghcr.io    (only for a private registry or package)
+#   docker compose -f deploy/docker-compose.yml --env-file .env up -d
+#
+# Required in .env: ACME_EMAIL, POSTGRES_PASSWORD, SECRETS_AES_KEY,
+# SECRETS_AES_IV, JWT_PRIVATE_KEY, JWT_PUBLIC_KEY, SMTP_*.
+# Generate the secrets with `cd backend && bun run init`.
+# Optional: GEMINI_API_KEY, CRITICS_API_KEY.
+# IMAGE_PREFIX picks the registry (default ghcr.io/symbiosika),
+# IMAGE_TAG the build: latest (main), develop (develop) or a commit sha.
+#
+# Only Traefik publishes ports. APP_DOMAIN must resolve to this host
+# before the first start, or Let's Encrypt cannot issue the certificate.
+#
+# Mind the precedence: a variable exported in the deploying shell overrides the
+# --env-file, silently. `docker compose ... config` prints what will actually
+# be used — check it when a value is not what the file says.
+name: gym
+
+services:
+  # The only service reachable from the internet: terminates TLS on 443 and
+  # redirects 80 to it. Routes are read from the container labels below;
+  # nothing is routed unless it opts in (exposedByDefault=false).
+  traefik:
+    image: traefik:v3.3
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=web
+      - --entryPoints.web.address=:80
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.websecure.address=:443
+      - --certificatesResolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesResolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesResolvers.le.acme.httpChallenge.entryPoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Read-only, but still the Docker API: anything that can write here owns
+      # the host. Traefik is the only container that gets it.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - acme:/letsencrypt
+    networks:
+      - web
+
+  app:
+    image: ${IMAGE_PREFIX:-ghcr.io/symbiosika}/gym:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      BASE_URL: ${BASE_URL:-https://gym.example.com}
+      APP_NAME: ${APP_NAME:-GYM}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-${BASE_URL:-https://gym.example.com}}
+      GYM_TIMEZONE: ${GYM_TIMEZONE:-Europe/Berlin}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-gym}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-gym}
+      POSTGRES_CONNECTION_POOL_SIZE: 10
+      SECRETS_AES_KEY: ${SECRETS_AES_KEY}
+      SECRETS_AES_IV: ${SECRETS_AES_IV}
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      SMTP_HOST: ${SMTP_HOST:-console.localhost}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_DEFAULT_SENDER: ${SMTP_DEFAULT_SENDER:-noreply@example.com}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Reached over the internal network only — the critics are not routed.
+      CRITICS_URL: http://critics:8080
+      CRITICS_API_KEY: ${CRITICS_API_KEY:-}
+      # where the chunks of a dataset upload wait until the zip is complete;
+      # a volume, so a redeploy mid-upload does not throw the chunks away
+      TEMPORARY_STORAGE_PATH: /usr/src/app/tmp
+      GYM_UPLOAD_CHUNK_SIZE: ${GYM_UPLOAD_CHUNK_SIZE:-8388608}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web
+      - traefik.http.routers.gym.rule=Host(`${APP_DOMAIN:-gym.example.com}`)
+      - traefik.http.routers.gym.entrypoints=websecure
+      - traefik.http.routers.gym.tls.certresolver=le
+      - traefik.http.services.gym.loadbalancer.server.port=3000
+    volumes:
+      - app_upload:/usr/src/app/static/upload
+      - app_logs:/usr/src/app/logs
+      - app_tmp:/usr/src/app/tmp
+    networks:
+      # web to be reachable by Traefik, internal to reach critics and postgres
+      - web
+      - internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      critics:
+        condition: service_started
+
+  # The data critics: internal only. No Traefik route and no port on the public
+  # interface — the app talks to it over the internal network. The spec web UI
+  # is bound to the host's loopback, so it is reachable through an SSH tunnel
+  # (ssh -L 8080:127.0.0.1:8080 <host>, then http://localhost:8080/ui) and from
+  # nowhere else. Drop the ports block entirely to close even that.
+  critics:
+    image: ${IMAGE_PREFIX:-ghcr.io/symbiosika}/gym-critics:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      CRITICS_API_KEY: ${CRITICS_API_KEY:-}
+    ports:
+      - "127.0.0.1:${CRITICS_PORT:-8080}:8080"
+    volumes:
+      - critics_data:/data
+      - critics_jobs:/jobs
+      - critics_specs:/specs
+    networks:
+      - internal
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gym}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-gym}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gym} -d ${POSTGRES_DB:-gym}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+networks:
+  # Traefik and the containers it routes to.
+  web:
+  # Everything that must not be reachable from outside the stack. A plain
+  # bridge network already does that — nothing on it is reachable without a
+  # published port. Deliberately NOT `internal: true`: that also cuts outbound
+  # traffic, and the critics need to reach the VLM API (GEMINI_API_KEY).
+  internal:
+
+volumes:
+  acme:
+  pg_data:
+  app_upload:
+  app_logs:
+  app_tmp:
+  critics_data:
+  critics_jobs:
+  critics_specs:

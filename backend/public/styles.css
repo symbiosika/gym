@@ -1,0 +1,126 @@
+/* Auth pages (login, magic link, logout, verify, reset) in the Symbiosika Gym
+   design. Tokens and rules: /design.md. Class names are the ones the pages
+   from the framework use, so the markup stays untouched. */
+:root{
+  color-scheme:light dark;
+  --paper:#EEF1F4; --panel:#FFFFFF; --panel2:#F7F9FA; --sunk:#E7ECF0;
+  --line:#D8DFE5; --line2:#BFC9D2; --ink:#111820; --ink2:#4C5966; --ink3:#7C8A97;
+  --a:#1D5EA8; --a2:#164B87; --a-bg:#E6EFF9; --a-line:#A9C8E8;
+  --ok:#1A7A4B; --ok-bg:#E3F2EA; --warn:#A2600B; --warn-bg:#FBF0DC;
+  --bad:#A6251F; --bad-bg:#FAE6E4;
+  --disp:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,monospace;
+  --r:7px; --sh:0 1px 2px rgba(16,26,38,.06),0 4px 14px rgba(16,26,38,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:#0C1014; --panel:#151B21; --panel2:#1A2229; --sunk:#0F151A;
+    --line:#252F38; --line2:#36434E; --ink:#E7EDF3; --ink2:#A0AEBA; --ink3:#6C7B88;
+    --a:#69A5E8; --a2:#8FBEF0; --a-bg:#132339; --a-line:#2B4667;
+    --ok:#46B37B; --ok-bg:#12271D; --warn:#D79A3C; --warn-bg:#2A2013;
+    --bad:#E0776E; --bad-bg:#2B1614;
+    --sh:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.28);
+  }
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:14.5px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;min-height:100vh;position:relative}
+img,svg{display:block}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+
+/* ── Layout utilities used by the pages ─────────────────────────────────── */
+.min-h-screen{min-height:100vh}
+.flex{display:flex} .flex-1{flex:1 1 0%} .block{display:block} .inline-block{display:inline-block}
+.items-center{align-items:center} .justify-center{justify-content:center} .justify-between{justify-content:space-between}
+.cursor-pointer{cursor:pointer}
+.w-full{width:100%} .max-w-md{max-width:420px}
+.p-8{padding:28px 28px 26px}
+.px-4{padding-left:1rem;padding-right:1rem} .px-6{padding-left:1.5rem;padding-right:1.5rem}
+.py-3{padding-top:.75rem;padding-bottom:.75rem} .py-8{padding-top:2rem;padding-bottom:2rem} .py-12{padding-top:3rem;padding-bottom:3rem}
+.pt-1{padding-top:.25rem}
+.mb-1{margin-bottom:.25rem} .mb-2{margin-bottom:.5rem} .mb-4{margin-bottom:1rem} .mb-6{margin-bottom:1.5rem} .mb-8{margin-bottom:1.75rem}
+.mt-6{margin-top:1.5rem} .ml-1{margin-left:.25rem} .mx-auto{margin-left:auto;margin-right:auto}
+.gap-2{gap:.5rem} .gap-4{gap:1rem}
+.space-y-3>*+*{margin-top:.75rem} .space-y-4>*+*{margin-top:1rem} .space-y-5>*+*{margin-top:1.25rem} .space-y-6>*+*{margin-top:1.4rem}
+.text-center{text-align:center}
+.text-xs{font-size:11.5px;line-height:1.5} .text-sm{font-size:13px;line-height:1.55} .text-2xl{font-size:20px;line-height:1.3}
+.font-bold{font-weight:700} .font-medium{font-weight:500} .underline{text-decoration:underline}
+.text-primary{color:var(--ink)} .text-muted{color:var(--ink2)}
+.hidden{display:none!important}
+
+/* ── Type ───────────────────────────────────────────────────────────────── */
+h1{font-family:var(--disp);letter-spacing:-.015em;margin:0}
+h1.text-2xl{font-size:20px;font-weight:700}
+.link{background:none;border:0;padding:0;color:var(--a);font-size:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.link:hover{color:var(--a2)}
+.link-muted{color:var(--ink3);text-decoration:underline;text-underline-offset:2px}
+.link-muted:hover{color:var(--ink)}
+
+/* ── Brand ─────────────────────────────────────────────────────────────── */
+.brand{display:flex;align-items:center;justify-content:center;gap:10px}
+.brand-logo{width:28px;height:28px;border-radius:6px}
+.brand-name{font-family:var(--disp);font-weight:700;font-size:17.5px;letter-spacing:-.015em;color:var(--ink)}
+.brand-name:empty{display:none}
+/* the mono subline under the brand, same as the app header */
+.brand::after{content:"Robotic Gym · Datenaufnahme";display:block;flex-basis:100%;font-family:var(--mono);
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-top:4px}
+.brand{flex-wrap:wrap}
+
+/* ── Card ──────────────────────────────────────────────────────────────── */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+
+/* ── Form ──────────────────────────────────────────────────────────────── */
+label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);font-weight:500}
+label.text-sm{font-size:10px}
+.input{display:block;width:100%;font-family:var(--body);font-size:14px;color:var(--ink);background:var(--panel);
+  border:1px solid var(--line2);border-radius:5px;padding:9px 11px;outline:none;transition:border-color .12s}
+.input::placeholder{color:var(--ink3);opacity:1}
+.input:focus{outline:2px solid var(--a);outline-offset:-1px;border-color:var(--a)}
+.input:disabled,.input[readonly]{background:var(--panel2);color:var(--ink2);cursor:not-allowed}
+.input:-webkit-autofill,.input:-webkit-autofill:hover,.input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--ink);-webkit-box-shadow:0 0 0 1000px var(--panel) inset;transition:background-color 9999s ease-out}
+.input[type="text"][autocomplete="one-time-code"]{font-family:var(--mono);letter-spacing:.12em}
+.error{color:var(--bad)} .error-hint,.error-message{font-size:12.5px;color:var(--bad)}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:var(--body);
+  font-size:13.5px;font-weight:500;color:var(--ink);background:var(--panel);border:1px solid var(--line2);
+  border-radius:5px;padding:10px 14px;cursor:pointer;transition:background .12s,border-color .12s}
+.btn:hover:not(:disabled){border-color:var(--ink3)}
+.btn:focus-visible{outline:2px solid var(--a);outline-offset:1px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--a);border-color:var(--a);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--a2);border-color:var(--a2)}
+.btn-secondary{background:var(--panel2)}
+.btn-secondary:hover:not(:disabled){background:var(--sunk)}
+.btn-inline{display:inline-flex;width:auto;margin-top:1rem}
+.btn-oauth{background:var(--panel)}
+.btn-oauth:hover:not(:disabled){background:var(--panel2)}
+.btn-icon{width:18px;height:18px;flex:none}
+
+/* ── Divider ───────────────────────────────────────────────────────────── */
+.divider{display:flex;align-items:center;gap:12px;margin:18px 0;font-family:var(--mono);font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ── Feedback ──────────────────────────────────────────────────────────── */
+.spinner{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--a);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.success-icon,.error-icon{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;margin:0 auto 14px;
+  background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok)}
+.success-icon svg,.error-icon svg{width:22px;height:22px}
+.error-icon{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+#toast-container{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;flex-direction:column;align-items:stretch}
+.toast{background:var(--a-bg);border-top:1px solid var(--a-line);border-bottom:1px solid var(--a-line);color:var(--ink);
+  padding:11px 20px;font-size:13.5px;text-align:center}
+.toast.success{background:var(--ok-bg);border-color:var(--ok)}
+.toast.error{background:var(--bad-bg);border-color:var(--bad)}
+
+/* ── Footer line under the card ─────────────────────────────────────────── */
+.max-w-md::after{content:"Symbiosika GmbH · Robotic Gym";display:block;text-align:center;margin-top:18px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink3)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

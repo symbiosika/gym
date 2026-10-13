@@ -1,0 +1,279 @@
+name: Build and push Docker images
+
+# Deliberately simple: build on the two deployment branches (and on demand),
+# push the images, then poke Coolify. No tests here — ci.yml runs those.
+#
+# Two images, because this repository is two deployables:
+#   <IMAGE_PREFIX>/gym          the app (backend + SPA), root Dockerfile
+#   <IMAGE_PREFIX>/gym-critics  the Python data critics service
+#
+# Where they go is set by repository variables, so a fork builds without edits:
+#   IMAGE_REGISTRY  the registry to log in to      (default ghcr.io)
+#   IMAGE_PREFIX    registry plus namespace        (default ghcr.io/<owner>)
+# and, for any registry but ghcr.io, the secrets REGISTRY_USER and
+# REGISTRY_TOKEN. Without them the workflow's GITHUB_TOKEN pushes to ghcr.io.
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
+  IMAGE_PREFIX: ${{ vars.IMAGE_PREFIX || format('ghcr.io/{0}', github.repository_owner) }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Shared metadata: which tag the images get.
+  #   main    → latest
+  #   develop → develop
+  # Each image is additionally tagged with the commit sha, so a deploy can
+  # always be pinned to an exact build.
+  # ---------------------------------------------------------------------------
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - name: Compute image tag
+        id: tag
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "image_tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND – the SPA bundle that ships inside the app image.
+  # `vite build` emits it under dist/static/app (base: /static/app/).
+  # ---------------------------------------------------------------------------
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: bun install
+
+      - name: Build frontend
+        working-directory: frontend
+        run: bun run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-${{ github.sha }}-frontend
+          path: frontend/dist
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # BACKEND – bundle the server and gather the migrations/config the root
+  # Dockerfile's release-ci stage expects (the container runs both migrate
+  # steps on start). The framework submodule must be checked out: its
+  # migrations ship too.
+  # ---------------------------------------------------------------------------
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: backend
+        run: bun install
+
+      - name: Build backend
+        working-directory: backend
+        run: bun run build
+
+      - name: Prepare artifact
+        working-directory: backend
+        run: |
+          mkdir -p backend-artifact/dist
+          mkdir -p backend-artifact/static
+          mkdir -p backend-artifact/public
+          mkdir -p backend-artifact/drizzle-sql
+          mkdir -p backend-artifact/src/db
+          mkdir -p backend-artifact/framework/drizzle-sql
+          mkdir -p backend-artifact/framework/src/lib/db
+
+          cp -r dist/* backend-artifact/dist/
+          cp -r static/* backend-artifact/static/ 2>/dev/null || true
+          cp -r public/* backend-artifact/public/ 2>/dev/null || true
+
+          cp drizzle.config.ts backend-artifact/
+          cp -r drizzle-sql/* backend-artifact/drizzle-sql/
+          cp framework/drizzle.config.ts backend-artifact/framework/
+          cp -r framework/drizzle-sql/* backend-artifact/framework/drizzle-sql/
+
+          # Both drizzle configs read their schema sources at migrate time
+          # (drizzle.config.ts even imports PREFIX from src/db), so the schema
+          # travels with the artifact although the server itself is bundled.
+          cp -r src/db/* backend-artifact/src/db/
+          cp -r framework/src/lib/db/* backend-artifact/framework/src/lib/db/
+
+          cp package.json backend-artifact/
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-${{ github.sha }}-backend
+          path: backend/backend-artifact
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # APP IMAGE – backend bundle + the SPA, via the root Dockerfile.
+  # ---------------------------------------------------------------------------
+  build-docker-app:
+    needs: [meta, build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-${{ github.sha }}-backend
+          path: dist
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-${{ github.sha }}-frontend
+          path: frontend_artifact
+
+      - name: Merge frontend into dist
+        run: |
+          # The SPA is served from ./static/app; the frontend build already
+          # emits that layout, so the tree merges in as-is.
+          mkdir -p dist/static
+          cp -r frontend_artifact/static/* dist/static/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USER || github.actor }}
+          password: ${{ secrets.REGISTRY_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: release-ci
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/${{ github.event.repository.name }}:${{ needs.meta.outputs.image_tag }}
+            ${{ env.IMAGE_PREFIX }}/${{ github.event.repository.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ github.event.repository.name }}-app
+          cache-to: type=gha,mode=max,scope=${{ github.event.repository.name }}-app
+
+  # ---------------------------------------------------------------------------
+  # CRITICS IMAGE – the Python engine (critics/) as its own service. It builds
+  # entirely inside the Dockerfile, so there is nothing to prepare first.
+  # ---------------------------------------------------------------------------
+  build-docker-critics:
+    needs: [meta]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USER || github.actor }}
+          password: ${{ secrets.REGISTRY_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Build and push critics image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.critics-service
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/${{ github.event.repository.name }}-critics:${{ needs.meta.outputs.image_tag }}
+            ${{ env.IMAGE_PREFIX }}/${{ github.event.repository.name }}-critics:${{ github.sha }}
+          cache-from: type=gha,scope=${{ github.event.repository.name }}-critics
+          cache-to: type=gha,mode=max,scope=${{ github.event.repository.name }}-critics
+
+  # ---------------------------------------------------------------------------
+  # COOLIFY DEPLOY TRIGGERS (optional)
+  #
+  # Secrets: COOLIFY_BASE_URL, COOLIFY_DEPLOY_TOKEN, COOLIFY_UUID_PROD,
+  # COOLIFY_UUID_STAGING. A missing secret self-skips with a log line instead
+  # of failing, so a fork without a Coolify instance stays green.
+  # ---------------------------------------------------------------------------
+  deploy-prod:
+    needs: [build-docker-app, build-docker-critics]
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy (production)
+        continue-on-error: true
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_UUID: ${{ secrets.COOLIFY_UUID_PROD }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_BASE_URL" ] || [ -z "$COOLIFY_UUID" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "Coolify production deploy not configured (COOLIFY_BASE_URL / COOLIFY_UUID_PROD / COOLIFY_DEPLOY_TOKEN missing) — skipping."
+            exit 0
+          fi
+          curl -sS -X GET \
+            --max-time 2 --retry 2 --retry-all-errors \
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            "${COOLIFY_BASE_URL}/api/v1/deploy?uuid=${COOLIFY_UUID}&force=false" \
+            || true
+
+  deploy-staging:
+    needs: [build-docker-app, build-docker-critics]
+    if: github.ref_name == 'develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy (staging)
+        continue-on-error: true
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_UUID: ${{ secrets.COOLIFY_UUID_STAGING }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_BASE_URL" ] || [ -z "$COOLIFY_UUID" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "Coolify staging deploy not configured (COOLIFY_BASE_URL / COOLIFY_UUID_STAGING / COOLIFY_DEPLOY_TOKEN missing) — skipping."
+            exit 0
+          fi
+          curl -sS -X GET \
+            --max-time 2 --retry 2 --retry-all-errors \
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            "${COOLIFY_BASE_URL}/api/v1/deploy?uuid=${COOLIFY_UUID}&force=false" \
+            || true

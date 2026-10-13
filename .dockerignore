@@ -1,0 +1,22 @@
+# Build context for Dockerfile (the app) and Dockerfile.critics-service.
+# Note: the root ./dist is NOT ignored — CI assembles it and the release-ci
+# stage copies it in (see .github/workflows/build.yml).
+.git
+.github
+.critics-data
+**/node_modules
+backend/dist
+frontend/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/logs
+backend/dev-db
+backend/.env
+backend/.env.prod
+backend/static/app
+backend/static/upload
+critics/critic_out
+critics/.pytest_cache
+critics/.ruff_cache
+critics/tests/_tmp

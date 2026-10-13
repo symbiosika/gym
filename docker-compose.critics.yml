@@ -1,0 +1,25 @@
+# The data critics for local development, next to `bun run dev`.
+#
+#   docker compose -f docker-compose.critics.yml up -d --build
+#
+# The image is built from Dockerfile.critics-service in this repository. The
+# API finds the service on http://localhost:8080 without any configuration;
+# set CRITICS_URL in backend/.env only to point somewhere else. Datasets,
+# results and specs land in ./.critics-data/ (gitignored). To run the critics
+# on their own, use docker-compose.critics-service.yml.
+name: gym-critics
+
+services:
+  critics:
+    build:
+      context: .
+      dockerfile: Dockerfile.critics-service
+    ports: ["${CRITICS_PORT:-8080}:8080"]
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    volumes:
+      - ./.critics-data/data:/data
+      - ./.critics-data/jobs:/jobs
+      - ./.critics-data/specs:/specs
+    restart: unless-stopped

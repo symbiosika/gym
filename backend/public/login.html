@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The app name is appended by /app-info.js (public /api/v1/app-info) -->
+    <title>Anmeldung</title>
+    <link rel="icon" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app-info.js" defer></script>
+  </head>
+  <body>
+    <div class="min-h-screen flex items-center justify-center px-6 py-12">
+      <div class="w-full max-w-md">
+        <!-- Login card -->
+        <div id="email-form" class="card p-8">
+          <div class="text-center mb-8">
+            <div class="brand mb-6">
+              <img class="brand-logo" src="/favicon.png" alt="" />
+              <span class="brand-name" data-app-name></span>
+            </div>
+            <h1 class="text-2xl font-bold text-primary mb-2">
+              Anmeldung
+            </h1>
+          </div>
+
+          <!-- Step 1: E-Mail-Adresse eingeben -->
+          <div id="step-email" class="space-y-6">
+            <p class="text-muted text-sm text-center mb-4">
+              Für die Anmeldung genügt Ihre E-Mail-Adresse. Ein Passwort ist
+              nicht nötig.
+            </p>
+            <form id="email-check-form" class="space-y-6">
+              <div>
+                <label for="email" class="block text-sm font-medium text-primary mb-2">
+                  E-Mail-Adresse
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  class="input"
+                  placeholder="ihre.email@beispiel.de"
+                  autocomplete="email"
+                />
+              </div>
+
+              <button type="submit" id="continue-btn" class="btn btn-primary">
+                Weiter
+              </button>
+            </form>
+
+            <!--
+              Microsoft 365 sign-in. Hidden until GET /api/v1/user/oauth-providers
+              reports the provider as active, so instances without an Entra app
+              show the plain e-mail login and nothing else. Additional to the
+              magic link, never a replacement.
+            -->
+            <div id="oauth-microsoft" class="hidden">
+              <div class="divider"><span>oder</span></div>
+              <button type="button" id="microsoft-login-btn" class="btn btn-oauth">
+                <svg class="btn-icon" viewBox="0 0 23 23" aria-hidden="true">
+                  <path fill="#f25022" d="M1 1h10v10H1z" />
+                  <path fill="#7fba00" d="M12 1h10v10H12z" />
+                  <path fill="#00a4ef" d="M1 12h10v10H1z" />
+                  <path fill="#ffb900" d="M12 12h10v10H12z" />
+                </svg>
+                Mit Microsoft 365 anmelden
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2: Anmeldeart wählen -->
+          <div id="step-method" class="space-y-4 hidden">
+            <p class="text-muted text-sm text-center mb-2">
+              Anmeldung für
+              <strong id="method-email-label" class="text-primary"></strong>
+              <button
+                type="button"
+                id="change-email-btn"
+                class="link ml-1"
+              >
+                ändern
+              </button>
+            </p>
+
+            <button type="button" id="passkey-login-btn" class="btn btn-primary hidden">
+              Mit Passkey anmelden
+            </button>
+
+            <button type="button" id="email-login-btn" class="btn btn-primary">
+              Anmeldelink per E-Mail senden
+            </button>
+
+            <p id="method-hint" class="text-muted text-xs text-center"></p>
+          </div>
+
+          <!--
+            Step 3 (only after a social login): the provider verified the
+            identity, but this instance gates sign-ups behind an invitation
+            code and this address has none yet. The verified profile waits in a
+            short-lived HttpOnly cookie set by the callback, so only the code is
+            missing – see GET/POST /api/v1/user/oauth/…-registration.
+          -->
+          <div id="step-invitation" class="space-y-6 hidden">
+            <p class="text-muted text-sm text-center">
+              <strong id="invitation-email" class="text-primary"></strong>
+              <button type="button" id="invitation-back-btn" class="link ml-1">ändern</button>
+            </p>
+            <p id="invitation-intro" class="text-muted text-sm text-center">
+              Die Anmeldung hat funktioniert. Für dieses Konto liegt noch keine Einladung vor.
+              Bitte geben Sie Ihren Einladungscode ein, um die Registrierung abzuschließen.
+            </p>
+
+            <form id="invitation-form" class="space-y-6">
+              <div>
+                <label for="invitation-code" class="block text-sm font-medium text-primary mb-2">
+                  Einladungscode
+                </label>
+                <input
+                  type="text"
+                  id="invitation-code"
+                  name="invitation-code"
+                  required
+                  class="input"
+                  placeholder="Ihr Einladungscode"
+                  autocomplete="one-time-code"
+                />
+              </div>
+
+              <button type="submit" id="invitation-submit-btn" class="btn btn-primary">
+                Registrierung abschließen
+              </button>
+            </form>
+
+            <p class="text-muted text-xs text-center">
+              Kein Code? Bitten Sie eine Administratorin oder einen Administrator
+              Ihrer Organisation um eine Einladung.
+            </p>
+          </div>
+        </div>
+
+        <!-- Success Message -->
+        <div id="success-message" class="card p-8 hidden">
+          <div class="text-center">
+            <div class="success-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-primary mb-2">
+              E-Mail gesendet!
+            </h1>
+            <p class="text-muted mb-4">
+              Wir haben Ihnen einen Anmeldelink an <strong id="sent-email"></strong> gesendet.
+            </p>
+            <p class="text-muted text-sm">
+              Bitte überprüfen Sie Ihr Postfach und klicken Sie auf den Link in der E-Mail.
+            </p>
+          </div>
+        </div>
+
+        <!-- Token Verification (Loading) -->
+        <div id="verification" class="card p-8 hidden">
+          <div class="text-center mb-8">
+            <div class="brand mb-6">
+              <img class="brand-logo" src="/favicon.png" alt="" />
+              <span class="brand-name" data-app-name></span>
+            </div>
+            <h1 class="text-2xl font-bold text-primary mb-2">
+              Anmeldung
+            </h1>
+            <p class="text-muted">
+              Bitte warten Sie, während wir Sie anmelden...
+            </p>
+          </div>
+          <div class="flex justify-center items-center py-8">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+      // Parse query string
+      function parseQueryString() {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        const redirect = params.get('redirectUrl') || '/static/app/';
+        const email = params.get('email');
+        return { token, redirect, email };
+      }
+
+      // Show toast notification
+      function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.animation = 'slideDown 0.3s ease-out reverse';
+          setTimeout(() => {
+            if (container.contains(toast)) {
+              container.removeChild(toast);
+            }
+          }, 300);
+        }, type === 'success' ? 3000 : 4000);
+      }
+
+      // Show element
+      function showElement(id) {
+        document.getElementById(id).classList.remove('hidden');
+      }
+
+      // Hide element
+      function hideElement(id) {
+        document.getElementById(id).classList.add('hidden');
+      }
+
+      // Send login link (e-mail based sign-in, no password needed)
+      // Magic link for an address; `invitationCode` is only sent when the
+      // instance protects sign-ups and the user typed one.
+      async function sendLoginLink(email, invitationCode) {
+        try {
+          let url = `/api/v1/user/send-magic-link?email=${encodeURIComponent(email)}&createUserIfMissing=true`;
+          if (invitationCode) url += `&invitationCode=${encodeURIComponent(invitationCode)}`;
+          const response = await fetch(url, { method: 'GET' });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            // The framework answers 400 "Invitation code needed" for an unknown
+            // address while sign-ups are protected. Not an error for the user:
+            // the page asks for the code and sends the link again.
+            if (response.status === 400 && /invitation code needed/i.test(errorText)) {
+              return { success: false, codeNeeded: true };
+            }
+            if (/invitation code not found/i.test(errorText)) {
+              return { success: false, codeInvalid: true, message: 'Der Einladungscode ist ungültig.' };
+            }
+            throw new Error(errorText || 'Fehler beim Senden des Anmeldelinks');
+          }
+
+          return { success: true };
+        } catch (error) {
+          return {
+            success: false,
+            message: error.message || 'Ein Fehler ist aufgetreten',
+          };
+        }
+      }
+
+      // Login with token
+      async function loginWithToken(token) {
+        try {
+          const response = await fetch('/api/v1/user/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: '',
+              password: '',
+              magicLinkToken: token,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Anmeldung fehlgeschlagen');
+          }
+
+          const data = await response.json();
+
+          // Server sets the HttpOnly `jwt` cookie + `jwt_present` marker itself.
+          if (data.token) {
+            return { login: true, redirectUrl: data.redirectUrl };
+          } else {
+            throw new Error('Kein Token erhalten');
+          }
+        } catch (error) {
+          return {
+            login: false,
+            message: error.message || 'Ein Fehler ist aufgetreten',
+          };
+        }
+      }
+
+      // Single-page auth flow elements
+      const emailInput = document.getElementById('email');
+      const continueBtn = document.getElementById('continue-btn');
+      const emailCheckForm = document.getElementById('email-check-form');
+      const passkeyLoginBtn = document.getElementById('passkey-login-btn');
+      const emailLoginBtn = document.getElementById('email-login-btn');
+      const changeEmailBtn = document.getElementById('change-email-btn');
+      const methodEmailLabel = document.getElementById('method-email-label');
+      const methodHint = document.getElementById('method-hint');
+      const oauthMicrosoft = document.getElementById('oauth-microsoft');
+      const microsoftLoginBtn = document.getElementById('microsoft-login-btn');
+      const stepInvitation = document.getElementById('step-invitation');
+      const invitationForm = document.getElementById('invitation-form');
+      const invitationCodeInput = document.getElementById('invitation-code');
+      const invitationSubmitBtn = document.getElementById('invitation-submit-btn');
+      const invitationEmailLabel = document.getElementById('invitation-email');
+
+      // German wording for the error codes the framework's social login
+      // appends to this page's URL (see routes/user/public.ts)
+      const OAUTH_ERRORS = {
+        oauth_unavailable: 'Die Anmeldung mit Microsoft 365 ist auf diesem Server nicht aktiv.',
+        oauth_cancelled: 'Die Anmeldung mit Microsoft 365 wurde abgebrochen.',
+        oauth_failed: 'Die Anmeldung mit Microsoft 365 ist fehlgeschlagen. Bitte erneut versuchen oder den Anmeldelink per E-Mail nutzen.',
+      };
+
+      // Show the Microsoft button only where the server has the provider
+      // configured. Failing silently is intended: without the button the
+      // e-mail login remains fully usable.
+      async function initOAuthProviders() {
+        try {
+          const response = await fetch('/api/v1/user/oauth-providers', {
+            headers: { Accept: 'application/json' },
+          });
+          if (!response.ok) return;
+
+          const providers = await response.json();
+          if (providers && providers.microsoft) {
+            oauthMicrosoft.classList.remove('hidden');
+          }
+        } catch (error) {
+          /* provider probe failed – keep the e-mail login only */
+        }
+      }
+
+      document.getElementById('invitation-back-btn').addEventListener('click', () => {
+        hideElement('step-invitation');
+        showElement('step-email');
+      });
+
+      microsoftLoginBtn.addEventListener('click', () => {
+        const { redirect } = parseQueryString();
+        microsoftLoginBtn.disabled = true;
+        window.location.href =
+          '/api/v1/user/auth/microsoft?redirectUrl=' + encodeURIComponent(redirect);
+      });
+
+      // A social login that needs an invitation code sends the browser back
+      // here with `?provider=…`. Whether a sign-up is really waiting is decided
+      // by the server: the verified profile lives in an HttpOnly cookie this
+      // page cannot read, so we simply ask for it. 401 means nothing is pending
+      // (expired, or somebody just opened the URL) – then the normal login
+      // stays on screen.
+      async function showInvitationStepIfPending() {
+        try {
+          const response = await fetch('/api/v1/user/oauth/pending-registration', {
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+          });
+          if (!response.ok) return false;
+
+          const pending = await response.json();
+          invitationEmailLabel.textContent = pending.email;
+          hideElement('step-email');
+          hideElement('step-method');
+          showElement('step-invitation');
+          invitationCodeInput.focus();
+          return true;
+        } catch (error) {
+          /* server unreachable – leave the normal login in place */
+          return false;
+        }
+      }
+
+      // 'oauth': a social sign-up waits for the code (server-side cookie).
+      // 'magic': an e-mail sign-up on a protected instance; the code travels
+      // with the magic link request.
+      let invitationMode = 'oauth';
+      const invitationIntro = document.getElementById('invitation-intro');
+
+      // Second attempt of that sign-up, now with a code: the account is created
+      // and the auth cookies are set by the server.
+      invitationForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = invitationCodeInput.value.trim();
+
+        if (!code) {
+          showToast('Bitte geben Sie Ihren Einladungscode ein', 'error');
+          return;
+        }
+
+        invitationSubmitBtn.disabled = true;
+        invitationSubmitBtn.textContent = 'Wird geprüft...';
+
+        if (invitationMode === 'magic') {
+          const result = await sendLoginLink(currentEmail, code);
+          if (result.success) {
+            hideElement('email-form');
+            showElement('success-message');
+            document.getElementById('sent-email').textContent = currentEmail;
+            showToast('Anmeldelink gesendet!', 'success');
+          } else {
+            showToast(result.message || 'Der Einladungscode ist ungültig.', 'error');
+            invitationSubmitBtn.disabled = false;
+            invitationSubmitBtn.textContent = 'Registrierung abschließen';
+            invitationCodeInput.focus();
+          }
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/v1/user/oauth/complete-registration', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invitationCode: code }),
+          });
+
+          if (response.status === 401) {
+            // The pending sign-up expired – the whole round-trip has to be redone.
+            hideElement('step-invitation');
+            showElement('step-email');
+            showToast(
+              'Die Anmeldung ist abgelaufen. Bitte melden Sie sich erneut an.',
+              'error'
+            );
+            return;
+          }
+
+          if (!response.ok) {
+            // A wrong code stays retryable: the pending sign-up is kept.
+            showToast('Der Einladungscode ist ungültig.', 'error');
+            invitationSubmitBtn.disabled = false;
+            invitationSubmitBtn.textContent = 'Registrierung abschließen';
+            return;
+          }
+
+          const result = await response.json();
+          showToast('Registrierung erfolgreich', 'success');
+          setTimeout(() => {
+            const { redirect } = parseQueryString();
+            window.location.href = result.redirect || redirect || '/static/app/';
+          }, 1500);
+        } catch (error) {
+          showToast('Der Server ist nicht erreichbar.', 'error');
+          invitationSubmitBtn.disabled = false;
+          invitationSubmitBtn.textContent = 'Registrierung abschließen';
+        }
+      });
+
+      // The e-mail address the user is currently signing in with
+      let currentEmail = '';
+
+      // Quick backend probe: does this account have a passkey?
+      // Re-uses the existing authentication/options endpoint, which returns
+      // 200 when at least one passkey is registered and an error otherwise
+      // (unknown user, unverified e-mail, passkeys disabled, none registered).
+      async function hasPasskey(email) {
+        try {
+          const response = await fetch('/api/v1/user/passkey/authentication/options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          return response.ok;
+        } catch (error) {
+          return false;
+        }
+      }
+
+      // Reveal the method-selection step, adapting to whether a passkey exists.
+      function showMethodStep(passkeyAvailable) {
+        methodEmailLabel.textContent = currentEmail;
+        hideElement('step-email');
+        showElement('step-method');
+
+        if (passkeyAvailable) {
+          showElement('passkey-login-btn');
+          passkeyLoginBtn.className = 'btn btn-primary';
+          emailLoginBtn.className = 'btn btn-secondary';
+          methodHint.textContent =
+            'Kein Passkey zur Hand? Nutzen Sie den Anmeldelink per E-Mail.';
+        } else {
+          hideElement('passkey-login-btn');
+          emailLoginBtn.className = 'btn btn-primary';
+          methodHint.textContent =
+            'Wir senden Ihnen einen Anmeldelink per E-Mail – ein Klick genügt.';
+        }
+      }
+
+      // Step 1: e-mail entered -> probe backend -> Step 2
+      emailCheckForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = emailInput.value.trim();
+
+        if (!email) {
+          showToast('Bitte geben Sie eine E-Mail-Adresse ein', 'error');
+          return;
+        }
+
+        currentEmail = email;
+        emailInput.disabled = true;
+        continueBtn.disabled = true;
+        continueBtn.textContent = 'Einen Moment...';
+
+        const passkeyAvailable = await hasPasskey(email);
+
+        continueBtn.disabled = false;
+        continueBtn.textContent = 'Weiter';
+        showMethodStep(passkeyAvailable);
+      });
+
+      // "ändern": go back to the e-mail step
+      changeEmailBtn.addEventListener('click', () => {
+        hideElement('step-method');
+        showElement('step-email');
+        // Only re-enable when the field isn't locked by an invitation link
+        if (!emailInput.readOnly) {
+          emailInput.disabled = false;
+          emailInput.focus();
+        }
+      });
+
+      // Method: sign in with passkey
+      passkeyLoginBtn.addEventListener('click', async () => {
+        passkeyLoginBtn.disabled = true;
+        emailLoginBtn.disabled = true;
+        passkeyLoginBtn.textContent = 'Wird verarbeitet...';
+
+        const result = await passkeyAuthenticate(currentEmail);
+
+        if (result.success) {
+          // Server sets the HttpOnly `jwt` cookie + `jwt_present` marker itself.
+          showToast('Anmeldung erfolgreich', 'success');
+          setTimeout(() => {
+            const { redirect } = parseQueryString();
+            window.location.href = result.redirectUrl || redirect || '/static/app/';
+          }, 1500);
+        } else {
+          passkeyLoginBtn.disabled = false;
+          emailLoginBtn.disabled = false;
+          passkeyLoginBtn.textContent = 'Mit Passkey anmelden';
+          showToast(result.message || 'Anmeldung fehlgeschlagen', 'error');
+        }
+      });
+
+      // Method: send a login link by e-mail
+      emailLoginBtn.addEventListener('click', async () => {
+        const originalLabel = emailLoginBtn.textContent;
+        passkeyLoginBtn.disabled = true;
+        emailLoginBtn.disabled = true;
+        emailLoginBtn.textContent = 'Wird gesendet...';
+
+        const result = await sendLoginLink(currentEmail);
+
+        if (result.success) {
+          hideElement('email-form');
+          showElement('success-message');
+          document.getElementById('sent-email').textContent = currentEmail;
+          showToast('Anmeldelink gesendet!', 'success');
+        } else if (result.codeNeeded) {
+          // unknown address on a protected instance: ask for the code first
+          passkeyLoginBtn.disabled = false;
+          emailLoginBtn.disabled = false;
+          emailLoginBtn.textContent = originalLabel;
+          invitationMode = 'magic';
+          invitationEmailLabel.textContent = currentEmail;
+          invitationIntro.textContent =
+            'Für diese E-Mail-Adresse gibt es noch kein Konto. Die Registrierung ist geschützt: bitte den Einladungscode eingeben, den Sie von Ihrer Organisation erhalten haben.';
+          hideElement('step-method');
+          showElement('step-invitation');
+          invitationCodeInput.value = '';
+          invitationCodeInput.focus();
+        } else {
+          passkeyLoginBtn.disabled = false;
+          emailLoginBtn.disabled = false;
+          emailLoginBtn.textContent = originalLabel;
+          showToast(result.message || 'Fehler beim Senden des Anmeldelinks', 'error');
+        }
+      });
+
+      // Passkey authentication
+      async function passkeyAuthenticate(email) {
+        try {
+          // Check browser support
+          if (!navigator.credentials || !navigator.credentials.get) {
+            throw new Error('Ihr Browser unterstützt Passkeys nicht');
+          }
+
+          // Step 1: Get authentication options
+          const optionsResponse = await fetch('/api/v1/user/passkey/authentication/options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+
+          if (!optionsResponse.ok) {
+            const errorText = await optionsResponse.text();
+            throw new Error(errorText || 'Fehler beim Abrufen der Authentifizierungsoptionen');
+          }
+
+          const { options, challengeToken } = await optionsResponse.json();
+
+          // Convert base64url strings to Uint8Array for WebAuthn.
+          // The server sends base64url (RFC 4648 §5: '-'/'_' and no padding),
+          // so plain atob() would choke on those characters.
+          const b64urlToBytes = (value) => {
+            let s = String(value).replace(/-/g, '+').replace(/_/g, '/');
+            const pad = s.length % 4;
+            if (pad) s += '='.repeat(4 - pad);
+            return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+          };
+          // Encode raw bytes as base64url (NOT standard base64):
+          // @simplewebauthn/server validates authenticatorData/signature with
+          // isBase64URL() and rejects '+'/'/'/'=' from btoa().
+          const bytesToB64url = (buffer) => {
+            const bytes = new Uint8Array(buffer);
+            let str = '';
+            for (let i = 0; i < bytes.length; i++) {
+              str += String.fromCharCode(bytes[i]);
+            }
+            return btoa(str)
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=+$/, '');
+          };
+          options.challenge = b64urlToBytes(options.challenge);
+          if (options.allowCredentials) {
+            options.allowCredentials = options.allowCredentials.map(cred => ({
+              ...cred,
+              id: b64urlToBytes(cred.id),
+            }));
+          }
+
+          // Step 2: Use native WebAuthn API to get credential
+          const assertion = await navigator.credentials.get({ publicKey: options });
+
+          if (!assertion) {
+            throw new Error('Authentifizierung abgebrochen');
+          }
+
+          // Convert response back to transmissible format.
+          // `assertion.id` is already the base64url credential id the server
+          // stored during registration, so it must be used verbatim for lookup.
+          // `id` and `rawId` must be the identical base64url string:
+          // @simplewebauthn/server rejects the response with
+          // "Credential ID was not base64url-encoded" when id !== rawId.
+          // `assertion.id` is already the base64url encoding of rawId.
+          const credential = {
+            id: assertion.id,
+            rawId: assertion.id,
+            type: assertion.type,
+            response: {
+              clientDataJSON: bytesToB64url(assertion.response.clientDataJSON),
+              authenticatorData: bytesToB64url(assertion.response.authenticatorData),
+              signature: bytesToB64url(assertion.response.signature),
+              userHandle: assertion.response.userHandle ? bytesToB64url(assertion.response.userHandle) : null,
+            },
+          };
+
+          // Step 3: Verify authentication
+          const verifyResponse = await fetch('/api/v1/user/passkey/authentication/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              challengeToken,
+              credential,
+            }),
+          });
+
+          if (!verifyResponse.ok) {
+            const errorText = await verifyResponse.text();
+            throw new Error(errorText || 'Authentifizierung fehlgeschlagen');
+          }
+
+          const data = await verifyResponse.json();
+          return {
+            success: true,
+            token: data.token,
+            redirectUrl: data.redirectUrl,
+          };
+        } catch (error) {
+          return {
+            success: false,
+            message: error.message || 'Ein Fehler ist aufgetreten',
+          };
+        }
+      }
+
+      // Main execution - check for token
+      (async () => {
+        const { token, redirect, email } = parseQueryString();
+
+        // Report a failed Microsoft round-trip before anything else
+        const oauthError = new URLSearchParams(window.location.search).get('error');
+        if (oauthError && OAUTH_ERRORS[oauthError]) {
+          showToast(OAUTH_ERRORS[oauthError], 'error');
+        }
+
+        initOAuthProviders();
+
+        // Coming back from a social login that requires an invitation code
+        // (`oauthInvitationCodeUrl` in defineServer points here).
+        const oauthProvider = new URLSearchParams(window.location.search).get('provider');
+        if (oauthProvider && !token) {
+          showElement('email-form');
+          if (await showInvitationStepIfPending()) {
+            return;
+          }
+        }
+
+        // Prefill email from URL (invitation links) and lock the field
+        if (email) {
+          if (emailInput) {
+            emailInput.value = email;
+            emailInput.readOnly = true;
+            emailInput.setAttribute('aria-readonly', 'true');
+            // Styling comes from `.input[readonly]` in styles.css – inline
+            // colours here would break in dark mode.
+          }
+          // The address is fixed by the invitation link – hide "ändern"
+          if (changeEmailBtn) {
+            changeEmailBtn.classList.add('hidden');
+          }
+        }
+
+        if (token) {
+          // Token found - verify and login
+          hideElement('email-form');
+          hideElement('success-message');
+          showElement('verification');
+
+          const result = await loginWithToken(token);
+
+          if (result.login) {
+            showToast('Anmeldung erfolgreich', 'success');
+            setTimeout(() => {
+              const redirectUrl = result.redirectUrl || redirect || '/static/app/';
+              window.location.href = redirectUrl;
+            }, 2000);
+          } else {
+            hideElement('verification');
+            showElement('email-form');
+            showToast(result.message || 'Anmeldung fehlgeschlagen', 'error');
+          }
+        } else {
+          // No token - show email form
+          showElement('email-form');
+        }
+      })();
+    </script>
+  </body>
+</html>

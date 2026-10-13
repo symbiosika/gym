@@ -1,0 +1,95 @@
+{
+ "dataset": "data/gym_demo_ds",
+ "spec": "gym_demo_ds",
+ "include": [
+  0,
+  1
+ ],
+ "review": [],
+ "exclude": [
+  2,
+  3
+ ],
+ "ranges": {
+  "accept": "0-1",
+  "review": "",
+  "reject": "2-3"
+ },
+ "include_with_review": [
+  0,
+  1
+ ],
+ "reasons": {
+  "2": {
+   "verdict": "reject",
+   "total": 0.8582217879457914,
+   "cause": "gate",
+   "why": "gate failed: duplication (flag LAGGY)",
+   "blocking": [
+    "LAGGY"
+   ],
+   "gates": [
+    "duplication"
+   ],
+   "flags": [
+    "ACTION_SPIKES",
+    "LAGGY"
+   ],
+   "reasons": [
+    "command vector frozen in 21.9% of frames, longest 1.20s"
+   ]
+  },
+  "3": {
+   "verdict": "reject",
+   "total": 0.9,
+   "cause": "gate",
+   "why": "gate failed: grasp_cycles (flag NOGRASP)",
+   "blocking": [
+    "NOGRASP"
+   ],
+   "gates": [
+    "grasp_cycles"
+   ],
+   "flags": [
+    "NOGRASP"
+   ],
+   "reasons": [
+    "gripper never closed on anything"
+   ]
+  }
+ },
+ "switchable": [
+  {
+   "flag": "LAGGY",
+   "effect": "rejects the episode (gate)",
+   "episodes": [
+    2
+   ],
+   "decides": [
+    2
+   ],
+   "would_accept": [
+    2
+   ],
+   "critics": [
+    "duplication"
+   ]
+  },
+  {
+   "flag": "NOGRASP",
+   "effect": "rejects the episode (gate)",
+   "episodes": [
+    3
+   ],
+   "decides": [
+    3
+   ],
+   "would_accept": [
+    3
+   ],
+   "critics": [
+    "grasp_cycles"
+   ]
+  }
+ ]
+}

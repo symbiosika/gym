@@ -1,0 +1,41 @@
+# The data critics on their own: one service, one variable.
+#
+#   echo "GEMINI_API_KEY=..." > .env      # optional, see below
+#   docker compose -f docker-compose.critics-service.yml up -d --build
+#
+# Then: http://localhost:8080/ for the web UI, /health for a liveness check,
+# /docs for the API. To point a GYM at it, set CRITICS_URL to its address; the
+# full stack (Postgres, app, critics) is docker-compose.prod.yml instead.
+name: critics
+
+services:
+  critics:
+    build:
+      context: .
+      dockerfile: Dockerfile.critics-service
+    ports:
+      - '${CRITICS_PORT:-8080}:8080'
+    environment:
+      # The vision-language model that judges task success. Without a key the
+      # run is still complete, it just stops at the hard critics (kinematics,
+      # video, sensors), and the web UI says so.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Alternative to Gemini: any OpenAI-compatible endpoint, selected per
+      # spec (`soft_critics.vlm.provider: openai_compatible`).
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # Set to require `X-API-Key` (or a bearer token) on every route but
+      # /health. Leave empty on a trusted network.
+      CRITICS_API_KEY: ${CRITICS_API_KEY:-}
+    volumes:
+      # Datasets, results and the spec store. Named volumes so nothing is lost
+      # on a rebuild; bind mounts (./data:/data) if you want to reach the
+      # reports from the host.
+      - critics_data:/data
+      - critics_jobs:/jobs
+      - critics_specs:/specs
+    restart: unless-stopped
+
+volumes:
+  critics_data:
+  critics_jobs:
+  critics_specs:

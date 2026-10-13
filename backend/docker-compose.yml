@@ -1,0 +1,43 @@
+# Local development database (Postgres 17 + pgvector) and pgAdmin.
+# The API itself runs on the host with `bun run dev`.
+#
+#   bun run docker:up      # start
+#   bun run migrate        # framework + app migrations
+#   bun run dev            # API on http://localhost:3000
+#
+# Credentials come from ./.env (POSTGRES_*). Set POSTGRES_CONNECTION_POOL_SIZE
+# to 10 in .env when using this instead of PGlite.
+name: ${PROJECT_NAME:-symbiosika-gym}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    command: -p ${POSTGRES_PORT:-5432}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pg}
+      POSTGRES_DB: ${POSTGRES_DB:-dev}
+      PGPORT: ${POSTGRES_PORT:-5432}
+    ports:
+      - "${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pg} -d ${POSTGRES_DB:-dev} -p ${POSTGRES_PORT:-5432}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@example.com"
+      PGADMIN_DEFAULT_PASSWORD: ${POSTGRES_PASSWORD:-pg}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  pg_data:
+    driver: local
