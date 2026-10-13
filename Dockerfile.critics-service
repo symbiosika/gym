@@ -1,0 +1,50 @@
+# The data critics as a service (critics/): the Python engine that judges every
+# uploaded episode, wrapped in its own REST API and web UI.
+#
+#   docker build -f Dockerfile.critics-service -t gym-critics .
+#   docker compose -f docker-compose.critics-service.yml up -d --build
+#
+# The only variable worth setting is the VLM key (GEMINI_API_KEY); everything
+# else has a working default baked in below. Builds for linux/amd64 and
+# linux/arm64 (Jetson), CPU only, no GPU dependency.
+FROM python:3.11-slim AS base
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 UV_SYSTEM_PYTHON=1
+
+# Optional corporate CA for builds behind a TLS-intercepting proxy:
+#   docker build --network host --secret id=ca_bundle,src=/path/to/ca.crt \
+#     --build-arg HTTPS_PROXY=http://proxy:port -f Dockerfile.critics-service .
+# The system bundle is used by apt, pip and uv (SSL_CERT_FILE / PIP_CERT) and at runtime.
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt PIP_CERT=/etc/ssl/certs/ca-certificates.crt \
+    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+RUN --mount=type=secret,id=ca_bundle,required=false \
+    if [ -s /run/secrets/ca_bundle ]; then \
+      cp /run/secrets/ca_bundle /usr/local/share/ca-certificates/corp-ca.crt && update-ca-certificates; fi
+
+# ffmpeg decodes the episode videos, libgl/libglib are OpenCV's runtime deps.
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends ffmpeg libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+COPY critics/pyproject.toml critics/README.md ./
+COPY critics/lerobot_critics ./lerobot_critics
+RUN uv pip install --system ".[gemini,api,hf]"
+# Example specs ship with the image (after the install, so editing them keeps the pip layer),
+# so the /specs volume can be seeded without a checkout of the repository:
+#   docker compose run --rm --entrypoint sh critics -c 'cp /app/examples/specs/*.yaml /specs/'
+COPY critics/examples ./examples
+
+# Defaults, so the service runs with no configuration at all:
+#   /data    the datasets it was given (GYM uploads them through POST /upload)
+#   /jobs    one directory per run: report.json, selection.json, contact sheets, composites
+#   /specs   the spec store, a plain <name>.yaml per spec
+ENV CRITICS_DATA_DIR=/data CRITICS_JOBS_DIR=/jobs CRITICS_SPECS_DIR=/specs
+RUN mkdir -p /data /jobs /specs
+VOLUME ["/data", "/jobs", "/specs"]
+
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+  CMD python -c "import httpx,sys; sys.exit(0 if httpx.get('http://127.0.0.1:8080/health').status_code==200 else 1)"
+ENTRYPOINT ["lerobot-critics"]
+CMD ["serve", "--host", "0.0.0.0", "--port", "8080"]

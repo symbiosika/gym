@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lerobot-critics</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e3e6ea; --txt:#1c2430; --mut:#6b7684; --acc:#2563eb; --accbg:#eaf0fe;
+          --ok:#16a34a; --okbg:#dcfce7; --rev:#ca8a04; --revbg:#fef9c3; --bad:#dc2626; --badbg:#fee2e2; --grid:#eef1f5; }
+  * { box-sizing:border-box }
+  html, body { height:100% }
+  body { margin:0; background:var(--bg); color:var(--txt); font:13.5px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif }
+  a { color:var(--acc) }
+  button, select, input, textarea { font:inherit }
+  button { padding:7px 12px; border-radius:7px; border:1px solid var(--line); background:#fff; cursor:pointer; color:var(--txt) }
+  button:hover { background:#f8fafc } button:disabled { opacity:.55; cursor:default }
+  button.primary { background:var(--acc); border-color:var(--acc); color:#fff } button.primary:hover { background:#1d4ed8 }
+  button.big { padding:11px 16px; font-size:15px; font-weight:600; width:100% }
+  button.ghost { border-color:transparent; background:transparent; color:var(--acc); padding:4px 6px }
+  select, input[type=text], input[type=password] { padding:7px 9px; border:1px solid var(--line); border-radius:7px; background:#fff; width:100% }
+  textarea { width:100%; min-height:300px; padding:8px; border:1px solid var(--line); border-radius:7px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px }
+  label { display:block; font-size:12px; color:var(--mut); margin:10px 0 4px }
+  header { display:flex; align-items:center; gap:14px; padding:10px 20px; background:#fff; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5 }
+  header h1 { font-size:16px; margin:0; font-weight:650 }
+  header .status { display:inline-flex; align-items:center; gap:6px; color:var(--mut); font-size:12px }
+  header .dot { width:8px; height:8px; border-radius:50%; background:#cbd5e1 } header .dot.ok { background:var(--ok) } header .dot.err { background:var(--bad) }
+  header .spacer { flex:1 }
+  main { display:grid; grid-template-columns:360px minmax(0,1fr); gap:16px; padding:16px 20px 40px; max-width:1600px; margin:0 auto }
+  @media (max-width:980px) { main { grid-template-columns:1fr } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:14px }
+  .card h2 { font-size:14px; margin:0 0 10px; font-weight:650 }
+  .card h2 small { color:var(--mut); font-weight:400 }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+  .mut { color:var(--mut) } .small { font-size:12px } .err { color:var(--bad) }
+  .hidden { display:none !important }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px }
+  details > summary { cursor:pointer; color:var(--mut); font-size:12.5px; user-select:none }
+  details > summary:hover { color:var(--txt) }
+  .pill { display:inline-block; padding:1px 9px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap }
+  .pill.accept, .pill.done { background:var(--okbg); color:var(--ok) } .pill.review, .pill.running, .pill.preparing, .pill.queued { background:var(--revbg); color:var(--rev) }
+  .pill.reject, .pill.failed { background:var(--badbg); color:var(--bad) }
+  .flag { display:inline-block; font-family:ui-monospace,monospace; font-size:11px; background:var(--grid); border-radius:4px; padding:0 5px; margin:1px 3px 1px 0; cursor:help }
+  .flag.vlm { background:#ede9fe } .flag.gate { background:var(--badbg); color:var(--bad) } .flag.review { background:var(--revbg); color:var(--rev) } .flag.ds { background:#fef3c7 }
+  .hint { font-size:12px; color:var(--mut); margin-top:6px }
+  /* dataset info */
+  .dsinfo { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; font-size:12px; margin-top:8px } .dsinfo dt { color:var(--mut) } .dsinfo dd { margin:0 }
+  .upload { margin-top:8px; padding:10px; border:1px dashed var(--line); border-radius:8px; background:#fafbfc }
+  .progress { height:6px; background:var(--grid); border-radius:3px; overflow:hidden; margin-top:6px } .progress i { display:block; height:100%; background:var(--acc); transition:width .3s }
+  /* runs list */
+  .runs { list-style:none; margin:0; padding:0; max-height:420px; overflow:auto }
+  .runs li { padding:8px 6px; border-bottom:1px solid var(--line); cursor:pointer; border-radius:6px } .runs li:hover { background:#f8fafc } .runs li.sel { background:var(--accbg) }
+  .runs .top { display:flex; gap:8px; align-items:center } .runs .top b { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+  .runs .sub { color:var(--mut); font-size:11.5px; margin-top:2px; display:flex; gap:8px; align-items:center }
+  .counts { display:inline-flex; gap:3px } .counts span { min-width:22px; text-align:center; font-size:11px; font-weight:650; border-radius:4px; padding:0 4px }
+  .counts .a { background:var(--okbg); color:var(--ok) } .counts .r { background:var(--revbg); color:var(--rev) } .counts .x { background:var(--badbg); color:var(--bad) }
+  /* result header */
+  .rhead { display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap }
+  .rhead h2 { font-size:18px; margin:0; flex:1 1 300px; font-weight:650 }
+  .rhead .meta { color:var(--mut); font-size:12.5px; margin-top:3px }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center }
+  .menu { position:relative } .menu .drop { position:absolute; right:0; top:calc(100% + 4px); background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.08); min-width:290px; z-index:6; padding:6px }
+  .menu .drop a, .menu .drop button.item { display:block; width:100%; text-align:left; padding:8px 10px; border:0; background:none; border-radius:6px; color:var(--txt); text-decoration:none; font-size:13px }
+  .menu .drop a:hover, .menu .drop button.item:hover { background:#f3f4f6 }
+  .menu .drop .desc { display:block; color:var(--mut); font-size:11.5px }
+  .menu .drop hr { border:0; border-top:1px solid var(--line); margin:6px 0 }
+  /* verdict */
+  .verdict { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:12px 0 }
+  .vbox { border-radius:10px; padding:12px 14px; border:1px solid var(--line) }
+  .vbox b { display:block; font-size:28px; font-weight:680; line-height:1.1 } .vbox span { font-size:12px; color:var(--mut) }
+  .vbox.accept { background:var(--okbg); border-color:#bbf7d0 } .vbox.accept b { color:var(--ok) }
+  .vbox.review { background:var(--revbg); border-color:#fde68a } .vbox.review b { color:var(--rev) }
+  .vbox.reject { background:var(--badbg); border-color:#fecaca } .vbox.reject b { color:var(--bad) }
+  .rec { font-size:14.5px; margin:6px 0 }
+  .lists { font-size:12px; color:var(--mut); margin-top:6px } .lists code { word-break:break-all }
+  /* profile */
+  .headline { font-size:13.5px; padding:9px 12px; border-left:4px solid var(--rev); background:#fffbeb; border-radius:6px; margin:8px 0 10px }
+  .headline.bad { border-color:var(--bad); background:#fef2f2 } .headline.good { border-color:var(--ok); background:#f0fdf4 }
+  .pgroup { margin:8px 0 } .pgroup > summary { color:var(--txt); font-weight:600; font-size:13px; padding:4px 0 } .pgroup .intro { font-size:12px; color:var(--mut); margin:2px 0 6px }
+  .inds { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; margin:6px 0 4px }
+  .ind { position:relative; border:1px solid var(--line); border-radius:9px; padding:9px 10px 9px 14px; background:#fff; font-size:12px }
+  .ind::before { content:""; position:absolute; left:0; top:8px; bottom:8px; width:4px; border-radius:2px; background:#cbd5e1 }
+  .ind.good::before { background:var(--ok) } .ind.warn::before { background:var(--rev) } .ind.bad::before { background:var(--bad) }
+  .ind .lbl { color:var(--mut); font-size:11.5px; line-height:1.3 } .ind .val { font-size:19px; font-weight:660; line-height:1.25; margin:1px 0 }
+  .ind .val small { font-size:11px; font-weight:500; color:var(--mut); margin-left:3px } .ind .xtra { font-size:11px; color:var(--mut) }
+  .ind .txt { font-size:11.5px; margin-top:5px; line-height:1.35 } .ind .act { font-size:11px; color:var(--mut); margin-top:3px } .ind .act b { color:var(--txt) }
+  .stat { display:inline-block; font-size:9.5px; font-weight:650; text-transform:uppercase; padding:0 5px; border-radius:4px; margin-left:4px; vertical-align:middle }
+  .stat.good { background:var(--okbg); color:var(--ok) } .stat.warn { background:var(--revbg); color:var(--rev) } .stat.bad { background:var(--badbg); color:var(--bad) } .stat.info { background:var(--grid); color:var(--mut) }
+  .toggle { font-size:12px }
+  /* tables */
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top }
+  th { color:var(--mut); font-weight:600; white-space:nowrap; cursor:pointer; user-select:none; font-size:12px }
+  tr.clickable { cursor:pointer } tr.clickable:hover td { background:#f8fafc } tr.selected td { background:var(--accbg) }
+  .score { font-variant-numeric:tabular-nums } .scorebar { display:inline-block; width:46px; height:6px; background:var(--grid); border-radius:3px; vertical-align:middle; margin-left:6px; overflow:hidden } .scorebar i { display:block; height:100% }
+  .filters { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:8px }
+  .filters button.on { background:var(--accbg); border-color:var(--acc); color:var(--acc) }
+  table.metrics { font-size:12px; margin:4px 0 8px } table.metrics td.k { font-family:ui-monospace,monospace; white-space:nowrap } table.metrics td.v { white-space:nowrap; text-align:right } table.metrics td.d { color:var(--mut) } table.metrics th { cursor:default }
+  /* episode drawer */
+  .drawer { position:fixed; top:0; right:0; bottom:0; width:min(680px,96vw); background:#fff; border-left:1px solid var(--line); box-shadow:-12px 0 32px rgba(0,0,0,.10); z-index:20; overflow:auto; padding:18px 20px 40px; transform:translateX(102%); transition:transform .2s }
+  .drawer.open { transform:none }
+  .drawer .dhead { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px } .drawer .dhead h2 { font-size:17px; margin:0; flex:1 }
+  .drawer .why { margin:6px 0 0; padding-left:18px } .drawer .why li { margin:2px 0 }
+  .critic { margin:8px 0 0; padding:8px 10px; background:#fafbfc; border:1px solid var(--line); border-radius:8px }
+  .critic .top { display:flex; gap:8px; align-items:center; flex-wrap:wrap } .critic .evi { font-size:12px; margin-top:3px } .critic .desc { font-size:11.5px; color:var(--mut); margin-top:3px }
+  .drawer img, .drawer video { max-width:100%; border:1px solid var(--line); border-radius:6px; margin-top:6px; background:#000; display:block }
+  .drawer h3 { font-size:13px; margin:16px 0 4px }
+  .backdrop { position:fixed; inset:0; background:rgba(15,23,42,.25); z-index:19 }
+  .modal { position:fixed; inset:0; z-index:30; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; background:rgba(15,23,42,.35); overflow:auto }
+  .modal .box { background:#fff; border-radius:12px; width:min(860px,100%); padding:18px 20px; box-shadow:0 20px 60px rgba(0,0,0,.2) }
+  .modal h2 { margin:0 0 6px; font-size:16px }
+  .empty { text-align:center; color:var(--mut); padding:60px 20px } .empty b { display:block; color:var(--txt); font-size:16px; margin-bottom:6px }
+  .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:22px; text-align:left } .steps div { border:1px solid var(--line); border-radius:9px; padding:10px 12px; font-size:12.5px } .steps b { font-size:13px; display:block; margin-bottom:3px }
+  .findtbl td:first-child { white-space:nowrap }
+  #toast { position:fixed; bottom:16px; right:16px; background:#111827; color:#fff; padding:9px 13px; border-radius:8px; opacity:0; transition:opacity .2s; z-index:40; max-width:520px }
+  .kv { font-size:12px } .kv div { display:flex; gap:8px; padding:2px 0; border-bottom:1px dashed var(--grid) } .kv div span:first-child { color:var(--mut); min-width:200px }
+</style>
+</head>
+<body>
+<header>
+  <h1>lerobot-critics</h1>
+  <span class="status"><span class="dot" id="dot"></span><span id="health">connecting…</span></span>
+  <span class="spacer"></span>
+  <button class="ghost" id="settingsBtn" title="API key and server info">⚙ Settings</button>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>Check a dataset</h2>
+      <label>Dataset</label>
+      <div class="row" style="flex-wrap:nowrap">
+        <select id="dataset"></select>
+        <button id="refreshDs" title="Reload the dataset list">↻</button>
+      </div>
+      <dl class="dsinfo" id="dsinfo"></dl>
+      <button class="ghost" id="uploadToggle">＋ Upload a zipped LeRobot dataset</button>
+      <div class="upload hidden" id="uploadBox">
+        <div class="row"><input type="file" id="zip" accept=".zip"><button id="uploadBtn" class="primary">Upload</button></div>
+        <div class="progress hidden" id="upbar"><i style="width:0"></i></div>
+        <div class="hint">The zip must contain a LeRobot dataset (meta/info.json). It is extracted into the server's data directory.</div>
+      </div>
+
+      <label>What to check (spec)</label>
+      <div class="row" style="flex-wrap:nowrap">
+        <select id="spec"></select>
+        <button id="editSpec" title="View or edit the spec as YAML">Edit</button>
+      </div>
+      <div class="hint" id="spechint"></div>
+
+      <details style="margin-top:10px"><summary>Options</summary>
+        <label>Episodes to check <span class="mut">(empty = all; e.g. <code>0,3,7-9</code>)</span></label>
+        <input type="text" id="episodes" placeholder="all episodes">
+        <div class="row" style="margin-top:8px">
+          <label style="margin:0"><input type="checkbox" id="vlm" checked> VLM judge (task success from video)</label>
+        </div>
+        <div class="row" style="margin-top:4px">
+          <label style="margin:0"><input type="checkbox" id="sheets" checked> contact sheets for flagged episodes</label>
+        </div>
+      </details>
+      <div style="margin-top:14px"><button id="run" class="primary big">▶ Check dataset</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Runs <small id="runsCount"></small></h2>
+      <ul class="runs" id="jobs"></ul>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="card" id="empty">
+      <div class="empty">
+        <b>No run selected</b>
+        Pick a dataset on the left and press <i>Check dataset</i>, or open a finished run.
+        <div class="steps">
+          <div><b>1 · Verdicts</b>Which episodes go into training, which need a look, which are out.</div>
+          <div><b>2 · Session profile</b>Latency, tremor, grasp behaviour, variation, data hygiene – what to change at the rig before the next recording.</div>
+          <div><b>3 · Export</b>A printable report, a Markdown summary for an AI assistant, the include list for training.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hidden" id="report">
+      <div class="card">
+        <div class="rhead">
+          <div style="flex:1 1 300px">
+            <h2 id="rTitle"></h2>
+            <div class="meta" id="rMeta"></div>
+          </div>
+          <div class="actions">
+            <button id="copyInclude" class="primary" title="Copy the list of accepted episode indices (JSON) for training">⧉ Copy training selection</button>
+            <button id="visualReport" title="Printable report with charts – open, then print to PDF">▤ Report (PDF)</button>
+            <div class="menu">
+              <button id="exportBtn">Export ▾</button>
+              <div class="drop hidden" id="exportMenu"></div>
+            </div>
+          </div>
+        </div>
+        <div class="verdict" id="verdict"></div>
+        <p class="rec" id="rec"></p>
+        <details class="lists"><summary>Episode lists (include / review / exclude)</summary>
+          <div>include: <code id="inc"></code></div>
+          <div>review: <code id="rev"></code></div>
+          <div>exclude: <code id="exc"></code></div>
+        </details>
+      </div>
+
+      <div class="card" id="profileCard">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Recording session profile <small>– what to change before the next recording day</small></h2>
+          <label class="toggle" style="margin:0"><input type="checkbox" id="showAllInd"> show indicators that are fine</label>
+        </div>
+        <div id="profile"></div>
+      </div>
+
+      <div class="card hidden" id="findingsCard">
+        <h2>Dataset-level findings <small>– properties of the whole session, they do not change verdicts</small></h2>
+        <div id="findings"></div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Episodes <small>– click a row for the details</small></h2>
+          <label class="toggle" style="margin:0"><input type="checkbox" id="showScores"> show every critic score</label>
+        </div>
+        <div class="filters" id="filters"></div>
+        <div style="overflow:auto"><table id="eptable"><thead></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="backdrop hidden" id="backdrop"></div>
+<aside class="drawer" id="drawer"></aside>
+
+<div class="modal hidden" id="specModal">
+  <div class="box">
+    <div class="row" style="justify-content:space-between"><h2 id="specTitle">Spec</h2><button class="ghost" id="specClose">✕ close</button></div>
+    <p class="hint" style="margin-top:0">A spec says what to check: the task text and objects (for the VLM judge), which critics run with which weights and thresholds. Everything except the task has defaults. Save it under a name to reuse it for later runs.</p>
+    <label>Name</label><input type="text" id="specName" placeholder="e.g. cup_tray_v2">
+    <label>YAML</label><textarea id="specYaml"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="saveSpec" class="primary">Save spec</button>
+      <button id="autoSpecBtn">Regenerate from dataset</button>
+      <span class="hint" id="specMsg"></span>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="settingsModal">
+  <div class="box" style="width:min(520px,100%)">
+    <div class="row" style="justify-content:space-between"><h2>Settings</h2><button class="ghost" id="settingsClose">✕ close</button></div>
+    <label>API key <span class="mut">(only if the server requires one)</span></label>
+    <input type="password" id="apikey" placeholder="API key">
+    <div class="kv" id="serverInfo" style="margin-top:12px"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { report: null, job: null, sortKey: 'total', sortDir: 1, selected: null, timer: null, criticDesc: {}, datasets: [], filter: 'all' };
+
+// ------------------------------------------------------------------ plumbing
+function key() { return $('#apikey').value.trim(); }
+function headers(extra = {}) { const h = { ...extra }; if (key()) h['X-API-Key'] = key(); return h; }
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: headers(opts.headers || {}) });
+  if (!r.ok) { let m = r.statusText; try { m = (await r.json()).detail || m; } catch {} throw new Error(`${r.status} ${m}`); }
+  const ct = r.headers.get('content-type') || '';
+  return ct.includes('json') ? r.json() : r.text();
+}
+function toast(msg, bad = false) { const t = $('#toast'); t.textContent = msg; t.style.background = bad ? '#b91c1c' : '#111827'; t.style.opacity = 1; setTimeout(() => t.style.opacity = 0, 4000); }
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+const fmt = x => (x == null ? '–' : (typeof x === 'number' ? x.toFixed(2) : x));
+const color = s => s == null ? '#cbd5e1' : s >= 0.75 ? '#16a34a' : s >= 0.5 ? '#ca8a04' : '#dc2626';
+const scoreCell = s => s == null ? '<span class="mut">–</span>' : `<span class="score">${s.toFixed(2)}</span><span class="scorebar"><i style="width:${Math.round(s*100)}%;background:${color(s)}"></i></span>`;
+const dur = s => s == null ? '–' : s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`;
+const when = iso => (iso || '').replace('T', ' ').slice(0, 16);
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) { try { await navigator.clipboard.writeText(text); return true; } catch {} }
+  const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+  let ok = false; try { ok = document.execCommand('copy'); } catch {} document.body.removeChild(ta); return ok;
+}
+
+// ------------------------------------------------------------------ flags & metric docs
+const FLAG_HINT = { TREMOR: 'strong 6–14 Hz energy in the command (input-device tremor)', HOLD_JITTER: 'command keeps moving while the hand should be still', ZERO_FRAMES: 'all-zero dropout frame(s) – they corrupt min/max normalisation', IDLE_ARM_DRIFT: 'an arm that should idle moved a lot (noise in the action space)', ACTION_IS_STATE: 'action is a copy of the state', LOW_DIVERSITY: 'object grasped at practically the same spot every time', STATS_RANGE_INFLATED: 'meta/stats.json min/max wider than the real data', DEAD_ACTION_DIMS: 'constant action dimensions', TRACKERR: 'follower deviates from the command', INACTIVE_ARM_TRACKERR: 'the idle arm deviates from its command', LAGGY: 'command stream frozen', CAMSTALL: 'camera frames repeated while moving', STATE_FROZEN: 'state identical over many frames', NOGRASP: 'hand never closed on anything', CYCLE_COUNT: 'grasp cycles differ from expected', MULTIGRASP: 'several grasp cycles where one was expected', REGRASP: 're-closed within a second of releasing', UNFINISHED_GRASP: 'still closed at episode end', ACTION_SPIKES: 'implausible single-frame command jumps', HESITATION: 'long pause mid-episode', JERKY: 'high jerk / high-frequency energy', BLUR: 'low sharpness', OVEREXPOSED: 'too bright / blown-out pixels', UNDEREXPOSED: 'too dark', SIZE_MISMATCH: 'frame size differs from info.json', LIMIT_VIOLATION: 'configured limit exceeded', DEAD_ZONE: 'value rested in a configured dead zone', SATURATED: 'a dimension pinned at its extreme', TOO_SHORT: 'shorter than duration.min_s', TOO_LONG: 'longer than duration.max_s', LENGTH_MISMATCH: 'parquet rows differ from meta length', NAN_VALUES: 'NaN/inf in numeric features', VIDEO_MISSING: 'a camera video is missing', VIDEO_FRAME_MISMATCH: 'video frame count differs from parquet', TIMESTAMP_GAPS: 'timestamp gaps', VLM_TASK_FAILED: 'VLM judged the task as not accomplished', VLM_MAJOR_ANOMALY: 'VLM reported a major anomaly', HUMAN_IN_WORKSPACE: 'VLM saw a person/hand in the workspace' };
+function flagMeaning(f) { const r = state.report; if (r && r.dataset_flags && r.dataset_flags[f]) return r.dataset_flags[f]; if (FLAG_HINT[f]) return FLAG_HINT[f]; if (f.endsWith('_OUTLIER')) return 'differs from the other episodes of this run (robust z-score); informational'; if (f.startsWith('VLM_')) return `VLM indicator ${f.slice(4).toLowerCase()} scored below 0.5`; return ''; }
+function gateAndReviewFlags() {
+  const spec = (state.report && state.report.spec) || {};
+  const gates = new Set(), reviews = new Set((spec.scoring || {}).review_flags || []);
+  (spec.hard_critics || []).forEach(c => (c.gate_flags || []).forEach(f => gates.add(f)));
+  ((spec.scoring || {}).reject_flags || []).forEach(f => gates.add(f));
+  return { gates, reviews };
+}
+function flagHtml(f, gatesFailed = []) {
+  const { gates, reviews } = gateAndReviewFlags();
+  const cls = f.startsWith('VLM_') || f === 'HUMAN_IN_WORKSPACE' ? 'vlm' : '';
+  const sev = gates.has(f) || gatesFailed.length && gates.has(f) ? 'gate' : reviews.has(f) ? 'review' : '';
+  return `<span class="flag ${cls} ${sev}" title="${esc(flagMeaning(f))}">${f}</span>`;
+}
+function metricDoc(cid, k) { const docs = (state.report && state.report.metric_docs) || {}; return docs[`${cid}.${k}`] || null; }
+function fmtMetric(v) {
+  if (v == null) return '–';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : (Math.abs(v) >= 100 ? v.toFixed(1) : Math.abs(v) >= 1 ? v.toFixed(2) : v.toPrecision(3));
+  if (Array.isArray(v)) return v.length > 8 ? `[${v.length} values]` : `[${v.map(fmtMetric).join(', ')}]`;
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+function metricsTable(h) {
+  const rows = Object.entries(h.metrics || {}).filter(([k]) => !k.startsWith('_')).map(([k, v]) => {
+    const d = metricDoc(h.id, k);
+    return `<tr><td class="k" title="${esc(d ? d.how : '')}">${esc(k)}</td><td class="v">${esc(fmtMetric(v))}${d && d.unit ? ` <span class="mut">${esc(d.unit)}</span>` : ''}</td><td class="d" title="${esc(d ? 'how: ' + d.how : '')}">${d ? esc(d.what) : ''}${d && d.feature ? ` <i>(${esc(d.feature)})</i>` : ''}</td></tr>`;
+  }).join('');
+  return `<table class="metrics"><thead><tr><th>metric</th><th>value</th><th>what it measures <span class="mut">(hover: how)</span></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ------------------------------------------------------------------ settings
+$('#apikey').value = localStorage.getItem('critics_api_key') || '';
+$('#apikey').addEventListener('change', () => { localStorage.setItem('critics_api_key', key()); init(); });
+$('#settingsBtn').onclick = () => $('#settingsModal').classList.remove('hidden');
+$('#settingsClose').onclick = () => $('#settingsModal').classList.add('hidden');
+
+async function init() {
+  try {
+    const h = await api('/health');
+    $('#dot').className = 'dot ok';
+    $('#health').textContent = `v${h.version}${h.gemini_key || h.openrouter_key ? ' · VLM key set' : ' · no VLM key'}${h.auth ? ' · auth on' : ''}`;
+    $('#serverInfo').innerHTML = [['version', h.version], ['data directory', h.data_dir], ['jobs directory', h.jobs_dir], ['Gemini key', h.gemini_key ? 'set' : 'not set'], ['OpenRouter key', h.openrouter_key ? 'set' : 'not set'], ['API key required', h.auth ? 'yes' : 'no']].map(([k, v]) => `<div><span>${k}</span><span>${esc(v)}</span></div>`).join('');
+    await Promise.all([loadDatasets(), loadSpecs(), loadCriticDescriptions()]);
+    const h0 = new URLSearchParams(location.hash.slice(1));
+    if (h0.get('job') && !state.job) { await openJob(h0.get('job')); if (h0.get('ep') != null && state.report) showEpisode(+h0.get('ep')); }
+    else await loadJobs();
+    if (state.timer) clearInterval(state.timer);
+    state.timer = setInterval(loadJobs, 4000);
+  } catch (e) { $('#dot').className = 'dot err'; $('#health').textContent = e.message; }
+}
+async function loadCriticDescriptions() { try { (await api('/critics')).forEach(c => state.criticDesc[c.id] = c.description); } catch {} }
+
+// ------------------------------------------------------------------ dataset & spec
+async function loadDatasets() {
+  const ds = await api('/datasets'); state.datasets = ds;
+  const sel = $('#dataset'); const cur = sel.value;
+  sel.innerHTML = ds.map(d => `<option value="${esc(d.name)}">${esc(d.name)} · ${d.episodes ?? '?'} episodes${d.robot_type ? ' · ' + esc(d.robot_type) : ''}</option>`).join('') || '<option value="">(no datasets in the data directory – upload one)</option>';
+  if (cur && ds.some(d => d.name === cur)) sel.value = cur;
+  sel.onchange = () => {
+    const d = ds.find(x => x.name === sel.value);
+    $('#dsinfo').innerHTML = d ? [['task', d.task || '–'], ['robot', d.robot_type || '–'], ['episodes', d.episodes], ['frame rate', `${d.fps} fps`], ['cameras', (d.cameras || []).map(c => c.split('.').slice(-2).join('.')).join(', ') || '–'], ['format', d.version]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('') : '';
+    updateSpecHint();
+  };
+  sel.onchange();
+}
+$('#refreshDs').onclick = loadDatasets;
+$('#uploadToggle').onclick = () => $('#uploadBox').classList.toggle('hidden');
+
+async function loadSpecs() {
+  const specs = await api('/specs');
+  const sel = $('#spec'); const cur = sel.value;
+  sel.innerHTML = '<option value="">Auto – generated from the dataset</option>' + specs.map(s => `<option value="${esc(s.name)}">${esc(s.name)}${s.task ? ' — ' + esc(s.task) : ''}</option>`).join('');
+  if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+  sel.onchange = updateSpecHint; updateSpecHint();
+}
+function autoName() { const ds = $('#dataset').value || 'dataset'; return ds.split('/').pop().replace(/[^A-Za-z0-9_.-]+/g, '_') + '-auto'; }
+function updateSpecHint() {
+  const v = $('#spec').value;
+  $('#spechint').textContent = v ? `Stored spec "${v}" – Edit to view or change it.` : `Task text, robot and active arm are read from the dataset; every critic runs with its defaults. The generated spec is saved as "${autoName()}" so you can refine it after the run.`;
+}
+async function openSpecEditor(name, yamlText) {
+  $('#specModal').classList.remove('hidden'); $('#specMsg').textContent = '';
+  $('#specTitle').textContent = name ? `Spec "${name}"` : 'New spec';
+  $('#specName').value = name || autoName();
+  if (yamlText != null) { $('#specYaml').value = yamlText; return; }
+  if (name) { try { const s = await api(`/specs/${encodeURIComponent(name)}`); $('#specYaml').value = toYaml(s); } catch (e) { toast(e.message, true); } }
+  else await genSpec();
+}
+$('#editSpec').onclick = () => openSpecEditor($('#spec').value || null);
+$('#specClose').onclick = () => $('#specModal').classList.add('hidden');
+async function genSpec() {
+  const ds = $('#dataset').value; if (!ds) return toast('select a dataset first', true);
+  try { const s = await api('/specs/auto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataset: ds }) }); $('#specYaml').value = toYaml(s); $('#specMsg').textContent = 'generated from the dataset – not saved yet'; }
+  catch (e) { toast(e.message, true); }
+}
+$('#autoSpecBtn').onclick = genSpec;
+$('#saveSpec').onclick = async () => {
+  try {
+    const obj = fromYaml($('#specYaml').value); const name = $('#specName').value.trim() || obj.name || 'spec';
+    obj.name = name;
+    await api(`/specs/${encodeURIComponent(name)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
+    await loadSpecs(); $('#spec').value = name; updateSpecHint(); $('#specMsg').textContent = `saved as "${name}"`; toast(`spec "${name}" saved – it is now selected for the next run`);
+  } catch (e) { toast(e.message, true); }
+};
+
+$('#uploadBtn').onclick = () => {
+  const f = $('#zip').files[0]; if (!f) return toast('choose a .zip first', true);
+  const fd = new FormData(); fd.append('file', f);
+  const xhr = new XMLHttpRequest(); xhr.open('POST', '/upload');
+  if (key()) xhr.setRequestHeader('X-API-Key', key());
+  $('#upbar').classList.remove('hidden');
+  xhr.upload.onprogress = e => { if (e.lengthComputable) $('#upbar i').style.width = Math.round(100 * e.loaded / e.total) + '%'; };
+  xhr.onload = async () => {
+    $('#upbar').classList.add('hidden'); $('#upbar i').style.width = '0';
+    if (xhr.status < 300) { const d = JSON.parse(xhr.responseText); toast(`uploaded ${d.name} (${d.episodes} episodes)`); await loadDatasets(); $('#dataset').value = d.name; $('#dataset').onchange(); $('#uploadBox').classList.add('hidden'); }
+    else { let m = xhr.statusText; try { m = JSON.parse(xhr.responseText).detail; } catch {} toast(`upload failed: ${m}`, true); }
+  };
+  xhr.onerror = () => toast('upload failed', true);
+  xhr.send(fd);
+};
+
+// ------------------------------------------------------------------ runs
+function parseEpisodes(s) {
+  if (!s.trim()) return null; const out = [];
+  for (const part of s.split(',')) { const p = part.trim(); if (!p) continue; const m = p.match(/^(\d+)-(\d+)$/); if (m) { for (let i = +m[1]; i <= +m[2]; i++) out.push(i); } else out.push(+p); }
+  return out;
+}
+$('#run').onclick = async () => {
+  const ds = $('#dataset').value; if (!ds) return toast('no dataset selected', true);
+  const body = { dataset: ds, spec: $('#spec').value || null, options: { episodes: parseEpisodes($('#episodes').value), run_soft: $('#vlm').checked, contact_sheets: $('#sheets').checked } };
+  try {
+    const r = await api('/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    toast(`run started – ${$('#spec').value ? '' : `the generated spec is saved as "${autoName()}"`}`);
+    await Promise.all([loadJobs(), loadSpecs()]);
+    state.job = r.job_id; state.report = null; showRunning({ job_id: r.job_id, status: 'queued' });
+  } catch (e) { toast(e.message, true); }
+};
+
+async function loadJobs() {
+  let jobs; try { jobs = await api('/jobs'); } catch (e) { return; }
+  $('#runsCount').textContent = jobs.length ? `(${jobs.length})` : '';
+  $('#jobs').innerHTML = jobs.map(j => {
+    const p = j.progress || {}; const stages = ['hard', 'soft'].filter(k => p[k]);
+    const done = stages.reduce((a, k) => a + p[k].done, 0), total = stages.reduce((a, k) => a + p[k].total, 0);
+    const prog = j.status === 'running' && total ? `<div class="progress"><i style="width:${Math.round(100 * done / total)}%"></i></div>` : '';
+    const c = j.counts ? `<span class="counts"><span class="a">${j.counts.accept}</span><span class="r">${j.counts.review}</span><span class="x">${j.counts.reject}</span></span>` : '';
+    return `<li data-id="${j.job_id}" class="${state.job === j.job_id ? 'sel' : ''}"><div class="top"><b title="${esc(j.dataset)}">${esc(j.dataset)}</b>${c}<span class="pill ${j.status}">${j.status}</span></div><div class="sub"><span>${esc(j.spec_name || '')}</span><span>·</span><span>${when(j.created_at)}</span>${j.n_episodes ? `<span>· ${j.n_episodes} ep</span>` : ''}</div>${prog}</li>`;
+  }).join('') || '<li class="mut" style="cursor:default">No runs yet.</li>';
+  document.querySelectorAll('#jobs li[data-id]').forEach(li => li.onclick = () => openJob(li.dataset.id));
+  const cur = jobs.find(j => j.job_id === state.job);
+  if (cur && !state.report) { if (cur.status === 'done') openJob(cur.job_id); else showRunning(cur); }
+}
+function showRunning(st) {
+  $('#report').classList.add('hidden'); $('#empty').classList.remove('hidden');
+  if (st.status === 'failed') { $('#empty').innerHTML = `<div class="empty"><b class="err">Run failed</b>${esc(st.error || '')}<pre class="mut small" style="white-space:pre-wrap;text-align:left">${esc(st.traceback || '')}</pre></div>`; return; }
+  const p = st.progress || {}; const parts = ['hard', 'soft'].filter(k => p[k]).map(k => `${k === 'hard' ? 'technical checks' : 'VLM judge'} ${p[k].done}/${p[k].total} episodes`);
+  $('#empty').innerHTML = `<div class="empty"><b>Run ${esc(st.status)}…</b>${esc(st.dataset || '')} ${parts.length ? '· ' + parts.join(' · ') : ''}<div class="hint" style="margin-top:10px">This page updates itself; the results appear here when the run is done.</div></div>`;
+}
+async function openJob(id) {
+  state.job = id; state.report = null; state.selected = null; closeDrawer();
+  let st; try { st = await api(`/jobs/${id}`); } catch (e) { return toast(e.message, true); }
+  if (st.status !== 'done') { showRunning(st); loadJobs(); return; }
+  state.report = await api(`/jobs/${id}/report`);
+  history.replaceState(null, '', `#job=${encodeURIComponent(id)}`);
+  renderReport(); loadJobs();
+}
+
+// ------------------------------------------------------------------ result
+function renderReport() {
+  const r = state.report; if (!r) return;
+  $('#empty').classList.add('hidden'); $('#report').classList.remove('hidden');
+  const n = r.n_episodes || r.episodes.length, c = r.counts || {};
+  $('#rTitle').textContent = r.dataset_name;
+  const task = ((r.spec || {}).task || {}).instruction;
+  $('#rMeta').innerHTML = `${n} episodes · ${esc(r.robot_type || '')} · ${r.fps} fps · ${(r.cameras || []).length} cameras${task ? ` · task “${esc(task)}”` : ''}<br>spec <b>${esc(r.spec_name)}</b> <button class="ghost small" id="editRunSpec">view / edit</button> · ${when(r.created_at)} · ${dur((r.timing_s || {}).total_s)}`;
+  $('#editRunSpec').onclick = async () => { try { openSpecEditor(r.spec_name, await api(`/jobs/${state.job}/spec`)); } catch (e) { openSpecEditor(r.spec_name, toYaml(r.spec)); } };
+  $('#verdict').innerHTML = [['accept', 'use for training'], ['review', 'a person should look'], ['reject', 'exclude']].map(([v, w]) => `<div class="vbox ${v}"><b>${c[v] ?? 0}</b><span>${v} · ${w}</span></div>`).join('');
+  const usable = r.episodes.filter(e => r.include.includes(e.episode)).reduce((a, e) => a + e.duration_s, 0);
+  $('#rec').innerHTML = `Take <b>${r.include.length} of ${n}</b> episodes (${dur(usable)} of recording) into training, look at <b>${r.review.length}</b>, drop <b>${r.exclude.length}</b>.` + (Object.keys(r.dataset_flags || {}).length ? ` <span class="mut">${Object.keys(r.dataset_flags).length} finding(s) concern the whole session – see below.</span>` : '');
+  $('#inc').textContent = JSON.stringify(r.include); $('#rev').textContent = JSON.stringify(r.review); $('#exc').textContent = JSON.stringify(r.exclude);
+  renderProfile(); renderFindings(); renderFilters(); renderTable(); buildExportMenu();
+}
+$('#copyInclude').onclick = async () => { const r = state.report; if (!r) return; const ok = await copyText(JSON.stringify(r.include)); toast(ok ? `copied ${r.include.length} episode indices – use them as --dataset.episodes` : 'clipboard blocked by the browser', !ok); };
+$('#visualReport').onclick = async () => {
+  if (!state.job) return;
+  const url = `/jobs/${state.job}/report.html?top=5`;
+  if (!key()) return window.open(url, '_blank');
+  try { const html = await api(url); const w = window.open('', '_blank'); w.document.open(); w.document.write(html); w.document.close(); } catch (e) { toast(e.message, true); }
+};
+function buildExportMenu() {
+  const base = `/jobs/${state.job}`;
+  $('#exportMenu').innerHTML = `
+    <button class="item" data-md="summary">Copy as Markdown for AI · summary<span class="desc">run, task, checks, verdicts, score table</span></button>
+    <button class="item" data-md="flagged">Copy as Markdown for AI · flagged episodes<span class="desc">+ details of review / reject episodes</span></button>
+    <button class="item" data-md="full">Copy as Markdown for AI · everything<span class="desc">+ details of every episode</span></button>
+    <hr>
+    <a href="${base}/files/selection.json" target="_blank">selection.json<span class="desc">include / review / exclude lists with reasons</span></a>
+    <a href="${base}/files/episodes.csv" target="_blank">episodes.csv<span class="desc">one row per episode, every score and metric (episodes_columns.csv explains the columns)</span></a>
+    <a href="${base}/files/report.json" target="_blank">report.json<span class="desc">the complete result for pipelines</span></a>
+    <a href="${base}/files/report.md" target="_blank">report.md<span class="desc">text report with session profile and glossary</span></a>`;
+  $('#exportMenu').querySelectorAll('button[data-md]').forEach(b => b.onclick = e => { $('#exportMenu').classList.add('hidden'); copyMarkdown(`${base}/markdown?detail=${b.dataset.md}`, b.textContent.split('·')[1] || 'Markdown', e.currentTarget); });
+}
+$('#exportBtn').onclick = e => { e.stopPropagation(); $('#exportMenu').classList.toggle('hidden'); };
+document.addEventListener('click', e => { if (!e.target.closest('.menu')) $('#exportMenu').classList.add('hidden'); });
+async function copyMarkdown(url, label, btn) {
+  try {
+    const md = await api(url);
+    if (await copyText(md)) toast(`copied ${label.trim()} – ${(md.length / 1024).toFixed(0)} KB of Markdown, paste it into your AI chat`);
+    else { window.open(url, '_blank'); toast('clipboard blocked by the browser – opened the Markdown in a new tab instead', true); }
+  } catch (e) { toast(e.message, true); }
+}
+
+// ------------------------------------------------------------------ session profile
+$('#showAllInd').onchange = renderProfile;
+function indCard(i) {
+  const spread = i.display_extra ? esc(i.display_extra) : (i.n > 1 ? `${fmtMetric(i.low)} – ${fmtMetric(i.high)} ${esc(i.unit || '')} across ${i.n} episodes` : '');
+  const thr = i.good != null && i.bad != null && (i.better === 'lower' || i.better === 'higher') ? `good ${i.better === 'lower' ? '≤' : '≥'} ${fmtMetric(i.good)}, bad ${i.better === 'lower' ? '≥' : '≤'} ${fmtMetric(i.bad)} ${esc(i.unit || '')}` : '';
+  return `<div class="ind ${i.status}" title="${esc(i.what || '')}"><div class="lbl">${esc(i.label)}<span class="stat ${i.status}">${i.status}</span></div><div class="val">${esc(i.display)}<small>${esc(i.unit || '')}</small></div>${spread ? `<div class="xtra">${spread}</div>` : ''}<div class="txt">${esc(i.so_what || i.what || '')}</div>${i.action && (i.status === 'bad' || i.status === 'warn') ? `<div class="act"><b>What to do:</b> ${esc(i.action)}</div>` : ''}${thr ? `<div class="xtra">${thr}</div>` : ''}</div>`;
+}
+function renderProfile() {
+  const r = state.report; const p = (r && r.session_profile) || {}; const inds = p.indicators || [];
+  if (!inds.length) { $('#profileCard').classList.add('hidden'); return; }
+  $('#profileCard').classList.remove('hidden');
+  const all = $('#showAllInd').checked;
+  const sc = p.status_counts || {}; const cls = sc.bad ? 'bad' : sc.warn ? 'warn' : 'good';
+  const groups = (p.groups || []).map(g => {
+    const items = inds.filter(i => i.group === g.id && (all || i.status === 'bad' || i.status === 'warn'));
+    const total = inds.filter(i => i.group === g.id).length;
+    if (!items.length) return all ? '' : `<details class="pgroup"><summary>${esc(g.title)} <span class="mut" style="font-weight:400">– all ${total} indicators fine or informational</span></summary><p class="intro">${esc(g.intro)}</p><div class="inds">${inds.filter(i => i.group === g.id).map(indCard).join('')}</div></details>`;
+    const nb = items.filter(i => i.status === 'bad').length, nw = items.filter(i => i.status === 'warn').length;
+    return `<details class="pgroup" open><summary>${esc(g.title)} <span class="mut" style="font-weight:400">– ${nb ? nb + ' bad' : ''}${nb && nw ? ', ' : ''}${nw ? nw + ' to watch' : ''}</span></summary><p class="intro">${esc(g.intro)}</p><div class="inds">${items.map(indCard).join('')}</div></details>`;
+  }).join('');
+  $('#profile').innerHTML = `<div class="headline ${cls}">${esc(p.headline || '')}</div>${groups}`;
+}
+
+// ------------------------------------------------------------------ findings
+function renderFindings() {
+  const r = state.report; const flags = r.dataset_flags || {}; const summ = r.dataset_summaries || {};
+  if (!Object.keys(flags).length) { $('#findingsCard').classList.add('hidden'); return; }
+  $('#findingsCard').classList.remove('hidden');
+  const rows = Object.entries(flags).map(([f, why]) => `<tr><td><span class="flag ds">${f}</span></td><td>${esc(why)}</td></tr>`).join('');
+  const details = Object.entries(summ).map(([cid, o]) => `<details style="margin-top:6px"><summary>${cid}: measured values</summary><div class="kv" style="margin-top:4px">${kvLines(o)}</div></details>`).join('');
+  $('#findings').innerHTML = `<table class="findtbl"><thead><tr><th style="cursor:default">finding</th><th style="cursor:default">what was measured and what to do</th></tr></thead><tbody>${rows}</tbody></table>${details}`;
+}
+function kvLines(o, prefix = '') {
+  return Object.entries(o || {}).filter(([k]) => k !== 'flags').map(([k, v]) => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) return `<div><span>${esc(prefix + k)}</span><span></span></div>` + kvLines(v, prefix + k + ' · ');
+    return `<div><span>${esc(prefix + k)}</span><span>${esc(fmtMetric(v))}</span></div>`;
+  }).join('');
+}
+
+// ------------------------------------------------------------------ episodes table
+function renderFilters() {
+  const r = state.report;
+  const flagged = r.episodes.filter(e => e.score.flags.length).length;
+  const opts = [['all', `all (${r.episodes.length})`], ['review', `review (${r.review.length})`], ['reject', `reject (${r.exclude.length})`], ['flagged', `flagged (${flagged})`]];
+  $('#filters').innerHTML = opts.map(([k, l]) => `<button class="${state.filter === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('');
+  $('#filters').querySelectorAll('button').forEach(b => b.onclick = () => { state.filter = b.dataset.f; renderFilters(); renderTable(); });
+}
+$('#showScores').onchange = renderTable;
+function whyCell(e) {
+  const reasons = (e.score.reasons || []).filter(x => !x.startsWith('capped at review'));
+  const flags = e.score.flags.map(f => flagHtml(f, e.score.gates_failed)).join('');
+  const first = reasons[0] ? `<div class="mut small">${esc(reasons[0].length > 110 ? reasons[0].slice(0, 108) + '…' : reasons[0])}</div>` : '';
+  return flags + first || '<span class="mut">–</span>';
+}
+function renderTable() {
+  const r = state.report; const all = $('#showScores').checked;
+  const hardIds = [], softIds = [];
+  r.episodes.forEach(e => { e.hard.forEach(h => { if (!hardIds.includes(h.id)) hardIds.push(h.id); }); e.soft.forEach(s => { if (s.weight > 0 && !softIds.includes(s.id)) softIds.push(s.id); }); });
+  const cols = [['episode', 'ep'], ['verdict', 'verdict'], ['total', 'total'], ['duration_s', 'duration']];
+  if (all) cols.push(['hard_score', 'hard'], ['soft_score', 'soft'], ...hardIds.map(i => [`h:${i}`, i]), ...softIds.map(i => [`s:${i}`, i.replace('vlm.', 'vlm:')]));
+  cols.push(['why', 'why (flags and reasons)']);
+  const val = (e, k) => k === 'episode' ? e.episode : k === 'verdict' ? e.score.verdict : k === 'duration_s' ? e.duration_s : k in e.score ? e.score[k] : k.startsWith('h:') ? (e.hard.find(h => h.id === k.slice(2)) || {}).score : k.startsWith('s:') ? (e.soft.find(s => s.id === k.slice(2)) || {}).score : e.score.flags.length;
+  $('#eptable thead').innerHTML = '<tr>' + cols.map(([k, l]) => `<th data-k="${k}" title="${esc(state.criticDesc[k.replace(/^h:/, '')] || '')}">${l}${state.sortKey === k ? (state.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('') + '</tr>';
+  document.querySelectorAll('#eptable th').forEach(th => th.onclick = () => { const k = th.dataset.k; state.sortDir = state.sortKey === k ? -state.sortDir : 1; state.sortKey = k; renderTable(); });
+  let rows = [...r.episodes];
+  if (state.filter === 'review') rows = rows.filter(e => e.score.verdict === 'review');
+  if (state.filter === 'reject') rows = rows.filter(e => e.score.verdict === 'reject');
+  if (state.filter === 'flagged') rows = rows.filter(e => e.score.flags.length);
+  rows.sort((a, b) => { const x = val(a, state.sortKey), y = val(b, state.sortKey); if (x == null) return 1; if (y == null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * state.sortDir; });
+  $('#eptable tbody').innerHTML = rows.map(e => `<tr class="clickable ${state.selected === e.episode ? 'selected' : ''}" data-ep="${e.episode}">` + cols.map(([k]) => {
+    const v = val(e, k);
+    if (k === 'episode') return `<td><b>${v}</b></td>`;
+    if (k === 'verdict') return `<td><span class="pill ${v}">${v}</span></td>`;
+    if (k === 'duration_s') return `<td class="mut">${v.toFixed(0)} s</td>`;
+    if (k === 'why') return `<td>${whyCell(e)}</td>`;
+    return `<td>${scoreCell(v)}</td>`;
+  }).join('') + '</tr>').join('') || `<tr><td colspan="${cols.length}" class="mut">no episodes match this filter</td></tr>`;
+  document.querySelectorAll('#eptable tr[data-ep]').forEach(tr => tr.onclick = () => showEpisode(+tr.dataset.ep));
+}
+
+// ------------------------------------------------------------------ episode drawer
+function closeDrawer() { $('#drawer').classList.remove('open'); $('#backdrop').classList.add('hidden'); state.selected = null; if (state.report) { renderTable(); history.replaceState(null, '', `#job=${encodeURIComponent(state.job)}`); } }
+$('#backdrop').onclick = closeDrawer;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDrawer(); $('#specModal').classList.add('hidden'); $('#settingsModal').classList.add('hidden'); } });
+function weakCritics(e) {
+  const cands = [...e.hard, ...e.soft.filter(s => s.id !== 'vlm.summary')];
+  const interesting = cands.filter(c => c.gate_failed || c.flags.length || (c.score != null && c.score < 0.75) || c.error);
+  interesting.sort((a, b) => (a.gate_failed ? 0 : 1) - (b.gate_failed ? 0 : 1) || ((a.score ?? -1) - (b.score ?? -1)) || (b.flags.length - a.flags.length));
+  return interesting;
+}
+function showEpisode(ep) {
+  const r = state.report; const e = r.episodes.find(x => x.episode === ep); if (!e) return;
+  state.selected = ep; renderTable();
+  const base = `/jobs/${state.job}/files`; const id = String(ep).padStart(6, '0');
+  const summ = e.soft.find(s => s.id === 'vlm.summary'); const m = (summ || {}).metrics || {};
+  const weak = weakCritics(e);
+  const others = [...e.hard, ...e.soft.filter(s => s.id !== 'vlm.summary')].filter(c => !weak.includes(c));
+  const criticCard = c => {
+    const desc = state.criticDesc[c.id] || (((r.spec || {}).soft_critics || {}).indicators || []).filter(i => `vlm.${i.id}` === c.id).map(i => i.description)[0] || '';
+    return `<div class="critic"><div class="top"><b>${esc(c.id.replace('vlm.', 'vlm: '))}</b>${scoreCell(c.score)}${c.gate_failed ? '<span class="flag gate">GATE FAILED</span>' : ''}${c.flags.map(f => flagHtml(f, e.score.gates_failed)).join('')}</div>${c.error ? `<div class="evi err">${esc(c.error)}</div>` : c.evidence.slice(0, 4).map(x => `<div class="evi">${esc(x)}</div>`).join('')}${desc ? `<div class="desc">${esc(desc)}</div>` : ''}${c.kind === 'hard' && Object.keys(c.metrics || {}).length ? `<details style="margin-top:4px"><summary>metrics</summary>${metricsTable(c)}</details>` : ''}</div>`;
+  };
+  const attempts = (m.attempts || []).map(a => `<span class="flag ${a.placed_correctly ? '' : 'gate'}">${fmt(a.grasp_time_s)}–${fmt(a.release_time_s)} s${a.placed_correctly ? '' : ' ✗'}</span>`).join(' ');
+  const anomalies = (m.anomalies || []).map(a => `<li><b>${esc(a.type)}</b> @ ${fmt(a.time_s)} s <span class="mut">(${esc(a.severity)})</span> – ${esc(a.description)}</li>`).join('');
+  const reasons = (e.score.reasons || []);
+  $('#drawer').innerHTML = `
+    <div class="dhead"><h2>Episode ${ep} <span class="pill ${e.score.verdict}">${e.score.verdict}</span></h2>
+      <button onclick="copyMarkdown('/jobs/${state.job}/episodes/${ep}/markdown', 'episode ${ep}', this)" title="This episode as self-contained Markdown for an AI chat">⧉ Copy as Markdown</button>
+      <button id="drawerClose">✕</button></div>
+    <div class="mut small">total ${fmt(e.score.total)} · hard ${fmt(e.score.hard_score)} · soft ${fmt(e.score.soft_score)} · ${e.duration_s.toFixed(1)} s / ${e.length} frames${e.task ? ` · “${esc(e.task)}”` : ''}</div>
+    ${e.score.gates_failed.length ? `<p class="err" style="margin:8px 0 0"><b>Rejected by gate:</b> ${e.score.gates_failed.join(', ')}</p>` : ''}
+    ${e.score.flags.length ? `<div style="margin-top:8px">${e.score.flags.map(f => flagHtml(f, e.score.gates_failed)).join('')}</div>` : ''}
+    ${reasons.length ? `<h3>Why</h3><ul class="why">${reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+    <h3>${weak.length ? 'What pulled this episode down' : 'Checks'}</h3>
+    ${weak.length ? weak.map(criticCard).join('') : '<div class="mut small">Every check passed cleanly.</div>'}
+    ${others.length ? `<details style="margin-top:8px"><summary>${others.length} other check(s) that passed</summary>${others.map(criticCard).join('')}</details>` : ''}
+    ${summ ? `<h3>VLM judge <span class="mut" style="font-weight:400">(${esc(m.model || '')} · ${esc(m.mode || '')}${m.usage && m.usage.total_tokens ? ' · ' + m.usage.total_tokens + ' tokens' : ''})</span></h3>
+      <div>${summ.error ? `<span class="err">${esc(summ.error)}</span>` : esc(summ.evidence[0] || '')}</div>
+      <div class="small" style="margin-top:4px">task success: <b>${m.task_success}</b>${attempts ? ' · attempts: ' + attempts : ''}</div>
+      ${anomalies ? `<ul class="why small">${anomalies}</ul>` : ''}` : ''}
+    <h3>Contact sheet <span class="mut" style="font-weight:400">– evenly spaced frames plus the grasp keyframes, one row per camera</span></h3>
+    <img src="${base}/sheets/episode_${id}.jpg" alt="contact sheet" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'mut small',textContent:'No contact sheet: they are only rendered for review / reject episodes.'}))">
+    <h3>Composite video <span class="mut" style="font-weight:400">– what the VLM judge saw</span></h3>
+    <video controls preload="metadata" src="${base}/composites/episode_${id}.mp4" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'mut small',innerHTML:'No composite video for this episode (only rendered when the VLM judge runs) – <a href=&quot;${base}/composites/episode_${id}.mp4&quot;>try the download</a>.'}))"></video>`;
+  $('#drawerClose').onclick = closeDrawer;
+  $('#drawer').classList.add('open'); $('#backdrop').classList.remove('hidden'); $('#drawer').scrollTop = 0;
+  history.replaceState(null, '', `#job=${encodeURIComponent(state.job)}&ep=${ep}`);
+}
+
+// ------------------------------------------------------------------ tiny YAML <-> JSON (the spec is plain maps/lists/scalars)
+function toYaml(o, ind = 0) {
+  const pad = ' '.repeat(ind);
+  if (Array.isArray(o)) return o.length ? o.map(v => (typeof v === 'object' && v !== null) ? `${pad}-\n${toYaml(v, ind + 2).replace(new RegExp(`^${' '.repeat(ind + 2)}`), pad + '  ')}` : `${pad}- ${scalar(v)}`).join('\n') : `${pad}[]`;
+  if (o && typeof o === 'object') return Object.entries(o).map(([k, v]) => (v && typeof v === 'object') ? ((Array.isArray(v) && !v.length) || (!Array.isArray(v) && !Object.keys(v).length) ? `${pad}${k}: ${Array.isArray(v) ? '[]' : '{}'}` : `${pad}${k}:\n${toYaml(v, ind + 2)}`) : `${pad}${k}: ${scalar(v)}`).join('\n');
+  return pad + scalar(o);
+}
+function scalar(v) { if (v === null || v === undefined) return 'null'; if (typeof v === 'string') return /^[\w .,/:()%-]*$/.test(v) && !/^(true|false|null|\d.*)$/i.test(v) && v !== '' ? v : JSON.stringify(v); return String(v); }
+function fromYaml(text) {
+  const lines = text.split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
+  let i = 0;
+  const indentOf = l => l.match(/^ */)[0].length;
+  const parseScalar = s => { s = s.trim(); if (s === '' ) return null; if (s === 'null' || s === '~') return null; if (s === 'true') return true; if (s === 'false') return false; if (/^-?\d+(\.\d+)?$/.test(s)) return +s; if (/^\[.*\]$/.test(s)) return s.slice(1, -1).split(',').map(x => x.trim()).filter(Boolean).map(parseScalar); if (/^\{.*\}$/.test(s)) { const o = {}; s.slice(1, -1).split(',').forEach(p => { const [k, ...r] = p.split(':'); if (k.trim()) o[k.trim()] = parseScalar(r.join(':')); }); return o; } if (/^".*"$/.test(s)) return JSON.parse(s); if (/^'.*'$/.test(s)) return s.slice(1, -1); return s; };
+  function block(ind) {
+    if (i >= lines.length) return null;
+    const isList = lines[i].trim().startsWith('- ') || lines[i].trim() === '-';
+    const out = isList ? [] : {};
+    while (i < lines.length && indentOf(lines[i]) === ind) {
+      const l = lines[i]; const t = l.trim();
+      if (isList) {
+        if (!t.startsWith('-')) break;
+        const rest = t.slice(1).trim(); i++;
+        if (!rest) { out.push(block(ind + 2)); continue; }
+        const m = rest.match(/^([\w.\-]+):\s*(.*)$/);
+        if (m && !/^[\[{"']/.test(rest)) {
+          const obj = {}; obj[m[1]] = m[2] === '' ? block(ind + 4) : parseScalar(m[2]);
+          while (i < lines.length && indentOf(lines[i]) === ind + 2) { const mm = lines[i].trim().match(/^([\w.\-]+):\s*(.*)$/); if (!mm) break; i++; obj[mm[1]] = mm[2] === '' ? block(indentOf(lines[i] || '')) : parseScalar(mm[2]); }
+          out.push(obj);
+        } else out.push(parseScalar(rest));
+      } else {
+        const m = t.match(/^([^:]+):\s*(.*)$/); if (!m) { i++; continue; }
+        i++;
+        out[m[1].trim()] = m[2] === '' ? (i < lines.length && indentOf(lines[i]) > ind ? block(indentOf(lines[i])) : null) : parseScalar(m[2]);
+      }
+    }
+    return out;
+  }
+  return block(indentOf(lines[0] || ''));
+}
+init();
+</script>
+</body>
+</html>

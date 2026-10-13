@@ -1,0 +1,98 @@
+# Critic spec for the xlerobot "right_pnp_multicube" dataset: a single 6-DOF SO-follower arm
+# (shoulder_pan/lift, elbow_flex, wrist_flex/roll, gripper) teleoperated over a serial servo bus.
+# action / observation.state are ONE combined 6-vector (no separate cartesian pose feature), so the
+# loader can only pair/exclude whole feature columns, not individual dimensions inside that vector -
+# there is currently no spec-level way to carve the gripper dim out of the "joints" pair that
+# smoothness/tracking_error score. `robot.gripper` below only feeds grasp_cycles (grasp/release
+# detection); the thresholds under smoothness/tracking_error/duplication are instead recalibrated
+# against this dataset's own percentiles (see conversation) so the gripper's near-step-function
+# open/close motion - which shows up on every grasp as a large single-frame excursion in the
+# combined joint vector - is treated as this platform's baseline rather than universally flagged.
+version: 1
+name: xlerobot
+task:
+  # The eval/rollout datasets vary the prompt per episode (the cube's colour and size change:
+  # "smaller orange", "larger red", "green", ...). per_episode: auto judges each episode against the
+  # task recorded for it in the dataset, because a dataset with several tasks has no single
+  # instruction that fits every episode; `instruction` below is then only the fallback for episodes
+  # that carry no task at all. Judging all of them against one fixed instruction marks every
+  # differently-prompted episode as a wrong-object failure.
+  instruction: "Pick up the cube named in the task instruction and place it in the black box"
+  per_episode: auto
+  scene: "A table with several cubes of different colours and sizes and a black box."
+  objects:
+    - { name: target_cube, role: target_object, description: "the cube the task instruction names - its colour and size vary per episode" }
+    - { name: black_box, role: target_zone, description: "the black box the cube must be placed into" }
+  expected_cycles: null
+  notes: >-
+    Judge the target object strictly against this episode's instruction: both the colour AND the
+    size qualifier ("larger"/"smaller") must match. Other cubes on the table are distractors.
+robot:
+  type: so_follower
+  gripper:
+    feature: observation.state
+    dims: [5]              # right_gripper.pos is dim index 5 of the combined 6-vector
+    closed_is_high: false  # SO-100/SO-101 style: larger value = more open
+hard_critics:
+  - { id: integrity,      weight: 1.0, gate_flags: [VIDEO_MISSING, NAN_VALUES, LENGTH_MISMATCH, EMPTY] }
+  - { id: duration,       weight: 1.0, gate_flags: [TOO_SHORT, TOO_LONG] }
+  - { id: smoothness,     weight: 1.0,
+      # this dataset's own median spike_rate is ~103/min and hf_ratio ~0.24 (gripper-driven baseline,
+      # a long-horizon arm dataset sits at ~0/~0.08); good/bad raised to isolate the real outlier tail
+      # (p90+: spike_rate > 300/min, hf_ratio > 0.45) instead of flagging every episode.
+      params: { spike_rate_good: 100, spike_rate_bad: 300, hf_good: 0.15, hf_bad: 0.45 } }
+  - { id: tracking_error, weight: 1.5, gate_flags: [TRACKERR],
+      # worst-joint normalized error clusters around 0.05-0.10 for nearly all episodes (gripper
+      # dimension chasing a step-function command) with a distinct bad cluster above ~0.27 -
+      # good/bad moved up to price in the baseline and still gate the real cluster.
+      params: { joint_good: 0.07, joint_bad: 0.25 } }
+  - { id: duplication,    weight: 1.0, gate_flags: [LAGGY, CAMSTALL],
+      # action/state duplicate-row rate sits at ~13%/~22% baseline for virtually every episode -
+      # likely the serial servo bus being polled slower than the 30fps log tick, not per-episode
+      # faults. Camera dup rate and freeze runs are unaffected (left at defaults).
+      params: { action_dup_good: 0.08, action_dup_bad: 0.22, state_dup_good: 0.18, state_dup_bad: 0.35 } }
+  - { id: image_quality,  weight: 1.0 }
+  - { id: sensor_limits,  weight: 1.0 }
+  - { id: grasp_cycles,   weight: 1.0, gate_flags: [NOGRASP],
+      # default merge_gap_s=1.0 swallows the real release into the idle "close empty gripper before
+      # retreat" reclose that follows within ~0.7-1.5s on this platform, hiding the true release
+      # timestamp and causing every episode to read as UNFINISHED_GRASP (see conversation + the
+      # grasp_cycles.py fix that stops flagging unfinished when an earlier cycle already released).
+      params: { merge_gap_s: 0.5 } }
+  # teleop input tremor + hold jitter (the policy learns the command, shaking included)
+  - { id: tremor,         weight: 0.5 }
+  # all-zero dropout frames (corrupt min/max normalisation), idle-arm drift, copied actions
+  - { id: normalization,  weight: 1.0 }
+  # spatial diversity of the grasp positions across the run (informational, weight 0)
+  - { id: diversity,      weight: 0.0 }
+soft_critics:
+  enabled: true
+  vlm:
+    provider: gemini
+    model: gemini-3.7-flash
+    mode: agentic
+    composite_fps: 5
+    max_concurrency: 4
+  indicators:
+    - id: correct_object
+      description: "The robot grasps the cube the task instruction names - matching colour and size qualifier - not a distractor cube."
+      weight: 1.0
+    - id: grasp_centered
+      description: "The cube is grasped stably and centred in the gripper, without slipping or re-grasping."
+      weight: 1.0
+    - id: object_in_target
+      description: "At the end of the attempt the cube the robot manipulated rests inside the black box."
+      weight: 2.0
+      gate: true
+      gate_below: 0.3
+    - id: visibility
+      description: "Cube and box stay visible in the front/wrist cameras during manipulation."
+      weight: 0.5
+    - id: no_disturbance
+      description: "No collision, drop, or person in the workspace while the robot moves."
+      weight: 1.0
+scoring:
+  hard_weight: 1.0
+  soft_weight: 1.0
+  accept_threshold: 0.75
+  review_threshold: 0.55

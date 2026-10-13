@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anmeldung</title>
+    <link rel="icon" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app-info.js" defer></script>
+  </head>
+  <body>
+    <div class="min-h-screen flex items-center justify-center px-6 py-12">
+      <div class="w-full max-w-md">
+
+        <!-- Loading -->
+        <div id="loading" class="card p-8">
+          <div class="text-center mb-8">
+            <div class="brand mb-6">
+              <img class="brand-logo" src="/favicon.png" alt="" />
+              <span class="brand-name" data-app-name></span>
+            </div>
+            <h1 class="text-2xl font-bold text-primary mb-2">Anmeldung wird abgeschlossen…</h1>
+            <p class="text-muted">Bitte warten Sie einen Moment.</p>
+          </div>
+          <div class="flex justify-center items-center py-8">
+            <div class="spinner"></div>
+          </div>
+        </div>
+
+        <!-- Success -->
+        <div id="success" class="card p-8 hidden">
+          <div class="text-center">
+            <div class="brand mb-6">
+              <img class="brand-logo" src="/favicon.png" alt="" />
+              <span class="brand-name" data-app-name></span>
+            </div>
+            <div class="icon-circle success">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-primary mb-2">Anmeldung erfolgreich</h1>
+            <p class="text-muted">Sie werden weitergeleitet…</p>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div id="error" class="card p-8 hidden">
+          <div class="text-center">
+            <div class="brand mb-6">
+              <img class="brand-logo" src="/favicon.png" alt="" />
+              <span class="brand-name" data-app-name></span>
+            </div>
+            <div class="icon-circle error">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-primary mb-2">Anmeldung fehlgeschlagen</h1>
+            <p class="text-muted mb-4" id="error-text">Ein Fehler ist aufgetreten.</p>
+            <button onclick="window.location.href='/login.html'" class="btn btn-inline btn-secondary">
+              Zur Anmeldung
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+      function showEl(id) { document.getElementById(id).classList.remove('hidden'); }
+      function hideEl(id) { document.getElementById(id).classList.add('hidden'); }
+
+      function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.animation = 'slideDown 0.3s ease-out reverse';
+          setTimeout(() => { if (container.contains(toast)) container.removeChild(toast); }, 300);
+        }, type === 'success' ? 2500 : 4000);
+      }
+
+      (() => {
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get('redirectUrl') || '/static/app/';
+
+        // Nothing to exchange here any more: the callback route
+        // (/api/v1/user/auth/<provider>/callback) has already set the HttpOnly
+        // `jwt` cookie plus the non-HttpOnly `jwt_present` marker, so the
+        // session token never travels through a URL. This page only confirms
+        // the login and forwards.
+        const signedIn = document.cookie
+          .split(';')
+          .some((entry) => entry.trim().startsWith('jwt_present='));
+
+        if (!signedIn) {
+          hideEl('loading');
+          showEl('error');
+          document.getElementById('error-text').textContent =
+            'Die Anmeldung wurde nicht abgeschlossen. Bitte erneut versuchen.';
+          return;
+        }
+
+        hideEl('loading');
+        showEl('success');
+        showToast('Anmeldung erfolgreich', 'success');
+        setTimeout(() => { window.location.href = redirect; }, 1200);
+      })();
+    </script>
+  </body>
+</html>

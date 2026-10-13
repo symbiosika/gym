@@ -1,0 +1,26 @@
+# root-level only; app-specific ignores live in backend/.gitignore and frontend/.gitignore
+/tmp/
+scratchpad/
+.DS_Store
+
+# generated local dev artifacts
+backend/dev-db/
+backend/.env
+backend/.env.default
+backend/.env.prod
+deploy/.env
+backend/logs/
+backend/static/app/
+backend/static/upload/
+
+# datasets, jobs and specs of the critics service (docker-compose.critics.yml)
+/.critics-data/
+
+# Python artifacts of critics/
+__pycache__/
+*.py[cod]
+/critics/.venv/
+/critics/.pytest_cache/
+/critics/.ruff_cache/
+/critics/critic_out/
+/critics/*.egg-info/

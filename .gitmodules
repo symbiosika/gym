@@ -1,0 +1,4 @@
+[submodule "backend/framework"]
+	path = backend/framework
+	url = https://github.com/symbiosika/symbiosika-framework
+	branch = develop

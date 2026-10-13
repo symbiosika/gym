@@ -1,0 +1,307 @@
+@import "tailwindcss";
+@import "tailwindcss-primeui";
+
+@source '../../index.html';
+@source '../';
+
+/*
+ * GYM design system. The palette and the figure colours are defined in
+ * /design.md; this file is the only place that turns them into tokens.
+ *
+ * The stack follows the other Symbiosika frontends: Tailwind v4 for layout
+ * and spacing, PrimeVue "Volt" (unstyled PrimeVue, components owned in
+ * src/volt/) for the standard controls. Volt reads the `--p-*` variables
+ * below, and tailwindcss-primeui exposes them to Tailwind as the `primary-*`
+ * and `surface-*` colours, so a single palette drives both.
+ *
+ * Dark mode is class based: `.dark` on <html>, set from the saved preference
+ * (src/stores/ui.ts) and, for "system", from the OS setting.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------ theme */
+@theme {
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+
+  --radius-panel: 10px;
+
+  /*
+   * Verdicts and figures: accept / review / reject, ok / warn / bad. Each is
+   * a foreground and a soft background, both re-pointed for dark mode below,
+   * so `text-ok` and `bg-ok-soft` read correctly in either theme.
+   */
+  --color-ok: var(--gym-ok);
+  --color-ok-soft: var(--gym-ok-bg);
+  --color-warn: var(--gym-warn);
+  --color-warn-soft: var(--gym-warn-bg);
+  --color-bad: var(--gym-bad);
+  --color-bad-soft: var(--gym-bad-bg);
+
+  --shadow-panel:
+    0 1px 2px rgb(16 26 38 / 0.06), 0 4px 14px rgb(16 26 38 / 0.05);
+  /* Volt's components reference these three for their focus and hover states. */
+  --shadow-glow: 0 0 0 1px
+    color-mix(in srgb, var(--p-primary-500) 14%, transparent);
+  --shadow-glow-lg:
+    0 0 0 1px color-mix(in srgb, var(--p-primary-500) 22%, transparent),
+    0 10px 36px -8px color-mix(in srgb, var(--p-primary-500) 40%, transparent);
+  --shadow-glow-focus: 0 0 0 3px
+    color-mix(in srgb, var(--p-primary-500) 20%, transparent);
+}
+
+/* ---------------------------------------------------------------- palettes */
+:root {
+  /* Primary: the GYM blue (#1D5EA8 is 600, the brand value). */
+  --p-primary-50: #eff5fc;
+  --p-primary-100: #dbe9f8;
+  --p-primary-200: #bdd6f1;
+  --p-primary-300: #90bbe7;
+  --p-primary-400: #5c98d8;
+  --p-primary-500: #3778c2;
+  --p-primary-600: #1d5ea8;
+  --p-primary-700: #194d8a;
+  --p-primary-800: #184271;
+  --p-primary-900: #18385e;
+  --p-primary-950: #10233d;
+
+  /* Surface: the paper, panel, sunk and line tones of the protocol sheets. */
+  --p-surface-0: #ffffff;
+  --p-surface-50: #f7f9fa;
+  --p-surface-100: #eef1f4;
+  --p-surface-200: #e7ecf0;
+  --p-surface-300: #d8dfe5;
+  --p-surface-400: #bfc9d2;
+  --p-surface-500: #7c8a97;
+  --p-surface-600: #4c5966;
+  --p-surface-700: #36434e;
+  --p-surface-800: #252f38;
+  --p-surface-900: #151b21;
+  --p-surface-950: #0c1014;
+
+  --p-content-border-radius: 10px;
+
+  --gym-ok: #1a7a4b;
+  --gym-ok-bg: #e3f2ea;
+  --gym-warn: #a2600b;
+  --gym-warn-bg: #fbf0dc;
+  --gym-bad: #a6251f;
+  --gym-bad-bg: #fae6e4;
+}
+
+/* Light */
+:root {
+  --p-primary-color: var(--p-primary-600);
+  --p-primary-contrast-color: #ffffff;
+  --p-primary-hover-color: var(--p-primary-700);
+  --p-primary-active-color: var(--p-primary-800);
+  --p-content-border-color: var(--p-surface-300);
+  --p-content-hover-background: var(--p-surface-100);
+  --p-content-hover-color: var(--p-surface-800);
+  --p-highlight-background: color-mix(
+    in srgb,
+    var(--p-primary-500) 10%,
+    transparent
+  );
+  --p-highlight-color: var(--p-primary-700);
+  --p-highlight-focus-background: color-mix(
+    in srgb,
+    var(--p-primary-500) 16%,
+    transparent
+  );
+  --p-highlight-focus-color: var(--p-primary-800);
+  --p-text-color: #111820;
+  --p-text-hover-color: #000000;
+  --p-text-muted-color: #4c5966;
+  --p-text-hover-muted-color: #36434e;
+}
+
+/* Dark */
+:root.dark {
+  --p-primary-color: var(--p-primary-400);
+  --p-primary-contrast-color: var(--p-surface-950);
+  --p-primary-hover-color: var(--p-primary-300);
+  --p-primary-active-color: var(--p-primary-200);
+  --p-content-border-color: var(--p-surface-800);
+  --p-content-hover-background: var(--p-surface-800);
+  --p-content-hover-color: var(--p-surface-0);
+  --p-highlight-background: color-mix(
+    in srgb,
+    var(--p-primary-400) 16%,
+    transparent
+  );
+  --p-highlight-color: var(--p-primary-200);
+  --p-highlight-focus-background: color-mix(
+    in srgb,
+    var(--p-primary-400) 24%,
+    transparent
+  );
+  --p-highlight-focus-color: #ffffff;
+  --p-text-color: #e7edf3;
+  --p-text-hover-color: #ffffff;
+  --p-text-muted-color: #a0aeba;
+  --p-text-hover-muted-color: #cbd5df;
+
+  --gym-ok: #46b37b;
+  --gym-ok-bg: #12271d;
+  --gym-warn: #d79a3c;
+  --gym-warn-bg: #2a2013;
+  --gym-bad: #e0776e;
+  --gym-bad-bg: #2b1614;
+}
+
+/* ------------------------------------------------------------------- canvas */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background-color: var(--p-surface-100);
+  color: var(--p-text-color);
+  overflow-x: hidden;
+}
+
+.dark body {
+  background-color: var(--p-surface-950);
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Scrollbars in the surface tones instead of the browser default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--p-surface-300) transparent;
+}
+
+.dark * {
+  scrollbar-color: var(--p-surface-700) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--p-surface-300);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--p-surface-400);
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background-color: var(--p-surface-700);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--p-surface-600);
+}
+
+/*
+ * The two building blocks every screen repeats. Everything else is written
+ * with Tailwind utilities in the component.
+ */
+@utility gym-panel {
+  @apply rounded-panel border border-surface-300 bg-surface-0 shadow-panel;
+  @apply dark:border-surface-800 dark:bg-surface-900 dark:shadow-none;
+}
+
+@utility gym-field {
+  @apply mb-1 block text-xs font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400;
+}
+
+/** The page column. `pb-32` on views that carry the fixed action bar. */
+@utility gym-wrap {
+  @apply mx-auto max-w-[1120px] px-5 pb-12;
+}
+
+/** The action bar pinned to the bottom of a wizard step. */
+@utility gym-actions {
+  @apply fixed inset-x-0 bottom-0 z-40 border-t border-surface-300 bg-surface-0 shadow-[0_-4px_18px_rgb(10_18_28_/_0.08)];
+  @apply dark:border-surface-800 dark:bg-surface-900 dark:shadow-[0_-4px_18px_rgb(0_0_0_/_0.4)];
+}
+
+/** One step of the operator wizard. */
+@utility gym-stepbox {
+  @apply gym-panel mt-1 p-5;
+}
+
+/**
+ * The row of actions that closes a step: secondary actions left, the one
+ * primary action right. It sticks to the bottom of the window while the step
+ * is longer than the screen, so the way on is always in view (not on a
+ * phone, where the wrapped row would cover half the screen).
+ */
+@utility gym-stepnav {
+  @apply bottom-0 z-20 -mx-5 -mb-5 mt-6 sm:sticky flex flex-wrap items-center gap-2 rounded-b-panel border-t border-surface-200 bg-surface-0/95 px-5 py-3.5 backdrop-blur;
+  @apply dark:border-surface-800 dark:bg-surface-900/95;
+}
+
+/** An aside: a hint, a rule, a consequence. `border-s-warn` for a warning. */
+@utility gym-note {
+  @apply border-s-primary rounded-panel border border-s-[3px] border-surface-300 bg-surface-50 px-3.5 py-3 text-sm text-surface-600;
+  @apply dark:border-surface-800 dark:bg-surface-800/40 dark:text-surface-300;
+}
+
+/** "Nothing here yet". */
+@utility gym-empty {
+  @apply rounded-panel bg-surface-200 px-4 py-3.5 font-mono text-xs text-surface-500 dark:bg-surface-800/60 dark:text-surface-400;
+}
+
+/*
+ * The protocol tables. Volt's DataTable is for grids that sort, page and
+ * select; these are records to read, often with grouped rows, so they stay
+ * plain tables with one shared look. Wrap in `overflow-x-auto` on narrow
+ * screens; `.num` right-aligns a figure column.
+ */
+@utility gym-table {
+  @apply w-full border-collapse text-sm;
+
+  & th {
+    @apply border-b border-surface-300 px-2.5 py-2 text-start text-xs font-semibold tracking-wide text-surface-500 uppercase dark:border-surface-800 dark:text-surface-400;
+  }
+
+  & td {
+    @apply border-b border-surface-200 px-2.5 py-2 align-middle dark:border-surface-800/70;
+  }
+
+  & tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  & .num {
+    @apply text-end tabular-nums;
+  }
+}
+
+/* ------------------------------------------------------------------- print */
+@media print {
+  body {
+    background: #ffffff;
+    color: #000000;
+    font-size: 11pt;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+}
