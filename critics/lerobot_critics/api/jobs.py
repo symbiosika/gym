@@ -15,6 +15,7 @@ from typing import Any
 
 from ..runner import RunOptions, run
 from ..spec.models import CriticSpec, Purpose
+from .sources import DatasetSource, source_label
 from .sources import resolve_dataset as resolve_source
 
 
@@ -98,7 +99,7 @@ class JobStore:
         return True
 
     # ------------------------------------------------------------ dataset resolve
-    def resolve_dataset(self, source: str, job_dir: Path) -> Path:
+    def resolve_dataset(self, source: DatasetSource, job_dir: Path) -> Path:
         """
         The dataset of this job, as a working copy inside the job directory.
 
@@ -111,7 +112,7 @@ class JobStore:
     # ------------------------------------------------------------ run
     def submit(
         self,
-        dataset: str,
+        dataset: DatasetSource,
         spec: CriticSpec | None,
         options: RunOptions,
         auto_spec_name: str = "auto",
@@ -132,7 +133,8 @@ class JobStore:
         self._write(
             job_id,
             status="queued",
-            dataset=dataset,
+            # a dataset in parts is a list of links with a token each; the status names it instead
+            dataset=dataset if isinstance(dataset, str) else source_label(dataset),
             spec_name=spec.name if spec is not None else auto_spec_name,
             created_at=_now(),
             progress={},
@@ -160,7 +162,7 @@ class JobStore:
     def _run(
         self,
         job_id: str,
-        dataset: str,
+        dataset: DatasetSource,
         spec: CriticSpec | None,
         options: RunOptions,
         auto_spec_name: str = "auto",

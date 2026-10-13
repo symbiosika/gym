@@ -19,7 +19,8 @@ export const fixtureSelection = () => JSON.parse(readFileSync(path.join(FIXTURES
 
 export interface MergeCall {
   name: string;
-  sources: { dataset: string; episodes: number[]; name?: string }[];
+  /** a link to the zip, or (`dataset_parts`) one link per part of it in order */
+  sources: { dataset?: string; dataset_parts?: string[]; episodes: number[]; name?: string }[];
 }
 
 /** What the stand-in pulled from a link GYM handed it. */
@@ -36,7 +37,8 @@ export interface FakeCritics {
   uploads: { name: string; bytes: number; fileName: string }[];
   /** every temporary link this stand-in followed, oldest first */
   fetched: FetchedSource[];
-  jobs: { id: string; dataset: string; spec: unknown; purpose: unknown; options: unknown; reads: number; overrides: { ignore_flags: string[]; review_flags: string[]; disabled_critics: string[] } }[];
+  /** `dataset` is the link to the zip, or the first of `parts` for a dataset stored in parts */
+  jobs: { id: string; dataset: string; parts: string[] | null; spec: unknown; purpose: unknown; options: unknown; reads: number; overrides: { ignore_flags: string[]; review_flags: string[]; disabled_critics: string[] } }[];
   merges: MergeCall[];
   deleted: string[];
   /** specs stored through PUT /specs/{name}, next to the built-in one */
@@ -154,7 +156,7 @@ export function startFakeCritics(): FakeCritics {
       if (p === "/merge" && req.method === "POST") {
         const body = (await req.json()) as MergeCall;
         state.merges.push(body);
-        for (const source of body.sources) await follow(source.dataset);
+        for (const source of body.sources) for (const link of source.dataset_parts ?? [source.dataset!]) await follow(link);
         if (state.failMergeWith) return json({ detail: state.failMergeWith.detail }, state.failMergeWith.status);
         const episodes = body.sources.reduce((a, s2) => a + s2.episodes.length, 0);
         // the real service streams a zipped LeRobot dataset; the bytes do not matter here
@@ -167,13 +169,16 @@ export function startFakeCritics(): FakeCritics {
         });
       }
       if (p === "/jobs" && req.method === "POST") {
-        const body = (await req.json()) as { dataset: string; spec: unknown; purpose?: unknown; options: unknown };
+        const body = (await req.json()) as { dataset?: string; dataset_parts?: string[]; spec: unknown; purpose?: unknown; options: unknown };
         const id = `job_${state.jobs.length + 1}`;
-        state.jobs.push({ id, dataset: body.dataset, spec: body.spec, purpose: body.purpose ?? null, options: body.options, reads: 0, overrides: { ignore_flags: [], review_flags: [], disabled_critics: [] } });
+        const parts = body.dataset_parts ?? null;
+        const dataset = body.dataset ?? parts?.[0] ?? "";
+        state.jobs.push({ id, dataset, parts, spec: body.spec, purpose: body.purpose ?? null, options: body.options, reads: 0, overrides: { ignore_flags: [], review_flags: [], disabled_critics: [] } });
         // the real service fetches the dataset in the job, not in the request;
         // it is done here before answering only because a test wants to see it
-        await follow(body.dataset);
-        return json({ job_id: id, dataset: body.dataset, status: "queued" }, 202);
+        // (a dataset in parts is fetched part by part, in order, and joined)
+        for (const link of parts ?? [dataset]) await follow(link);
+        return json({ job_id: id, dataset, status: "queued" }, 202);
       }
       const m = /^\/jobs\/([^/]+)(\/.*)?$/.exec(p);
       if (m) {

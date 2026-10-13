@@ -13,7 +13,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
 import { putFile, readFile, removeFile } from "../storage";
-import { SCENE_IMAGE_BUCKET, UPLOAD_CHUNK_BUCKET, VARIATION_IMAGE_BUCKET } from "./buckets";
+import { DATASET_BUCKET, SCENE_IMAGE_BUCKET, UPLOAD_CHUNK_BUCKET, VARIATION_IMAGE_BUCKET } from "./buckets";
 import {
   BLOCK_KINDS,
   BLOCK_STEPS,
@@ -453,9 +453,10 @@ export async function closeBlock(tenantId: string, actor: Actor, id: string): Pr
 }
 
 /**
- * The bytes a block owns: its scene photo, the reference images of its plan
- * and the chunks of an upload that was still running. Never fails the caller;
- * a block that cannot be emptied is still deleted.
+ * The bytes a block owns: its scene photo, the reference images of its plan,
+ * the chunks of an upload that was still running and the data of its
+ * datasets (one zip, or the chunks it was uploaded in). Never fails the
+ * caller; a block that cannot be emptied is still deleted.
  */
 export async function deleteBlockFiles(row: BlockSelect): Promise<void> {
   if (row.sceneImageRef) await removeFile(row.tenantId, SCENE_IMAGE_BUCKET, row.sceneImageRef).catch(() => undefined);
@@ -468,6 +469,15 @@ export async function deleteBlockFiles(row: BlockSelect): Promise<void> {
     .innerJoin(datasetUploads, eq(datasetUploadChunks.uploadId, datasetUploads.id))
     .where(eq(datasetUploads.blockId, row.id));
   for (const chunk of chunks) await removeFile(row.tenantId, UPLOAD_CHUNK_BUCKET, chunk.storageRef).catch(() => undefined);
+  // the dataset rows go with the block through the cascade as well
+  const stored = await getDb()
+    .select({ storageRef: datasets.storageRef, storageParts: datasets.storageParts })
+    .from(datasets)
+    .where(eq(datasets.blockId, row.id));
+  for (const ds of stored) {
+    if (ds.storageRef) await removeFile(row.tenantId, DATASET_BUCKET, ds.storageRef).catch(() => undefined);
+    for (const ref of ds.storageParts ?? []) await removeFile(row.tenantId, UPLOAD_CHUNK_BUCKET, ref).catch(() => undefined);
+  }
 }
 
 /**

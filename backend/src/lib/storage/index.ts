@@ -3,7 +3,8 @@
  *
  * Everything the app stores as bytes goes through this module: the scene
  * photos and the reference images of a plan (lib/gym/blocks.ts) and the chunks
- * of a resumable dataset upload (lib/gym/dataset-uploads.ts). No other place in
+ * of a resumable dataset upload, which stay as the parts of the dataset
+ * (lib/gym/dataset-uploads.ts). No other place in
  * the app writes a file, so an installation has one switch and not one per
  * feature, and nothing ends up on a container's local disc by accident.
  *

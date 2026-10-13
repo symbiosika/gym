@@ -91,7 +91,7 @@ repository. Only create a PR when asked.
 ## 5. Rules
 
 - API and business logic are separate: routes validate and map errors, `lib/` does the work.
-- Every byte the app stores goes through `lib/storage`, which does nothing but pick a framework backend and hand the bytes to it. Never straight to the disc, never straight to a backend, and never a backend of its own: a storage GYM needs is added to the symbiosika-framework, not here. A wrapper for permissions or the audit log sits on top of `lib/storage`, not beside it. The one exception is the scratch file an upload is assembled in, which is written and deleted inside one request.
+- Every byte the app stores goes through `lib/storage`, which does nothing but pick a framework backend and hand the bytes to it. Never straight to the disc, never straight to a backend, and never a backend of its own: a storage GYM needs is added to the symbiosika-framework, not here. A wrapper for permissions or the audit log sits on top of `lib/storage`, not beside it. A chunked dataset upload is never assembled: its chunks stay in the storage as the parts of the dataset (`datasets.storage_parts`) and the critics are handed one link per part and join them.
 - Every query is tenant-scoped (`eq(table.tenantId, tenantId)`).
 - Every relevant action is written to the audit log (`recordAudit`) with the skill, day protocol and block it concerns.
 - The wizard is stateful: any input the operator makes is saved on the block at once.

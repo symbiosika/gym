@@ -33,6 +33,7 @@
  */
 import { relations, sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   index,
   integer,
@@ -426,7 +427,8 @@ export const datasets = pgBaseTable(
     name: text("name").notNull(),
     /** the uploaded zip */
     sourceFileName: text("source_file_name").notNull().default(""),
-    bytes: integer("bytes").notNull().default(0),
+    /** bigint: a dataset of several gigabytes is ordinary */
+    bytes: bigint("bytes", { mode: "number" }).notNull().default(0),
     episodeCount: integer("episode_count").notNull().default(0),
     /**
      * Where the zip lies, a storage reference of lib/storage. GYM owns the
@@ -435,6 +437,14 @@ export const datasets = pgBaseTable(
      * zip only ever lived in the critics service.
      */
     storageRef: text("storage_ref"),
+    /**
+     * The zip in parts, in order, instead of `storageRef`: a dataset that came
+     * through a chunked upload keeps the chunks it arrived in (bucket
+     * `gym-upload-chunks`), and is never put together again on this side. The
+     * critics are handed a link to each part and join them
+     * (lib/gym/dataset-uploads.ts). Null for a dataset stored as one file.
+     */
+    storageParts: jsonb("storage_parts").$type<string[]>(),
     /** the name the dataset goes by at the critics, and the run that analysed it */
     criticsDatasetName: text("critics_dataset_name").notNull(),
     criticsJobId: text("critics_job_id"),
@@ -488,8 +498,8 @@ export const datasetUploads = pgBaseTable(
     /** the file the operator picked, and the dataset name they gave it */
     fileName: text("file_name").notNull(),
     displayName: text("display_name").notNull().default(""),
-    /** the size the client announced; the assembled zip must match it exactly */
-    bytes: integer("bytes").notNull(),
+    /** the size the client announced; the chunks must add up to it exactly */
+    bytes: bigint("bytes", { mode: "number" }).notNull(),
     chunkSize: integer("chunk_size").notNull(),
     chunkCount: integer("chunk_count").notNull(),
     createdBy: uuid("created_by"),
@@ -506,7 +516,7 @@ export const datasetUploads = pgBaseTable(
 /**
  * One chunk of a dataset upload that is still running. The bytes themselves
  * are in the configured storage (lib/storage), never on the disc of a
- * container, so a chunk that arrives at one replica can be assembled by
+ * container, so a chunk that arrives at one replica can be completed by
  * another; this table is the record of which chunk arrived and where it lies.
  * A row per chunk, and not a list on the upload row, because chunks are sent
  * in parallel and two of them must not lose each other.

@@ -77,10 +77,12 @@ services:
       # Reached over the internal network only — the critics are not routed.
       CRITICS_URL: http://critics:8080
       CRITICS_API_KEY: ${CRITICS_API_KEY:-}
-      # where the chunks of a dataset upload wait until the zip is complete;
-      # a volume, so a redeploy mid-upload does not throw the chunks away
+      # scratch space of the framework; the chunks of a dataset upload are in
+      # the configured storage and stay there as the parts of the dataset
       TEMPORARY_STORAGE_PATH: /usr/src/app/tmp
       GYM_UPLOAD_CHUNK_SIZE: ${GYM_UPLOAD_CHUNK_SIZE:-8388608}
+      # the largest dataset accepted, in bytes (default 50 GB)
+      GYM_MAX_UPLOAD_BYTES: ${GYM_MAX_UPLOAD_BYTES:-50000000000}
     labels:
       - traefik.enable=true
       - traefik.docker.network=web

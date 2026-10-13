@@ -48,17 +48,19 @@ services:
     environment:
       CRITICS_URL: http://critics:8080
       CRITICS_API_KEY: ${CRITICS_API_KEY:-}
-      # scratch space: the one request that completes a dataset upload puts the
-      # zip together here before handing it to the critics, and deletes it again
-      # (src/lib/gym/dataset-uploads.ts). The chunks themselves are in the
-      # configured storage (GYM_STORAGE_DRIVER), so a redeploy in the middle of
-      # an upload costs nothing.
+      # scratch space of the framework. A dataset upload writes nothing here:
+      # its chunks are in the configured storage (GYM_STORAGE_DRIVER) and stay
+      # there as the parts of the dataset, which the critics join
+      # (src/lib/gym/dataset-uploads.ts)
       TEMPORARY_STORAGE_PATH: /usr/src/app/tmp
       # GYM_STORAGE_DRIVER and the S3_* variables are set in backend/.env.prod,
       # not here: what is listed in this block wins over the env file.
       # See backend/src/lib/storage.
       # chunk size in bytes; lower it only for a proxy stricter than the default
       GYM_UPLOAD_CHUNK_SIZE: ${GYM_UPLOAD_CHUNK_SIZE:-8388608}
+      # the largest dataset accepted, in bytes (default 50 GB); the critics need
+      # about twice that on their disc while they work on one
+      GYM_MAX_UPLOAD_BYTES: ${GYM_MAX_UPLOAD_BYTES:-50000000000}
       POSTGRES_HOST: postgres
       GYM_TIMEZONE: ${GYM_TIMEZONE:-Europe/Berlin}
       POSTGRES_PORT: 5432
