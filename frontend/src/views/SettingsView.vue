@@ -14,6 +14,7 @@ import SpecManager from '@/components/SpecManager.vue'
 import IconAdd from '~icons/carbon/add'
 import IconClose from '~icons/carbon/close'
 import IconSettings from '~icons/carbon/settings-adjust'
+import IconMagic from '~icons/carbon/magic-wand'
 
 /** Cells, collections, the organisation's members and the AI status. */
 const route = useRoute()
@@ -352,6 +353,11 @@ const rowBox = 'rounded-panel border border-surface-300 bg-surface-0 px-2.5 py-2
 
     <section class="mt-8">
       <SectionHeader n="05" :title="t('settings.specs')" :hint="t('settings.specsHint')">
+        <RouterLink :to="{ name: 'SpecWizard', params: { tenantId } }" :title="t('spec.wizardHint')" class="inline-flex">
+          <Button size="small" :label="t('spec.wizard')" tabindex="-1">
+            <template #icon><IconMagic class="size-4" /></template>
+          </Button>
+        </RouterLink>
         <SecondaryButton size="small" :label="t('settings.manageSpecs')" @click="specsOpen = true">
           <template #icon><IconSettings class="size-4" /></template>
         </SecondaryButton>

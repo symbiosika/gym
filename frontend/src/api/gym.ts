@@ -34,6 +34,10 @@ import type {
   SelectionView,
   SkillListItem,
   SkillView,
+  SampleReport,
+  SpecDraftRun,
+  SpecDraftStep,
+  SpecDraftView,
 } from '@/types/gym'
 
 const base = (tenantId: string) => `/api/v1/tenant/${tenantId}/gym`
@@ -107,6 +111,54 @@ async function withRetries<T>(call: () => Promise<T>, attempts = 5): Promise<T> 
  * crowding out everything else the browser does.
  */
 const CHUNKS_IN_FLIGHT = 3
+
+/**
+ * The chunked upload behind `uploadDataset` and `uploadSpecSample`: announce
+ * the file at `uploads`, send the missing chunks, ask for completion and
+ * return what the server answers to it.
+ */
+async function uploadInChunks<T>(
+  uploads: string,
+  file: File,
+  extra: Record<string, string>,
+  onProgress: (percent: number) => void,
+  handle: UploadHandle,
+): Promise<T> {
+  const session = handle.uploadId
+    ? await fetcher.get<DatasetUploadView>(`${uploads}/${handle.uploadId}`)
+    : await fetcher.post<DatasetUploadView>(uploads, { fileName: file.name, bytes: file.size, ...extra })
+  handle.uploadId = session.uploadId
+
+  const done = new Set(session.received)
+  let sent = done.size * session.chunkSize
+  onProgress(Math.min(99, Math.round((sent / file.size) * 100)))
+  const pending = Array.from({ length: session.chunkCount }, (_, i) => i).filter((i) => !done.has(i))
+  // a few workers take the next missing chunk each; the first that fails for
+  // good stops the others, and what arrived is kept for the next attempt
+  let failed = false
+  const worker = async () => {
+    for (let i = pending.shift(); i !== undefined && !failed; i = pending.shift()) {
+      const from = i * session.chunkSize
+      const chunk = file.slice(from, Math.min(from + session.chunkSize, file.size))
+      try {
+        await withRetries(() => putChunk(`${uploads}/${session.uploadId}/chunks/${i}`, chunk))
+      } catch (e) {
+        failed = true
+        throw e
+      }
+      sent += chunk.size
+      // 100 % is reserved for the handover below, which the bytes do not cover
+      onProgress(Math.min(99, Math.round((sent / file.size) * 100)))
+    }
+  }
+  await Promise.all(Array.from({ length: CHUNKS_IN_FLIGHT }, worker))
+  // everything is up; handing the parts over to the critics is what is
+  // left, and that is what the caller shows as the handover
+  onProgress(100)
+  const result = await fetcher.post<T>(`${uploads}/${session.uploadId}/complete`, {})
+  handle.uploadId = undefined
+  return result
+}
 
 export const gymApi = {
   ai: (t: string) => fetcher.get<AiInfo>(`${base(t)}/ai`),
@@ -262,50 +314,15 @@ export const gymApi = {
    * The browser reads the file from the disc chunk by chunk (`File.slice`), so
    * a dataset of several gigabytes is never held in memory here either.
    */
-  uploadDataset: async (
+  uploadDataset: (
     t: string,
     id: string,
     file: File,
     name: string | undefined,
     onProgress: (percent: number) => void,
     handle: UploadHandle = {},
-  ): Promise<DatasetView> => {
-    const uploads = `${base(t)}/blocks/${id}/datasets/uploads`
-    const session = handle.uploadId
-      ? await fetcher.get<DatasetUploadView>(`${uploads}/${handle.uploadId}`)
-      : await fetcher.post<DatasetUploadView>(uploads, { fileName: file.name, bytes: file.size, ...(name ? { name } : {}) })
-    handle.uploadId = session.uploadId
-
-    const done = new Set(session.received)
-    let sent = done.size * session.chunkSize
-    onProgress(Math.min(99, Math.round((sent / file.size) * 100)))
-    const pending = Array.from({ length: session.chunkCount }, (_, i) => i).filter((i) => !done.has(i))
-    // a few workers take the next missing chunk each; the first that fails for
-    // good stops the others, and what arrived is kept for the next attempt
-    let failed = false
-    const worker = async () => {
-      for (let i = pending.shift(); i !== undefined && !failed; i = pending.shift()) {
-        const from = i * session.chunkSize
-        const chunk = file.slice(from, Math.min(from + session.chunkSize, file.size))
-        try {
-          await withRetries(() => putChunk(`${uploads}/${session.uploadId}/chunks/${i}`, chunk))
-        } catch (e) {
-          failed = true
-          throw e
-        }
-        sent += chunk.size
-        // 100 % is reserved for the handover below, which the bytes do not cover
-        onProgress(Math.min(99, Math.round((sent / file.size) * 100)))
-      }
-    }
-    await Promise.all(Array.from({ length: CHUNKS_IN_FLIGHT }, worker))
-    // everything is up; handing the parts over to the critics is what is
-    // left, and that is what the step shows as the handover
-    onProgress(100)
-    const dataset = await fetcher.post<DatasetView>(`${uploads}/${session.uploadId}/complete`, {})
-    handle.uploadId = undefined
-    return dataset
-  },
+  ): Promise<DatasetView> =>
+    uploadInChunks<DatasetView>(`${base(t)}/blocks/${id}/datasets/uploads`, file, name ? { name } : {}, onProgress, handle),
 
   /** Give up an upload and let the server drop the chunks it is holding. */
   abortDatasetUpload: (t: string, id: string, uploadId: string) =>
@@ -361,6 +378,39 @@ export const gymApi = {
   specTemplate: (t: string) => fetcher.get<{ yaml: string }>(`${base(t)}/critics/spec-template`),
   /** The technical checks with their default parameters, one row per check in the spec form. */
   hardCritics: (t: string) => fetcher.get<CriticsHardCriticInfo[]>(`${base(t)}/critics/hard-critics`),
+
+  // the spec wizard: a spec worked out from a sample dataset
+  specDrafts: (t: string) => fetcher.get<SpecDraftView[]>(`${base(t)}/spec-drafts`),
+  createSpecDraft: (t: string, body: { name?: string; skillId?: string | null; purpose?: BlockKind; sampleSize?: number }) =>
+    fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts`, body),
+  specDraft: (t: string, id: string) => fetcher.get<SpecDraftView>(`${base(t)}/spec-drafts/${id}`),
+  /** Save what was entered in the wizard; only the named fields change. */
+  updateSpecDraft: (
+    t: string,
+    id: string,
+    body: {
+      name?: string
+      skillId?: string | null
+      purpose?: BlockKind
+      sampleSize?: number
+      step?: SpecDraftStep
+      spec?: Record<string, unknown> | null
+    },
+  ) => fetcher.put<SpecDraftView>(`${base(t)}/spec-drafts/${id}`, body),
+  deleteSpecDraft: (t: string, id: string) => fetcher.delete<void>(`${base(t)}/spec-drafts/${id}`),
+  /** Upload the sample dataset of a draft in chunks; the analysis in auto mode starts when it is complete. */
+  uploadSpecSample: (t: string, id: string, file: File, onProgress: (percent: number) => void, handle: UploadHandle = {}) =>
+    uploadInChunks<SpecDraftView>(`${base(t)}/spec-drafts/${id}/uploads`, file, {}, onProgress, handle),
+  analyzeSpecDraft: (t: string, id: string) => fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts/${id}/analyze`, {}),
+  testSpecDraft: (t: string, id: string, spec?: Record<string, unknown>) =>
+    fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts/${id}/test`, spec ? { spec } : {}),
+  finishSpecDraft: (t: string, id: string, body: { name: string; assignToSkill?: boolean; overwrite?: boolean }) =>
+    fetcher.post<{ name: string; skillId: string | null; assigned: boolean }>(`${base(t)}/spec-drafts/${id}/finish`, body),
+  specDraftReport: (t: string, id: string, run: SpecDraftRun) =>
+    fetcher.get<SampleReport>(`${base(t)}/spec-drafts/${id}/report?run=${run}`),
+  /** The contact sheet of one episode of the sample: one row per camera, frames over time. */
+  specDraftSheetUrl: (t: string, id: string, episode: number, run: SpecDraftRun = 'analysis') =>
+    `${base(t)}/spec-drafts/${id}/files/sheets/episode_${String(episode).padStart(6, '0')}.jpg?run=${run}`,
   datasetReportUrl: (t: string, id: string) => `${base(t)}/datasets/${id}/report.html`,
   datasetFileUrl: (t: string, id: string, path: string) => `${base(t)}/datasets/${id}/files/${path}`,
   dataset: (t: string, id: string) => fetcher.get<DatasetView>(`${base(t)}/datasets/${id}`),

@@ -32,7 +32,7 @@
  * out on.
  */
 import fs from "fs/promises";
-import { and, asc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, type SQL } from "drizzle-orm";
 import { getDb } from "@framework/lib/db/db-connection";
 import log from "@framework/lib/log";
 import { datasetUploadChunks, datasetUploads, type DatasetUploadSelect } from "../../db/schema";
@@ -114,12 +114,21 @@ const toView = (row: DatasetUploadSelect, received: number[]): DatasetUploadView
   received,
 });
 
-/** The upload of this block, or 404. Tenant-scoped like every other read. */
-async function getUploadRow(tenantId: string, blockId: string, uploadId: string): Promise<DatasetUploadSelect> {
+/**
+ * Whom an upload is for: a block, whose upload becomes a dataset, or a spec
+ * draft, whose upload is the sample the wizard works from (lib/gym/spec-drafts.ts).
+ */
+export type UploadOwner = { blockId: string } | { specDraftId: string };
+
+const ownerFilter = (owner: UploadOwner): SQL =>
+  "blockId" in owner ? eq(datasetUploads.blockId, owner.blockId) : eq(datasetUploads.specDraftId, owner.specDraftId);
+
+/** The upload of this owner, or 404. Tenant-scoped like every other read. */
+async function getUploadRow(tenantId: string, owner: UploadOwner, uploadId: string): Promise<DatasetUploadSelect> {
   const rows = await getDb()
     .select()
     .from(datasetUploads)
-    .where(and(eq(datasetUploads.id, uploadId), eq(datasetUploads.tenantId, tenantId), eq(datasetUploads.blockId, blockId)))
+    .where(and(eq(datasetUploads.id, uploadId), eq(datasetUploads.tenantId, tenantId), ownerFilter(owner)))
     .limit(1);
   if (!rows[0]) throw new NotFoundError("Upload");
   return rows[0];
@@ -132,14 +141,16 @@ const touch = (uploadId: string) =>
 /**
  * Announce a dataset upload: the file is checked and its chunk plan is handed
  * back. Nothing is transferred yet, so a wrong file costs one small request.
+ * The owner must exist in the tenant; for a block that is checked here, for a
+ * spec draft by the caller (lib/gym/spec-drafts.ts).
  */
 export async function beginUpload(
   tenantId: string,
   actor: Actor,
-  blockId: string,
+  owner: UploadOwner,
   file: { fileName: string; bytes: number; displayName?: string },
 ): Promise<DatasetUploadView> {
-  const block = await getBlockRow(tenantId, blockId);
+  const ownerColumns = "blockId" in owner ? { blockId: (await getBlockRow(tenantId, owner.blockId)).id } : { specDraftId: owner.specDraftId };
   assertDatasetZip(file.fileName, file.bytes);
   if (file.bytes > maxUploadBytes()) {
     throw new InvalidInputError(`The dataset is larger than ${Math.floor(maxUploadBytes() / 1000 ** 3)} GB; split the recording into several zips`);
@@ -148,7 +159,7 @@ export async function beginUpload(
     .insert(datasetUploads)
     .values({
       tenantId,
-      blockId: block.id,
+      ...ownerColumns,
       fileName: file.fileName.slice(0, 300),
       displayName: (file.displayName ?? "").slice(0, 300),
       bytes: file.bytes,
@@ -161,8 +172,8 @@ export async function beginUpload(
 }
 
 /** Where an interrupted upload stands, so the client can send only what is missing. */
-export async function getUpload(tenantId: string, blockId: string, uploadId: string): Promise<DatasetUploadView> {
-  const row = await getUploadRow(tenantId, blockId, uploadId);
+export async function getUpload(tenantId: string, owner: UploadOwner, uploadId: string): Promise<DatasetUploadView> {
+  const row = await getUploadRow(tenantId, owner, uploadId);
   return toView(row, await receivedChunks(uploadId));
 }
 
@@ -176,12 +187,12 @@ const expectedChunkBytes = (row: DatasetUploadSelect, index: number) =>
  */
 export async function putChunk(
   tenantId: string,
-  blockId: string,
+  owner: UploadOwner,
   uploadId: string,
   index: number,
   data: ArrayBuffer,
 ): Promise<DatasetUploadView> {
-  const row = await getUploadRow(tenantId, blockId, uploadId);
+  const row = await getUploadRow(tenantId, owner, uploadId);
   if (index >= row.chunkCount) throw new InvalidInputError(`Chunk ${index} is beyond the ${row.chunkCount} chunks of this upload`);
   const expected = expectedChunkBytes(row, index);
   if (data.byteLength !== expected) {
@@ -214,16 +225,23 @@ export async function putChunk(
 }
 
 /**
- * All chunks are in: the chunks become the dataset and the critics run
- * starts. Nothing is read, copied or put together; the critics are handed a
- * link to each chunk and join them themselves (see the top of this file).
+ * All chunks of an upload are in: check them and claim the upload, so that a
+ * completion sent twice (a double click, a retry after a timeout) cannot hand
+ * the same chunks to two owners: deleting one would take the bytes of the
+ * other. Whoever moves the row on first wins. Returns what was announced and
+ * the storage references of the chunks in order; nothing is read or copied.
  *
- * If the critics refuse or cannot be reached the chunks stay with the upload
- * and the row survives, so the operator can ask for completion again without
- * sending the data a second time.
+ * The caller hands the parts on and then calls `releaseUpload`, which drops
+ * the record of the upload but not the bytes, which belong to the new owner.
+ * If handing on fails the row survives, so the operator can ask for
+ * completion again without sending the data a second time.
  */
-export async function completeUpload(tenantId: string, actor: Actor, blockId: string, uploadId: string): Promise<DatasetView> {
-  const row = await getUploadRow(tenantId, blockId, uploadId);
+export async function claimCompletedUpload(
+  tenantId: string,
+  owner: UploadOwner,
+  uploadId: string,
+): Promise<{ upload: DatasetUploadSelect; parts: string[] }> {
+  const row = await getUploadRow(tenantId, owner, uploadId);
   const chunks = await getDb()
     .select({ index: datasetUploadChunks.index, storageRef: datasetUploadChunks.storageRef, bytes: datasetUploadChunks.bytes })
     .from(datasetUploadChunks)
@@ -241,27 +259,38 @@ export async function completeUpload(tenantId: string, actor: Actor, blockId: st
     await dropUpload(tenantId, uploadId);
     throw new InvalidInputError(`The chunks add up to ${total} bytes, ${row.bytes} were announced; upload the dataset again`);
   }
-
-  // Claim the upload, so that a completion sent twice (a double click, a retry
-  // after a timeout) cannot make two datasets of the same chunks: deleting one
-  // would take the bytes of the other. Whoever moves the row on first wins.
   const claimed = await getDb()
     .update(datasetUploads)
     .set({ updatedAt: new Date().toISOString() })
     .where(and(eq(datasetUploads.id, uploadId), eq(datasetUploads.updatedAt, row.updatedAt)))
     .returning({ id: datasetUploads.id });
   if (!claimed.length) throw new ConflictError("The upload is being completed already");
+  return { upload: row, parts: chunks.map((c) => c.storageRef) };
+}
 
+/**
+ * The chunks belong to their new owner now: only the record of the upload goes
+ * (the chunk rows with it through the cascade), never the bytes.
+ */
+export async function releaseUpload(uploadId: string): Promise<void> {
+  await getDb().delete(datasetUploads).where(eq(datasetUploads.id, uploadId));
+}
+
+/**
+ * All chunks are in: the chunks become the dataset and the critics run
+ * starts. Nothing is read, copied or put together; the critics are handed a
+ * link to each chunk and join them themselves (see the top of this file).
+ */
+export async function completeUpload(tenantId: string, actor: Actor, blockId: string, uploadId: string): Promise<DatasetView> {
+  const { upload: row, parts } = await claimCompletedUpload(tenantId, { blockId }, uploadId);
   const dataset = await createDataset(tenantId, actor, blockId, {
     fileName: row.fileName,
     bytes: row.bytes,
-    parts: chunks.map((c) => c.storageRef),
+    parts,
     displayName: row.displayName || undefined,
     contentType: "application/zip",
   });
-  // the chunks belong to the dataset now: only the record of the upload goes
-  // (the chunk rows with it through the cascade), never the bytes
-  await getDb().delete(datasetUploads).where(eq(datasetUploads.id, uploadId));
+  await releaseUpload(uploadId);
   return dataset;
 }
 
@@ -270,8 +299,8 @@ export async function completeUpload(tenantId: string, actor: Actor, blockId: st
  * Not written to the audit log; no dataset ever entered the gym, and the log is
  * about the work of the day, not about a file that was picked and dropped.
  */
-export async function abortUpload(tenantId: string, blockId: string, uploadId: string): Promise<void> {
-  await getUploadRow(tenantId, blockId, uploadId);
+export async function abortUpload(tenantId: string, owner: UploadOwner, uploadId: string): Promise<void> {
+  await getUploadRow(tenantId, owner, uploadId);
   await dropUpload(tenantId, uploadId);
 }
 
@@ -290,7 +319,7 @@ async function dropUpload(tenantId: string, uploadId: string): Promise<void> {
  * The rows stay: they go with their upload through the cascade. Never fails
  * the caller; a chunk that cannot be removed must not keep an upload alive.
  */
-async function dropChunkFiles(uploadIds: string[]): Promise<number> {
+export async function dropChunkFiles(uploadIds: string[]): Promise<number> {
   if (!uploadIds.length) return 0;
   const rows = await getDb()
     .select({ tenantId: datasetUploadChunks.tenantId, storageRef: datasetUploadChunks.storageRef })
@@ -334,12 +363,12 @@ export async function cleanupStaleUploads(): Promise<{ uploads: number; chunks: 
   return { uploads: stale.length, chunks, scratch };
 }
 
-/** The open uploads of a block, so the wizard can offer to resume or to drop them. */
-export async function listUploads(tenantId: string, blockId: string): Promise<DatasetUploadView[]> {
+/** The open uploads of a block or a spec draft, so the wizard can offer to resume or to drop them. */
+export async function listUploads(tenantId: string, owner: UploadOwner): Promise<DatasetUploadView[]> {
   const rows = await getDb()
     .select()
     .from(datasetUploads)
-    .where(and(eq(datasetUploads.tenantId, tenantId), eq(datasetUploads.blockId, blockId)));
+    .where(and(eq(datasetUploads.tenantId, tenantId), ownerFilter(owner)));
   if (!rows.length) return [];
   // one query for every chunk of every upload of the block, not one per upload
   const chunks = await getDb()

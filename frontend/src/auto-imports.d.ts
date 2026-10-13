@@ -18,14 +18,18 @@ declare global {
   const activeStep: typeof import('./utils/plan').activeStep
   const addDays: typeof import('./utils/time').addDays
   const computed: typeof import('vue').computed
+  const countVerdicts: typeof import('./utils/specSample').countVerdicts
   const createApp: typeof import('vue').createApp
+  const criticEvidence: typeof import('./utils/specSample').criticEvidence
   const currentVariation: typeof import('./utils/plan').currentVariation
   const customRef: typeof import('vue').customRef
+  const cycleCounts: typeof import('./utils/specSample').cycleCounts
   const defaultIndicators: typeof import('./utils/spec').defaultIndicators
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
   const downloadBlob: typeof import('./utils/download').downloadBlob
   const duplicateStep: typeof import('./utils/plan').duplicateStep
+  const durationRange: typeof import('./utils/specSample').durationRange
   const effectScope: typeof import('vue').effectScope
   const emptySpec: typeof import('./utils/spec').emptySpec
   const fetcher: typeof import('./utils/fetcher').fetcher
@@ -54,6 +58,7 @@ declare global {
   const isRef: typeof import('vue').isRef
   const isShallow: typeof import('vue').isShallow
   const markRaw: typeof import('vue').markRaw
+  const metricRange: typeof import('./utils/specSample').metricRange
   const nextTick: typeof import('vue').nextTick
   const onActivated: typeof import('vue').onActivated
   const onBeforeMount: typeof import('vue').onBeforeMount
@@ -75,6 +80,7 @@ declare global {
   const planTotal: typeof import('./utils/plan').planTotal
   const planVariations: typeof import('./utils/plan').planVariations
   const presetSpec: typeof import('./utils/spec').presetSpec
+  const previewVerdicts: typeof import('./utils/specSample').previewVerdicts
   const progressTotal: typeof import('./utils/plan').progressTotal
   const provide: typeof import('vue').provide
   const reactive: typeof import('vue').reactive
@@ -83,10 +89,14 @@ declare global {
   const rebalanceToTarget: typeof import('./utils/plan').rebalanceToTarget
   const ref: typeof import('vue').ref
   const resolveComponent: typeof import('vue').resolveComponent
+  const runFlags: typeof import('./utils/specSample').runFlags
+  const sampleTasks: typeof import('./utils/specSample').sampleTasks
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
   const slugOf: typeof import('./utils/spec').slugOf
+  const softError: typeof import('./utils/specSample').softError
+  const softState: typeof import('./utils/specSample').softState
   const stepDone: typeof import('./utils/plan').stepDone
   const toRaw: typeof import('vue').toRaw
   const toRef: typeof import('vue').toRef
@@ -146,6 +156,9 @@ declare global {
   export type { FlatVariation } from './utils/plan'
   import('./utils/plan')
   // @ts-ignore
-  export type { ObjectRole, PerEpisode, SpecObject, SpecIndicator, SpecHardCritic, SpecForm, PresetId } from './utils/spec'
+  export type { ObjectRole, PerEpisode, SpecObject, SpecIndicator, SpecHardCritic, SpecForm, SpecFormSection, PresetId } from './utils/spec'
   import('./utils/spec')
+  // @ts-ignore
+  export type { Verdict, CriticEvidence, PreviewRow } from './utils/specSample'
+  import('./utils/specSample')
 }

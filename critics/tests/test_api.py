@@ -530,3 +530,35 @@ def test_merge_takes_a_dataset_in_parts(client, dataset_part_urls):
         assert json.loads(z.read("parts/manifest.json"))["sources"][0]["dataset"] == "big_one"
 
     assert client.post("/merge", json={"sources": [{"episodes": [0]}]}).status_code == 422
+
+
+def test_a_sample_with_a_generated_spec_that_is_not_stored(client, synthetic_dataset):
+    """
+    What an app does to draft a spec: run the automatic spec over a sample of a
+    dataset and keep the generated spec with the job only. The spec store stays
+    as it was; the report says how many of the dataset's episodes it looked at.
+    """
+    before = {s["name"] for s in client.get("/specs").json()}
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(synthetic_dataset),
+            "spec": None,
+            "store_auto_spec": False,
+            "options": {"workers": 1, "run_soft": False, "max_episodes": 2, "sheets_for_all": True},
+        },
+    )
+    assert r.status_code == 202, r.text
+    st = _wait(client, r.json()["job_id"])
+    assert st["status"] == "done", st.get("error")
+    assert {s["name"] for s in client.get("/specs").json()} == before
+    report = client.get(f"/jobs/{r.json()['job_id']}/report").json()
+    assert report["n_episodes"] == 2
+    assert report["dataset_episodes"] > 2
+    # spread over the dataset: the first and the last episode
+    assert [e["episode"] for e in report["episodes"]] == [0, report["dataset_episodes"] - 1]
+    assert report["spec"]["task"]["instruction"] == "put the red block in the box"
+    # a contact sheet of every episode of the sample, accepted or not
+    for e in report["episodes"]:
+        sheet = client.get(f"/jobs/{r.json()['job_id']}/files/sheets/episode_{e['episode']:06d}.jpg")
+        assert sheet.status_code == 200, e["score"]["verdict"]

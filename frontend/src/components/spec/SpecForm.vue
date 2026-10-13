@@ -10,10 +10,12 @@ import {
   slugOf,
   uniqueId,
   type SpecForm,
+  type SpecFormSection,
   type SpecHardCritic,
   type SpecIndicator,
 } from '@/utils/spec'
 import { NONE } from '@/utils/select'
+import type { CriticEvidence } from '@/utils/specSample'
 import NumField from '@/components/spec/NumField.vue'
 import TokenField from '@/components/spec/TokenField.vue'
 import IconAdd from '~icons/carbon/add'
@@ -26,8 +28,21 @@ import IconChevron from '~icons/carbon/chevron-down'
  * robot does and with which objects, what counts as success, which technical
  * checks run and how strictly, and finally the robot. The model is edited in
  * place; `critics` says which parameters every technical check takes.
+ *
+ * `sections` shows only some of them: the spec wizard puts one section on
+ * each of its steps, next to what the sample measured. Shown alone a section
+ * drops its number and the robot section is open.
  */
-const props = defineProps<{ critics: CriticsHardCriticInfo[] }>()
+const props = defineProps<{
+  critics: CriticsHardCriticInfo[]
+  sections?: SpecFormSection[]
+  /** what each technical check found in the sample of the spec wizard: shown as a column of its own */
+  sample?: Record<string, CriticEvidence>
+  /** the episodes of that sample */
+  sampleEpisodes?: number
+}>()
+const show = (section: SpecFormSection) => !props.sections || props.sections.includes(section)
+const numbered = computed(() => !props.sections)
 const form = defineModel<SpecForm>({ required: true })
 const { t, te } = useI18n()
 
@@ -119,14 +134,24 @@ const boolOptions = (dflt: unknown) => [
   { label: t('app.no'), value: 'false' },
 ]
 const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
+
+/** the score of a check over the sample, coloured like the verdicts */
+const sampleTone = (score: number | null) =>
+  score == null ? 'bg-surface-300' : score >= 0.75 ? 'bg-ok' : score >= 0.55 ? 'bg-warn' : 'bg-bad'
+const topFlags = (ev: CriticEvidence) =>
+  Object.entries(ev.flags)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
     <!-- 1 · the task -->
-    <section>
+    <section v-if="show('task')">
       <header class="mb-2 flex items-center gap-2">
-        <span class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
+        <span
+          v-if="numbered"
+          class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
           >1</span
         >
         <h3 class="text-sm font-semibold">{{ t('spec.secTask') }}</h3>
@@ -219,9 +244,11 @@ const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
     </section>
 
     <!-- 2 · success indicators -->
-    <section>
+    <section v-if="show('soft')">
       <header class="mb-2 flex flex-wrap items-center gap-2">
-        <span class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
+        <span
+          v-if="numbered"
+          class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
           >2</span
         >
         <h3 class="text-sm font-semibold">{{ t('spec.secSoft') }}</h3>
@@ -315,9 +342,11 @@ const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
     </section>
 
     <!-- 3 · technical checks -->
-    <section>
+    <section v-if="show('hard')">
       <header class="mb-2 flex flex-wrap items-center gap-2">
-        <span class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
+        <span
+          v-if="numbered"
+          class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
           >3</span
         >
         <h3 class="text-sm font-semibold">{{ t('spec.secHard') }}</h3>
@@ -329,6 +358,7 @@ const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
             <tr>
               <th class="w-8"></th>
               <th>{{ t('spec.check') }}</th>
+              <th v-if="sample" class="min-w-44">{{ t('specWizard.checks.sample', { n: sampleEpisodes ?? 0 }) }}</th>
               <th class="w-28">{{ t('spec.weight') }}</th>
               <th>{{ t('spec.gate') }}</th>
               <th class="w-32">{{ t('spec.params') }}</th>
@@ -341,6 +371,36 @@ const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
                 <td class="min-w-56">
                   <span class="block text-sm font-medium">{{ criticLabel(c.id) }}</span>
                   <span class="block text-xs text-surface-500 dark:text-surface-400">{{ criticDesc(c.id) }}</span>
+                </td>
+                <td v-if="sample">
+                  <template v-if="sample[c.id]">
+                    <div class="flex items-center gap-2">
+                      <div class="h-1.5 w-16 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-800">
+                        <div
+                          class="h-full"
+                          :class="sampleTone(sample[c.id]!.meanScore)"
+                          :style="{ width: `${Math.round((sample[c.id]!.meanScore ?? 0) * 100)}%` }"
+                        />
+                      </div>
+                      <span class="font-mono text-xs tabular-nums">{{
+                        sample[c.id]!.meanScore == null ? '?' : sample[c.id]!.meanScore!.toFixed(2)
+                      }}</span>
+                    </div>
+                    <div class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                      {{
+                        sample[c.id]!.flagged
+                          ? t('specWizard.checks.flagged', { n: sample[c.id]!.flagged, of: sampleEpisodes ?? 0 })
+                          : t('specWizard.checks.clean')
+                      }}
+                      <template v-if="sample[c.id]!.gateFailed">
+                        · <span class="text-bad">{{ t('specWizard.checks.stopped', { n: sample[c.id]!.gateFailed }) }}</span>
+                      </template>
+                    </div>
+                    <div v-if="topFlags(sample[c.id]!).length" class="mt-1 flex flex-wrap gap-1">
+                      <Pill v-for="[f, n] in topFlags(sample[c.id]!)" :key="f" tone="warn">{{ f }} · {{ n }}</Pill>
+                    </div>
+                  </template>
+                  <span v-else class="text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.checks.notRun') }}</span>
                 </td>
                 <td><NumField v-model="c.weight" :min="0" :step="0.5" :fallback="1" narrow :disabled="!c.enabled" /></td>
                 <td class="min-w-56">
@@ -369,7 +429,7 @@ const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
               </tr>
               <tr v-if="openParams === c.id">
                 <td></td>
-                <td colspan="4" class="bg-surface-50 dark:bg-surface-800/40">
+                <td :colspan="sample ? 5 : 4" class="bg-surface-50 dark:bg-surface-800/40">
                   <div v-if="!paramKeys(c).length" class="text-xs text-surface-500 dark:text-surface-400">
                     {{ t('spec.noParams') }}
                   </div>
@@ -418,9 +478,11 @@ const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
     </section>
 
     <!-- 4 · scoring -->
-    <section>
+    <section v-if="show('scoring')">
       <header class="mb-2 flex flex-wrap items-center gap-2">
-        <span class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
+        <span
+          v-if="numbered"
+          class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
           >4</span
         >
         <h3 class="text-sm font-semibold">{{ t('spec.secScoring') }}</h3>
@@ -446,10 +508,12 @@ const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
     </section>
 
     <!-- 5 · the robot -->
-    <section>
-      <details class="group">
+    <section v-if="show('robot')">
+      <details class="group" :open="!numbered">
         <summary class="flex cursor-pointer flex-wrap items-center gap-2 select-none">
-          <span class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
+          <span
+            v-if="numbered"
+            class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
             >5</span
           >
           <h3 class="text-sm font-semibold">{{ t('spec.secRobot') }}</h3>

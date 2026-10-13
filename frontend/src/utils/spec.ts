@@ -74,6 +74,9 @@ export interface SpecForm {
   rest: Record<string, unknown>
 }
 
+/** The parts of the spec form; the spec wizard shows one per step. */
+export type SpecFormSection = 'task' | 'soft' | 'hard' | 'scoring' | 'robot'
+
 /**
  * The technical checks the critics run when a spec names none, with their
  * weights and gates (lerobot_critics.spec.defaults.default_hard_critics).

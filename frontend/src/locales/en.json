@@ -915,7 +915,9 @@
       "weight": "Weights must not be negative.",
       "threshold": "The thresholds lie between 0 and 1.",
       "thresholdOrder": "\"Review from\" must lie below \"Accept from\"."
-    }
+    },
+    "wizard": "Wizard",
+    "wizardHint": "Create a spec step by step from a sample dataset"
   },
   "block": {
     "kindLabel": "Kind",
@@ -1182,5 +1184,168 @@
     "nameTaken": "That name is already taken.",
     "network": "No connection to the server. Check the network and try again.",
     "notFound": "Not found. It may have been deleted in the meantime; please reload the page."
+  },
+  "specWizard": {
+    "title": "Spec wizard",
+    "lead": "A spec is worked out from real data here: upload a sample dataset, the critics look at X episodes in auto mode, and you go through their proposal step by step. Every input is saved at once.",
+    "new": "Create a new spec",
+    "newHint": "From a sample dataset that is kept only while the wizard runs.",
+    "open": "Open drafts",
+    "noOpen": "No open drafts.",
+    "unnamed": "Unnamed",
+    "noSampleYet": "no sample yet",
+    "discard": "Discard",
+    "discardConfirm": "Discard the draft?",
+    "discardText": "The sample dataset and the analyses are deleted, no spec is stored.",
+    "needSample": "Upload a sample dataset first",
+    "needAnalysis": "The analysis is still running",
+    "noSkill": "No skill",
+    "zipOnly": "Please pick the LeRobot dataset as one zip file.",
+    "episode": "Episode {n}",
+    "episodeShort": "E{n}",
+    "sheetAlt": "Contact sheet of episode {n}",
+    "sheetOpen": "Show the contact sheet of episode {n} large",
+    "sheetMissing": "No picture for this episode",
+    "sheetHint": "Each row is a camera, time runs from left to right.",
+    "steps": {
+      "sample": "Sample",
+      "analysis": "Auto analysis",
+      "task": "Task",
+      "robot": "Robot & cameras",
+      "checks": "Technical checks",
+      "success": "Success",
+      "scoring": "Scoring",
+      "save": "Test & save"
+    },
+    "lead_task": "What should the robot do, with which objects? On the right is what the dataset recorded.",
+    "lead_robot": "Which arm works, and which camera does the language model look at first?",
+    "lead_checks": "The checks of the signals and videos. Next to each check is what it found in the sample.",
+    "lead_success": "How the language model tells that an episode succeeded. Each criterion one sentence you can see in the video.",
+    "lead_scoring": "When an episode is accepted. The sample on the right moves along while you change the values.",
+    "lead_save": "Check the spec on the same episodes and store it.",
+    "purpose": {
+      "recording": "Recording (training data)",
+      "evaluation": "Evaluation (rollouts of a policy)"
+    },
+    "purposeHint": {
+      "recording": "Teleoperation, the episodes are judged as training data.",
+      "evaluation": "A policy runs, judged is whether the task succeeded."
+    },
+    "sample": {
+      "title": "Sample dataset",
+      "lead": "A typical dataset of this task, as it comes out of the recording. It is stored for the wizard only and deleted afterwards.",
+      "skill": "For which skill?",
+      "skillHint": "At the end the spec can be assigned to the skill directly.",
+      "size": "Episodes to analyse (X)",
+      "sizeHint": "Spread evenly over the dataset, at most {max}. More episodes show more but take longer.",
+      "purpose": "What is the spec for?",
+      "file": "Dataset (zip)",
+      "drop": "Drop the zip here or pick it",
+      "replace": "Upload another sample",
+      "dropHint": "LeRobot dataset as one zip file: data, videos, meta. The analysis starts by itself afterwards.",
+      "handover": "handing over",
+      "temporary": "only while the wizard runs"
+    },
+    "analysis": {
+      "title": "Auto analysis",
+      "lead": "The critics look at {n} episodes, generate a spec proposal from them and judge the sample with it.",
+      "stage": {
+        "preparing": "Fetching and preparing the dataset",
+        "hard": "Technical checks",
+        "soft": "Language model judges the episodes"
+      },
+      "wait": "This can take a few minutes. You may leave the page, the draft waits here.",
+      "failed": "The analysis failed.",
+      "retry": "Analyse again",
+      "rerun": "Analyse again",
+      "noSample": "No sample dataset yet.",
+      "stale": "{ran} episodes were analysed, {want} are set now.",
+      "episodes": "Episodes analysed",
+      "ofTotal": "of {n} in the dataset",
+      "robot": "Robot",
+      "cameras": "Cameras",
+      "cycles": "Repetitions",
+      "cyclesSub": "grasp cycles per episode, typical",
+      "found": "Read from the data",
+      "task": "Task",
+      "noTask": "no task in the dataset",
+      "arms": "Active arm",
+      "allArms": "all arms",
+      "verdicts": "Verdict with the proposal",
+      "verdictsHint": "How the critics judge the sample with the automatically generated spec. This is the starting point you sharpen in the next steps.",
+      "sheets": "The episodes of the sample",
+      "sheetsHint": "One contact sheet per episode: each row a camera, time from left to right. A click shows it large."
+    },
+    "task": {
+      "fromData": "Task in the dataset",
+      "useText": "Use as the task",
+      "episodes": "in {n} episodes",
+      "several": "The dataset holds several tasks. Each episode is then measured against its own task.",
+      "cycles": "Counted grasp cycles",
+      "useCycles": "Use {n} repetitions",
+      "cyclesHint": "How often the gripper grasps per episode. With the right number an episode with several repetitions is not flagged as a multi grasp.",
+      "sheet": "for orientation"
+    },
+    "robot": {
+      "typeHint": "Read from the dataset. Change it only when it is wrong.",
+      "allArms": "All arms",
+      "arm": {
+        "left": "Left",
+        "right": "Right"
+      },
+      "armsHint": "Only the active arms are checked for motion and tracking. Without a choice, all.",
+      "autoCamera": "Automatic",
+      "autoCameraHint": "The critics take the first camera that is not on a wrist.",
+      "row": "row {n}",
+      "cameraHint": "The language model shows this camera large. The row names the line in the contact sheet on the right.",
+      "look": "What the cameras see",
+      "lookHint": "row 1 on top, the other cameras below"
+    },
+    "checks": {
+      "sample": "Sample ({n})",
+      "flagged": "{n} of {of} flagged",
+      "clean": "nothing found",
+      "stopped": "{n} stopped",
+      "notRun": "did not run",
+      "duration": "The episodes of the sample last {min} to {max} s (median {median} s). Proposal for the duration check: {lo} to {hi} s.",
+      "useDuration": "Use the limits"
+    },
+    "success": {
+      "vlmFailed": "The language model did not judge the sample. The criteria are stored anyway and take effect once it is available.",
+      "vlmOff": "No language model ran for the sample. The criteria take effect in the next analyses."
+    },
+    "scoring": {
+      "preview": "The sample with these values",
+      "changed": "{n} episodes change their verdict",
+      "gate": "stop: {id}",
+      "previewHint": "A preview from the results of the auto analysis. Changed parameters and new success criteria show only in the test run on the last step. Green line: accept from, yellow line: review from."
+    },
+    "save": {
+      "testTitle": "Test run",
+      "testHint": "Your spec on the same episodes of the sample",
+      "testRun": "Start the test run",
+      "testAgain": "Test again",
+      "testRunning": "The critics check the sample with your spec.",
+      "testFailed": "The test run failed.",
+      "testNone": "No test run yet. It is optional but shows what your spec really decides.",
+      "episode": "Episode",
+      "auto": "Auto mode",
+      "yours": "Your spec",
+      "total": "Score",
+      "flags": "Flags",
+      "storeTitle": "Save",
+      "storeHint": "The spec is stored with the critics",
+      "name": "Spec name",
+      "nameHint": "Letters, digits, _ . and -. Spaces become _.",
+      "assign": "Use it for “{skill}” from now on",
+      "yaml": "Show the spec as YAML",
+      "store": "Save the spec",
+      "storeNote": "Afterwards the sample dataset and the analyses are deleted.",
+      "done": "Spec “{name}” saved.",
+      "doneAssigned": "Spec “{name}” saved and assigned to “{skill}”.",
+      "existsTitle": "A spec “{name}” exists already",
+      "existsText": "Overwriting replaces it for every skill that uses it.",
+      "overwrite": "Overwrite"
+    }
   }
 }

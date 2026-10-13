@@ -821,3 +821,91 @@ export interface PublicEvaluationReport {
   createdAt: string
   updatedAt: string
 }
+
+// ---------------------------------------------------------------------------
+// The spec wizard (backend/src/lib/gym/spec-drafts.ts)
+// ---------------------------------------------------------------------------
+
+export type SpecDraftStep = 'sample' | 'analysis' | 'task' | 'robot' | 'checks' | 'success' | 'scoring' | 'save'
+export const SPEC_DRAFT_STEPS: SpecDraftStep[] = ['sample', 'analysis', 'task', 'robot', 'checks', 'success', 'scoring', 'save']
+export type SpecDraftRun = 'analysis' | 'test'
+export type SpecDraftRunStatus = 'none' | 'queued' | 'running' | 'done' | 'failed'
+
+/** The state of the spec wizard: the sample, the two critics runs and the spec drafted so far. */
+export interface SpecDraftView {
+  id: string
+  skillId: string | null
+  skillName: string | null
+  name: string
+  purpose: BlockKind
+  step: SpecDraftStep
+  sampleSize: number
+  fileName: string
+  bytes: number
+  storageParts: string[]
+  analysisJobId: string | null
+  analysisStatus: SpecDraftRunStatus
+  analysisError: string | null
+  analysisProgress: Progress
+  analysisCounts: Record<string, number> | null
+  /** the spec as drafted so far, in the shape the critics take; null until the analysis seeded it */
+  spec: Record<string, unknown> | null
+  testJobId: string | null
+  testStatus: SpecDraftRunStatus
+  testError: string | null
+  testProgress: Progress
+  testCounts: Record<string, number> | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** One critic's result on one episode, as report.json carries it. */
+export interface SampleCriticResult {
+  id: string
+  kind: 'hard' | 'soft'
+  weight: number
+  score: number | null
+  gate: boolean
+  gate_below: number
+  gate_failed: boolean
+  flags: string[]
+  metrics: Record<string, unknown>
+  evidence: string[]
+  error: string | null
+}
+
+export interface SampleEpisode {
+  episode: number
+  task: string
+  length: number
+  duration_s: number
+  hard: SampleCriticResult[]
+  soft: SampleCriticResult[]
+  score: {
+    hard_score: number | null
+    soft_score: number | null
+    total: number | null
+    verdict: 'accept' | 'review' | 'reject'
+    gates_failed: string[]
+    flags: string[]
+    reasons: string[]
+  }
+  keyframes: { grasp?: number[]; release?: number[] }
+  error: string | null
+}
+
+/** The critics' report of a run over the sample (lerobot_critics.runner.DatasetReport), the part the wizard reads. */
+export interface SampleReport {
+  dataset_name: string
+  spec: Record<string, unknown>
+  robot_type: string
+  fps: number
+  cameras: string[]
+  n_episodes: number
+  dataset_episodes?: number
+  counts: Record<string, number>
+  flag_counts: Record<string, number>
+  dataset_flags: Record<string, string>
+  metric_docs: Record<string, { what?: string; how?: string; unit?: string } | undefined>
+  episodes: SampleEpisode[]
+}

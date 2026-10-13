@@ -915,7 +915,9 @@
       "weight": "Gewichte dürfen nicht negativ sein.",
       "threshold": "Die Schwellen liegen zwischen 0 und 1.",
       "thresholdOrder": "„Prüfen ab“ muss unter „Akzeptieren ab“ liegen."
-    }
+    },
+    "wizard": "Assistent",
+    "wizardHint": "Spec aus einem Muster-Dataset Schritt für Schritt anlegen"
   },
   "block": {
     "kindLabel": "Art",
@@ -1182,5 +1184,168 @@
     "nameTaken": "Dieser Name ist schon vergeben.",
     "network": "Keine Verbindung zum Server. Bitte Netzwerk prüfen und erneut versuchen.",
     "notFound": "Nicht gefunden. Vielleicht wurde es inzwischen gelöscht; bitte die Seite neu laden."
+  },
+  "specWizard": {
+    "title": "Spec-Assistent",
+    "lead": "Ein Spec entsteht hier aus echten Daten: Lade ein Muster-Dataset hoch, die Critics sehen sich X Episoden im Auto-Modus an, und du gehst den Vorschlag Schritt für Schritt durch. Jede Eingabe wird sofort gespeichert.",
+    "new": "Neuen Spec anlegen",
+    "newHint": "Mit einem Muster-Dataset, das nur für die Dauer des Assistenten bleibt.",
+    "open": "Offene Entwürfe",
+    "noOpen": "Keine offenen Entwürfe.",
+    "unnamed": "Ohne Namen",
+    "noSampleYet": "noch kein Muster",
+    "discard": "Verwerfen",
+    "discardConfirm": "Entwurf verwerfen?",
+    "discardText": "Das Muster-Dataset und die Analysen werden gelöscht, es wird kein Spec gespeichert.",
+    "needSample": "Erst ein Muster-Dataset hochladen",
+    "needAnalysis": "Die Analyse läuft noch",
+    "noSkill": "Keinem Skill zuordnen",
+    "zipOnly": "Bitte das LeRobot-Dataset als eine ZIP-Datei wählen.",
+    "episode": "Episode {n}",
+    "episodeShort": "E{n}",
+    "sheetAlt": "Kontaktbogen von Episode {n}",
+    "sheetOpen": "Kontaktbogen von Episode {n} groß anzeigen",
+    "sheetMissing": "Kein Bild für diese Episode",
+    "sheetHint": "Jede Zeile ist eine Kamera, von links nach rechts läuft die Zeit.",
+    "steps": {
+      "sample": "Muster",
+      "analysis": "Auto-Analyse",
+      "task": "Aufgabe",
+      "robot": "Roboter & Kameras",
+      "checks": "Technische Checks",
+      "success": "Erfolg",
+      "scoring": "Bewertung",
+      "save": "Testen & Speichern"
+    },
+    "lead_task": "Was soll der Roboter tun, mit welchen Objekten? Rechts steht, was im Dataset aufgezeichnet ist.",
+    "lead_robot": "Welcher Arm arbeitet, und auf welche Kamera schaut das Sprachmodell zuerst?",
+    "lead_checks": "Die Prüfungen der Signale und Videos. Neben jeder Prüfung steht, was sie in der Stichprobe gefunden hat.",
+    "lead_success": "Woran das Sprachmodell erkennt, dass eine Episode gelungen ist. Jedes Kriterium ein Satz, den man im Video sehen kann.",
+    "lead_scoring": "Ab wann eine Episode akzeptiert wird. Die Stichprobe rechts bewegt sich mit, während du die Werte änderst.",
+    "lead_save": "Prüfe den Spec an denselben Episoden und speichere ihn.",
+    "purpose": {
+      "recording": "Aufnahme (Trainingsdaten)",
+      "evaluation": "Evaluation (Rollouts einer Policy)"
+    },
+    "purposeHint": {
+      "recording": "Teleoperation, die Episoden werden als Trainingsdaten beurteilt.",
+      "evaluation": "Eine Policy läuft, beurteilt wird, ob die Aufgabe gelungen ist."
+    },
+    "sample": {
+      "title": "Muster-Dataset",
+      "lead": "Ein typisches Dataset dieser Aufgabe, so wie es aus der Aufnahme kommt. Es wird nur für den Assistenten gespeichert und danach gelöscht.",
+      "skill": "Für welchen Skill?",
+      "skillHint": "Am Ende kann der Spec dem Skill direkt zugeordnet werden.",
+      "size": "Episoden zum Analysieren (X)",
+      "sizeHint": "Gleichmäßig über das Dataset verteilt, höchstens {max}. Mehr Episoden zeigen mehr, dauern aber länger.",
+      "purpose": "Wofür ist der Spec?",
+      "file": "Dataset (ZIP)",
+      "drop": "ZIP hierher ziehen oder auswählen",
+      "replace": "Anderes Muster hochladen",
+      "dropHint": "LeRobot-Dataset als eine ZIP-Datei: data, videos, meta. Die Analyse startet danach von selbst.",
+      "handover": "wird übergeben",
+      "temporary": "nur für die Dauer des Assistenten"
+    },
+    "analysis": {
+      "title": "Auto-Analyse",
+      "lead": "Die Critics sehen sich {n} Episoden an, erzeugen daraus einen Spec-Vorschlag und beurteilen die Stichprobe damit.",
+      "stage": {
+        "preparing": "Dataset wird geholt und vorbereitet",
+        "hard": "Technische Checks",
+        "soft": "Sprachmodell beurteilt die Episoden"
+      },
+      "wait": "Das kann ein paar Minuten dauern. Du kannst die Seite verlassen, der Entwurf wartet hier.",
+      "failed": "Die Analyse ist fehlgeschlagen.",
+      "retry": "Erneut analysieren",
+      "rerun": "Neu analysieren",
+      "noSample": "Noch kein Muster-Dataset.",
+      "stale": "Analysiert wurden {ran} Episoden, eingestellt sind jetzt {want}.",
+      "episodes": "Episoden analysiert",
+      "ofTotal": "von {n} im Dataset",
+      "robot": "Roboter",
+      "cameras": "Kameras",
+      "cycles": "Wiederholungen",
+      "cyclesSub": "Greifzyklen je Episode, typisch",
+      "found": "Aus den Daten gelesen",
+      "task": "Aufgabe",
+      "noTask": "keine Aufgabe im Dataset",
+      "arms": "Aktiver Arm",
+      "allArms": "alle Arme",
+      "verdicts": "Urteil mit dem Vorschlag",
+      "verdictsHint": "So beurteilen die Critics die Stichprobe mit dem automatisch erzeugten Spec. Das ist der Ausgangspunkt, den du in den nächsten Schritten schärfst.",
+      "sheets": "Die Episoden der Stichprobe",
+      "sheetsHint": "Ein Kontaktbogen je Episode: jede Zeile eine Kamera, von links nach rechts die Zeit. Ein Klick zeigt ihn groß."
+    },
+    "task": {
+      "fromData": "Aufgabe im Dataset",
+      "useText": "Als Aufgabe übernehmen",
+      "episodes": "in {n} Episoden",
+      "several": "Das Dataset enthält mehrere Aufgaben. Jede Episode wird dann an ihrer eigenen Aufgabe gemessen.",
+      "cycles": "Gezählte Greifzyklen",
+      "useCycles": "{n} Wiederholungen übernehmen",
+      "cyclesHint": "Wie oft der Greifer je Episode zugreift. Stimmt die Zahl, wird eine Episode mit mehreren Wiederholungen nicht als Mehrfachgriff markiert.",
+      "sheet": "zur Orientierung"
+    },
+    "robot": {
+      "typeHint": "Aus dem Dataset gelesen. Nur ändern, wenn es nicht stimmt.",
+      "allArms": "Alle Arme",
+      "arm": {
+        "left": "Links",
+        "right": "Rechts"
+      },
+      "armsHint": "Nur die aktiven Arme werden auf Bewegung und Nachführung geprüft. Ohne Auswahl alle.",
+      "autoCamera": "Automatisch",
+      "autoCameraHint": "Die Critics nehmen die erste Kamera, die nicht am Handgelenk sitzt.",
+      "row": "Zeile {n}",
+      "cameraHint": "Diese Kamera zeigt das Sprachmodell groß. Die Zeile nennt die Reihe im Kontaktbogen rechts.",
+      "look": "So sehen die Kameras aus",
+      "lookHint": "Zeile 1 oben, darunter die weiteren Kameras"
+    },
+    "checks": {
+      "sample": "Stichprobe ({n})",
+      "flagged": "{n} von {of} markiert",
+      "clean": "keine Auffälligkeit",
+      "stopped": "{n} gestoppt",
+      "notRun": "lief nicht",
+      "duration": "Die Episoden der Stichprobe dauern {min} bis {max} s (Median {median} s). Vorschlag für die Dauerprüfung: {lo} bis {hi} s.",
+      "useDuration": "Grenzen übernehmen"
+    },
+    "success": {
+      "vlmFailed": "Das Sprachmodell hat die Stichprobe nicht beurteilt. Die Kriterien werden trotzdem gespeichert und wirken, sobald es verfügbar ist.",
+      "vlmOff": "Für die Stichprobe lief kein Sprachmodell. Die Kriterien wirken bei den nächsten Analysen."
+    },
+    "scoring": {
+      "preview": "Die Stichprobe mit diesen Werten",
+      "changed": "{n} Episoden ändern ihr Urteil",
+      "gate": "Stopp: {id}",
+      "previewHint": "Vorschau aus den Ergebnissen der Auto-Analyse. Geänderte Parameter und neue Erfolgskriterien zeigt erst der Testlauf im letzten Schritt. Grüne Linie: akzeptieren ab, gelbe Linie: prüfen ab."
+    },
+    "save": {
+      "testTitle": "Testlauf",
+      "testHint": "Dein Spec an denselben Episoden der Stichprobe",
+      "testRun": "Testlauf starten",
+      "testAgain": "Erneut testen",
+      "testRunning": "Die Critics prüfen die Stichprobe mit deinem Spec.",
+      "testFailed": "Der Testlauf ist fehlgeschlagen.",
+      "testNone": "Noch kein Testlauf. Er ist freiwillig, zeigt aber, was dein Spec wirklich entscheidet.",
+      "episode": "Episode",
+      "auto": "Auto-Modus",
+      "yours": "Dein Spec",
+      "total": "Score",
+      "flags": "Markierungen",
+      "storeTitle": "Speichern",
+      "storeHint": "Der Spec wird bei den Critics abgelegt",
+      "name": "Name des Specs",
+      "nameHint": "Buchstaben, Ziffern, _ . und -. Leerzeichen werden zu _.",
+      "assign": "Ab jetzt für „{skill}“ verwenden",
+      "yaml": "Spec als YAML ansehen",
+      "store": "Spec speichern",
+      "storeNote": "Danach werden das Muster-Dataset und die Analysen gelöscht.",
+      "done": "Spec „{name}“ gespeichert.",
+      "doneAssigned": "Spec „{name}“ gespeichert und „{skill}“ zugeordnet.",
+      "existsTitle": "Es gibt schon einen Spec „{name}“",
+      "existsText": "Überschreiben ersetzt ihn für alle Skills, die ihn verwenden.",
+      "overwrite": "Überschreiben"
+    }
   }
 }

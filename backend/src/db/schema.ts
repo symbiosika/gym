@@ -116,6 +116,30 @@ export type HumanVerdict = (typeof HUMAN_VERDICTS)[number];
  * blocks and policies. F-08 marks a rollout invalidated by hardware or
  * infrastructure: it is shown but not charged to the policy.
  */
+/**
+ * Steps of the spec wizard, the guided way to a critics spec:
+ *
+ *   sample     a sample dataset is uploaded for the time of the wizard, and
+ *              how many of its episodes the critics look at (X)
+ *   analysis   the critics run in auto mode over those X episodes: the
+ *              generated spec and what they measured are the starting point
+ *   task       the instruction, the scene, the objects, the repetitions
+ *   robot      robot type, active arms, the camera the judge looks at
+ *   checks     the technical checks, next to what the sample measured
+ *   success    the success indicators the vision-language model judges
+ *   scoring    the thresholds, with how the sample would come out
+ *   save       a test run with the drafted spec, then name, store, assign
+ */
+export const SPEC_DRAFT_STEPS = ["sample", "analysis", "task", "robot", "checks", "success", "scoring", "save"] as const;
+export type SpecDraftStep = (typeof SPEC_DRAFT_STEPS)[number];
+
+/** Where one critics run of a spec draft stands; `none` before it is started. */
+export const SPEC_DRAFT_RUN_STATUSES = ["none", "queued", "running", "done", "failed"] as const;
+export type SpecDraftRunStatus = (typeof SPEC_DRAFT_RUN_STATUSES)[number];
+
+/** The sample dataset of a spec draft and the number of episodes looked at, within these bounds. */
+export const SPEC_DRAFT_SAMPLE = { min: 1, max: 50, default: 10 } as const;
+
 export const FAILURE_CODES = ["F-01", "F-02", "F-03", "F-04", "F-05", "F-06", "F-07", "F-08"] as const;
 export type FailureCode = (typeof FAILURE_CODES)[number];
 /** The rollouts with this code are not the policy's fault and leave the policy-attributable rate. */
@@ -472,6 +496,55 @@ export const datasets = pgBaseTable(
 );
 
 /**
+ * A spec in the making: the state of the spec wizard. A sample dataset is
+ * uploaded for the time of the wizard (its chunks, `storageParts`, in the
+ * upload bucket), the critics run over X of its episodes with the automatic
+ * spec, and the person walks through the spec step by step from what that run
+ * generated and measured. Every input is saved here at once, so the wizard
+ * resumes where it was left.
+ *
+ * Nothing of a draft is permanent. Finishing it stores the spec in the critics
+ * service (and names it on the skill); finishing or discarding it removes the
+ * sample, and a draft nobody came back to is cleared by the
+ * `gym-cleanup-dataset-uploads` cron job.
+ */
+export const specDrafts = pgBaseTable(
+  "spec_drafts",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }).notNull(),
+    /** the skill the spec is for, if any: finishing names the spec on it */
+    skillId: uuid("skill_id").references(() => skills.id, { onDelete: "set null" }),
+    /** the name the spec is stored under in the critics service */
+    name: text("name").notNull().default(""),
+    purpose: text("purpose").$type<BlockKind>().notNull().default("recording"),
+    step: text("step").$type<SpecDraftStep>().notNull().default("sample"),
+    /** how many episodes of the sample the critics look at (X), spread over the dataset */
+    sampleSize: integer("sample_size").notNull().default(SPEC_DRAFT_SAMPLE.default),
+    /** the sample dataset: the file that was picked and its chunks in the storage, in order */
+    fileName: text("file_name").notNull().default(""),
+    bytes: bigint("bytes", { mode: "number" }).notNull().default(0),
+    storageParts: jsonb("storage_parts").$type<string[]>().notNull().default([]),
+    /** the run in auto mode over the sample */
+    analysisJobId: text("analysis_job_id"),
+    analysisStatus: text("analysis_status").$type<SpecDraftRunStatus>().notNull().default("none"),
+    analysisError: text("analysis_error"),
+    analysisReport: jsonb("analysis_report").$type<DatasetReport | null>(),
+    /** the spec as drafted so far, in the shape the critics take (CriticSpec); null until the analysis seeds it */
+    spec: jsonb("spec").$type<Record<string, unknown> | null>(),
+    /** the test run with the drafted spec over the same sample */
+    testJobId: text("test_job_id"),
+    testStatus: text("test_status").$type<SpecDraftRunStatus>().notNull().default("none"),
+    testError: text("test_error"),
+    testReport: jsonb("test_report").$type<DatasetReport | null>(),
+    createdBy: uuid("created_by"),
+    createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).notNull().defaultNow(),
+  },
+  (table) => [index("gym_spec_drafts_tenant_idx").on(table.tenantId), index("gym_spec_drafts_updated_idx").on(table.updatedAt)],
+);
+
+/**
  * One dataset upload in progress: the operator's browser sends the zip in
  * chunks, so no single request has to carry the whole archive. A request that
  * runs for minutes is killed by any reverse proxy on the way (Traefik's
@@ -486,6 +559,8 @@ export const datasets = pgBaseTable(
  *
  * The row lives only until the upload is complete: `complete` reads the chunks
  * back, hands the zip to the critics, creates the dataset and drops the row.
+ * The sample of a spec draft is uploaded the same way; its chunks become the
+ * draft's `storageParts` instead of a dataset.
  * What is left behind by a browser that never came back is removed by the
  * `gym-cleanup-dataset-uploads` cron job.
  */
@@ -494,7 +569,9 @@ export const datasetUploads = pgBaseTable(
   {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
     tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }).notNull(),
-    blockId: uuid("block_id").references(() => blocks.id, { onDelete: "cascade" }).notNull(),
+    /** whom the upload is for: a block (it becomes a dataset) or a spec draft (its sample); exactly one is set */
+    blockId: uuid("block_id").references(() => blocks.id, { onDelete: "cascade" }),
+    specDraftId: uuid("spec_draft_id").references(() => specDrafts.id, { onDelete: "cascade" }),
     /** the file the operator picked, and the dataset name they gave it */
     fileName: text("file_name").notNull(),
     displayName: text("display_name").notNull().default(""),
@@ -509,6 +586,7 @@ export const datasetUploads = pgBaseTable(
   (table) => [
     index("gym_dataset_uploads_tenant_idx").on(table.tenantId),
     index("gym_dataset_uploads_block_idx").on(table.blockId),
+    index("gym_dataset_uploads_spec_draft_idx").on(table.specDraftId),
     index("gym_dataset_uploads_updated_idx").on(table.updatedAt),
   ],
 );
@@ -764,6 +842,12 @@ export const datasetsRelations = relations(datasets, ({ one, many }) => ({
 
 export const datasetUploadsRelations = relations(datasetUploads, ({ one }) => ({
   block: one(blocks, { fields: [datasetUploads.blockId], references: [blocks.id] }),
+  specDraft: one(specDrafts, { fields: [datasetUploads.specDraftId], references: [specDrafts.id] }),
+}));
+
+export const specDraftsRelations = relations(specDrafts, ({ one, many }) => ({
+  skill: one(skills, { fields: [specDrafts.skillId], references: [skills.id] }),
+  uploads: many(datasetUploads),
 }));
 
 export const datasetUploadChunksRelations = relations(datasetUploadChunks, ({ one }) => ({
@@ -792,6 +876,7 @@ export type BlockSelect = typeof blocks.$inferSelect;
 export type DatasetSelect = typeof datasets.$inferSelect;
 export type EpisodeSelect = typeof episodes.$inferSelect;
 export type DatasetUploadSelect = typeof datasetUploads.$inferSelect;
+export type SpecDraftSelect = typeof specDrafts.$inferSelect;
 export type DatasetUploadChunkSelect = typeof datasetUploadChunks.$inferSelect;
 export type ExportSelect = typeof exports.$inferSelect;
 export type EvaluationReportSelect = typeof evaluationReports.$inferSelect;

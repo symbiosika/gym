@@ -25,6 +25,11 @@ const router = createRouter({
     },
     { path: '/tenant/:tenantId/settings', name: 'Settings', component: () => import('@/views/SettingsView.vue') },
     {
+      path: '/tenant/:tenantId/spec-wizard/:draftId?',
+      name: 'SpecWizard',
+      component: () => import('@/views/SpecWizardView.vue'),
+    },
+    {
       path: '/m/capture/:token',
       name: 'MobileCapture',
       component: () => import('@/views/MobileCaptureView.vue'),

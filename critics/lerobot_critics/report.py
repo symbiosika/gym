@@ -24,7 +24,9 @@ if TYPE_CHECKING:  # pragma: no cover
     from .runner import DatasetReport, EpisodeReport
 
 
-def write_reports(report: DatasetReport, out_dir: Path, ds: LeRobotDataset | None = None) -> None:
+def write_reports(
+    report: DatasetReport, out_dir: Path, ds: LeRobotDataset | None = None, all_sheets: bool = False
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "report.json").write_text(report.model_dump_json(indent=1))
     (out_dir / "selection.json").write_text(json.dumps(build_selection(report), indent=1))
@@ -36,7 +38,7 @@ def write_reports(report: DatasetReport, out_dir: Path, ds: LeRobotDataset | Non
     if ds is not None:
         sheets = out_dir / "sheets"
         for r in report.episodes:
-            if r.score.verdict != "accept":
+            if all_sheets or r.score.verdict != "accept":
                 try:
                     contact_sheet(ds, r, sheets / f"episode_{r.episode:06d}.jpg")
                 except Exception:  # noqa: BLE001 - sheets are a convenience

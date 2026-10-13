@@ -8,6 +8,7 @@ import { joinOrganisationFromInvitationCode } from "./lib/gym/registration";
 import { gymMcpServer, SCOPES_SUPPORTED } from "./mcp";
 import { syncAllOpenDatasets } from "./lib/critics/sync";
 import { cleanupStaleUploads } from "./lib/gym/dataset-uploads";
+import { cleanupStaleSpecDrafts } from "./lib/gym/spec-drafts";
 import { assertStorageConfigured } from "./lib/storage";
 import log from "@framework/lib/log";
 
@@ -93,12 +94,14 @@ const server = defineServer({
       },
     },
     // chunks of dataset uploads that were never completed (a closed browser, an
-    // operator who went home) would otherwise fill the storage
+    // operator who went home) would otherwise fill the storage, and so would the
+    // samples of spec drafts nobody finished
     {
       name: "gym-cleanup-dataset-uploads",
       schedule: "*/15 * * * *",
       handler: async () => {
         await cleanupStaleUploads();
+        await cleanupStaleSpecDrafts();
       },
     },
   ],
