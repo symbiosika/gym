@@ -1,3 +1,4 @@
+import json
 import time
 from pathlib import Path
 
@@ -350,6 +351,48 @@ def dataset_url(synthetic_dataset):
     server.shutdown()
 
 
+@pytest.fixture
+def dataset_part_urls(synthetic_dataset):
+    """
+    The synthetic dataset, zipped, cut into three parts and served over HTTP:
+    how the app hands over an archive it keeps in the chunks it was uploaded in.
+    """
+    import http.server
+    import io
+    import threading
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for f in sorted(synthetic_dataset.rglob("*")):
+            if f.is_file():
+                z.write(f, f"{synthetic_dataset.name}/{f.relative_to(synthetic_dataset)}")
+    body = buf.getvalue()
+    size = len(body) // 3 + 1
+    parts = [body[i : i + size] for i in range(0, len(body), size)]
+    assert len(parts) == 3
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            index = int(self.path.split("?")[0].rsplit("/", 1)[-1].removesuffix(".bin"))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(len(parts[index])))
+            self.end_headers()
+            self.wfile.write(parts[index])
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield [
+        f"http://127.0.0.1:{server.server_port}/part/{i}.bin?token=secret-signature"
+        for i in range(len(parts))
+    ]
+    server.shutdown()
+
+
 def _wait(client, job_id, seconds=120):
     for _ in range(seconds * 10):
         st = client.get(f"/jobs/{job_id}").json()
@@ -444,3 +487,46 @@ def test_merge_says_which_source_it_could_not_fetch(client):
     assert r.status_code == 502
     assert "block_box_a" in r.text
     assert "secret-signature" not in r.text
+
+
+def test_a_job_joins_a_dataset_that_comes_in_parts(client, dataset_part_urls, tmp_path):
+    """
+    A dataset of several gigabytes is kept by the app in the chunks it was
+    uploaded in. The parts are fetched in order and joined into the zip here,
+    and no link, which carries a token, ends up in the status of the job.
+    """
+    spec = {
+        "name": "parts-job",
+        "task": {"instruction": "put the red block in the box", "expected_cycles": 1},
+        "robot": {"gripper": {"feature": "observation.state.gripper"}},
+        "soft_critics": {"enabled": False},
+    }
+    r = client.post(
+        "/jobs", json={"dataset_parts": dataset_part_urls, "spec": spec, "options": {"episodes": [0]}}
+    )
+    assert r.status_code == 202, r.text
+    assert "secret-signature" not in r.text
+    st = _wait(client, r.json()["job_id"])
+    assert st["status"] == "done", st.get("error")
+    assert st["dataset"] == "0.bin (3 parts)"
+    assert "secret-signature" not in json.dumps(st)
+    assert not (tmp_path / "jobs" / r.json()["job_id"] / "download.zip").exists()
+
+
+def test_merge_takes_a_dataset_in_parts(client, dataset_part_urls):
+    import io
+    import zipfile
+
+    r = client.post(
+        "/merge",
+        json={
+            "name": "parts",
+            "sources": [{"dataset_parts": dataset_part_urls, "episodes": [0, 1], "name": "big_one"}],
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.headers["x-merged-episodes"] == "2"
+    with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        assert json.loads(z.read("parts/manifest.json"))["sources"][0]["dataset"] == "big_one"
+
+    assert client.post("/merge", json={"sources": [{"episodes": [0]}]}).status_code == 422

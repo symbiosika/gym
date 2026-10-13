@@ -36,7 +36,7 @@
  *   POST   /tenant/:tenantId/gym/blocks/:id/datasets/uploads              { fileName, bytes, name? } announce one
  *   GET    /tenant/:tenantId/gym/blocks/:id/datasets/uploads/:uploadId    what is missing, to resume
  *   PUT    /tenant/:tenantId/gym/blocks/:id/datasets/uploads/:uploadId/chunks/:index   the chunk itself as the body
- *   POST   /tenant/:tenantId/gym/blocks/:id/datasets/uploads/:uploadId/complete        assemble and analyse
+ *   POST   /tenant/:tenantId/gym/blocks/:id/datasets/uploads/:uploadId/complete        the chunks become the dataset, analyse
  *   DELETE /tenant/:tenantId/gym/blocks/:id/datasets/uploads/:uploadId    give up, drop the chunks
  *   POST   /tenant/:tenantId/gym/blocks/:id/follow-up?lang
  *   GET    /tenant/:tenantId/gym/datasets/:id

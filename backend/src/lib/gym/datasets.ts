@@ -20,10 +20,10 @@ import { getDb } from "@framework/lib/db/db-connection";
 import { blocks, datasets, dayProtocols, episodes, skills, type BlockSelect, type DatasetSelect, type EpisodeSelect } from "../../db/schema";
 import { criticsClient, CriticsError, type CriticsPurpose } from "../critics/client";
 import { refreshDataset, syncDataset, upgradeStaleSummaries } from "../critics/sync";
-import { putFile, removeFile, shareFile } from "../storage";
+import { putFile, removeFile, shareFile, storageDriver } from "../storage";
 import { recordAudit, type Actor } from "./audit";
 import { getBlockRow } from "./blocks";
-import { DATASET_BUCKET } from "./buckets";
+import { DATASET_BUCKET, UPLOAD_CHUNK_BUCKET } from "./buckets";
 import { ConflictError, InvalidInputError, NotFoundError, UpstreamError } from "./errors";
 import { closeIntervals } from "./teleop";
 import { utcRow, utcRows } from "./time";
@@ -53,21 +53,54 @@ const shareTtlSeconds = (): number => {
 export const shareDataset = (tenantId: string, ref: string) =>
   shareFile(tenantId, DATASET_BUCKET, ref, { expiresInSeconds: shareTtlSeconds() });
 
+/** Where the bytes of a dataset lie: one zip, or the chunks it was uploaded in. */
+type StoredDataset = Pick<DatasetSelect, "storageRef" | "storageParts">;
+
+/** What the critics are handed: a link to the zip, or one link per part, in order, which they join. */
+export type DatasetLinks = { dataset: string } | { dataset_parts: string[] };
+
+/** Does GYM hold the bytes of this dataset? Not for one from before it kept the uploads. */
+export const isDatasetStored = (ds: StoredDataset): boolean => !!ds.storageRef || !!ds.storageParts?.length;
+
 /**
- * The zip, however it arrived: as one multipart request or assembled from the
- * chunks of a resumable upload (lib/gym/dataset-uploads.ts). The blob is what
- * goes to the critics, so it may be a file on disk as well as an uploaded one.
+ * Fresh temporary links to a stored dataset, for one job or one merge. Signing
+ * a link costs no request, so a dataset of a few hundred parts is a few
+ * hundred signatures and nothing more.
  */
-export interface DatasetSource {
+export async function datasetLinks(tenantId: string, ds: StoredDataset): Promise<DatasetLinks> {
+  if (ds.storageParts?.length) {
+    const ttl = { expiresInSeconds: shareTtlSeconds() };
+    return { dataset_parts: await Promise.all(ds.storageParts.map(async (ref) => (await shareFile(tenantId, UPLOAD_CHUNK_BUCKET, ref, ttl)).url)) };
+  }
+  if (ds.storageRef) return { dataset: (await shareDataset(tenantId, ds.storageRef)).url };
+  throw new ConflictError("GYM does not hold the data of this dataset");
+}
+
+/**
+ * Remove the stored bytes of a dataset, the zip or its parts. Never fails the
+ * caller: a file that cannot be removed must not keep a deleted dataset alive.
+ */
+export async function removeDatasetFiles(tenantId: string, ds: StoredDataset): Promise<void> {
+  if (ds.storageRef) await removeFile(tenantId, DATASET_BUCKET, ds.storageRef).catch(() => undefined);
+  for (const ref of ds.storageParts ?? []) await removeFile(tenantId, UPLOAD_CHUNK_BUCKET, ref).catch(() => undefined);
+}
+
+/**
+ * The zip, however it arrived: as one multipart request (`blob`, stored here
+ * as one file) or as the chunks of a resumable upload (`parts`, the storage
+ * references of the chunks in order, see lib/gym/dataset-uploads.ts). The
+ * parts are already stored and become the dataset as they are: an archive of
+ * several gigabytes is never put together on this side.
+ */
+export type DatasetSource = {
   /** the file the operator picked; names the dataset unless `displayName` is given */
   fileName: string;
   bytes: number;
-  blob: Blob;
   /** the name the operator typed for the dataset */
   displayName?: string;
   /** the content type of the upload, when there was one */
   contentType?: string;
-}
+} & ({ blob: Blob } | { parts: string[] });
 
 /**
  * Is this a zipped LeRobot dataset, as far as the name and the content type
@@ -93,7 +126,7 @@ export const uploadDataset = (tenantId: string, actor: Actor, blockId: string, f
 /** How the critics judge a block's datasets: an evaluation block's episodes are rollouts. */
 export const purposeOf = (kind: BlockSelect["kind"]): CriticsPurpose => (kind === "evaluation" ? "evaluation" : "recording");
 
-/** The same, from a zip that is already on disk: the shared core of both upload paths. */
+/** The shared core of both upload paths: store the zip (unless it is stored in parts already) and start the run. */
 export async function createDataset(tenantId: string, actor: Actor, blockId: string, source: DatasetSource): Promise<DatasetView> {
   const block = await getBlockRow(tenantId, blockId);
   assertDatasetZip(source.fileName, source.bytes, source.contentType);
@@ -106,16 +139,26 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
   // the zip first: it is what GYM keeps, and the critics only ever see a link
   // to it. A job that cannot be started is a dataset that can be analysed
   // again; a zip that was never stored is a recording that is gone.
-  const stored = await putFile(tenantId, DATASET_BUCKET, new File([source.blob], source.fileName, { type: "application/zip" }));
+  // Parts are stored already and still belong to their upload: if the run
+  // cannot be started they stay with it, so the operator can try again
+  // without sending the data a second time.
+  const stored: StoredDataset & { driver: string } =
+    "parts" in source
+      ? { storageRef: null, storageParts: source.parts, driver: storageDriver() }
+      : await putFile(tenantId, DATASET_BUCKET, new File([source.blob], source.fileName, { type: "application/zip" })).then((f) => ({
+          storageRef: f.ref,
+          storageParts: null,
+          driver: f.driver,
+        }));
   let jobId: string;
   try {
-    const share = await shareDataset(tenantId, stored.ref);
+    const links = await datasetLinks(tenantId, stored);
     // the skill's spec says what the task is; the kind of the block says what the
     // episodes are: demonstrations for training or rollouts of a policy
-    ({ job_id: jobId } = await criticsClient.createJob(share.url, skill.criticSpecName ?? null, { run_hard: true, run_soft: true, contact_sheets: true }, purposeOf(block.kind)));
+    ({ job_id: jobId } = await criticsClient.createJob(links, skill.criticSpecName ?? null, { run_hard: true, run_soft: true, contact_sheets: true }, purposeOf(block.kind)));
   } catch (error) {
-    // nothing points at the zip yet, so it would be orphaned for ever
-    await removeFile(tenantId, DATASET_BUCKET, stored.ref).catch(() => undefined);
+    // nothing points at a zip stored here yet, so it would be orphaned for ever
+    if (stored.storageRef) await removeFile(tenantId, DATASET_BUCKET, stored.storageRef).catch(() => undefined);
     throw error;
   }
 
@@ -132,7 +175,8 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
       // the critics count the episodes while they prepare; lib/critics/sync.ts
       // writes the number onto the row when the run reports them
       episodeCount: 0,
-      storageRef: stored.ref,
+      storageRef: stored.storageRef,
+      storageParts: stored.storageParts,
       criticsDatasetName: criticsName,
       criticsJobId: jobId,
       criticSpecName: skill.criticSpecName ?? null,
@@ -153,6 +197,7 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
     criticsDataset: criticsName,
     jobId,
     storage: stored.driver,
+    parts: stored.storageParts?.length ?? 0,
     spec: skill.criticSpecName ?? "auto",
     purpose: purposeOf(block.kind),
   });
@@ -195,11 +240,11 @@ export async function listDatasets(
   });
 }
 
-/** Deleting removes the episodes and the stored zip, and asks the critics service to drop the job. */
+/** Deleting removes the episodes and the stored zip (or its parts), and asks the critics service to drop the job. */
 export async function deleteDataset(tenantId: string, actor: Actor, id: string): Promise<void> {
   const ds = await getDatasetRow(tenantId, id);
   await getDb().delete(datasets).where(eq(datasets.id, id));
-  if (ds.storageRef) await removeFile(tenantId, DATASET_BUCKET, ds.storageRef).catch(() => undefined);
+  await removeDatasetFiles(tenantId, ds);
   if (ds.criticsJobId) await criticsClient.deleteJob(ds.criticsJobId);
   await recordAudit(tenantId, { skillId: ds.skillId, dayProtocolId: ds.dayProtocolId, blockId: ds.blockId }, actor, "dataset.deleted", { datasetId: id, name: ds.name });
 }

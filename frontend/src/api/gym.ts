@@ -82,11 +82,13 @@ async function putChunk(url: string, chunk: Blob): Promise<void> {
 }
 
 /**
- * Three attempts for one chunk. A dropped connection or a 5xx from something on
- * the way is worth repeating; a 4xx is about the request itself (the upload is
- * gone, the chunk does not fit) and repeating it would only cost time.
+ * Five attempts for one chunk, waiting 1, 2, 4 and 8 seconds in between, so a
+ * dataset of several gigabytes survives the short drop of a cell's uplink. A
+ * dropped connection or a 5xx from something on the way is worth repeating; a
+ * 4xx is about the request itself (the upload is gone, the chunk does not fit)
+ * and repeating it would only cost time.
  */
-async function withRetries<T>(call: () => Promise<T>, attempts = 3): Promise<T> {
+async function withRetries<T>(call: () => Promise<T>, attempts = 5): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
       return await call()
@@ -94,10 +96,17 @@ async function withRetries<T>(call: () => Promise<T>, attempts = 3): Promise<T> 
       const status = e instanceof FetcherError ? e.status : 0
       const worthRepeating = status === 0 || status === 408 || status === 429 || status >= 500
       if (attempt >= attempts || !worthRepeating) throw e
-      await new Promise((r) => setTimeout(r, 1000 * attempt))
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)))
     }
   }
 }
+
+/**
+ * Chunks in flight at once. One at a time leaves the line idle while the
+ * server stores a chunk and answers; three keep it busy without one upload
+ * crowding out everything else the browser does.
+ */
+const CHUNKS_IN_FLIGHT = 3
 
 export const gymApi = {
   ai: (t: string) => fetcher.get<AiInfo>(`${base(t)}/ai`),
@@ -249,6 +258,9 @@ export const gymApi = {
    *
    * `handle` carries the upload across attempts: pass the same object again and
    * what already arrived is not sent twice.
+   *
+   * The browser reads the file from the disc chunk by chunk (`File.slice`), so
+   * a dataset of several gigabytes is never held in memory here either.
    */
   uploadDataset: async (
     t: string,
@@ -267,16 +279,27 @@ export const gymApi = {
     const done = new Set(session.received)
     let sent = done.size * session.chunkSize
     onProgress(Math.min(99, Math.round((sent / file.size) * 100)))
-    for (let i = 0; i < session.chunkCount; i++) {
-      if (done.has(i)) continue
-      const from = i * session.chunkSize
-      const chunk = file.slice(from, Math.min(from + session.chunkSize, file.size))
-      await withRetries(() => putChunk(`${uploads}/${session.uploadId}/chunks/${i}`, chunk))
-      sent += chunk.size
-      // 100 % is reserved for the handover below, which the bytes do not cover
-      onProgress(Math.min(99, Math.round((sent / file.size) * 100)))
+    const pending = Array.from({ length: session.chunkCount }, (_, i) => i).filter((i) => !done.has(i))
+    // a few workers take the next missing chunk each; the first that fails for
+    // good stops the others, and what arrived is kept for the next attempt
+    let failed = false
+    const worker = async () => {
+      for (let i = pending.shift(); i !== undefined && !failed; i = pending.shift()) {
+        const from = i * session.chunkSize
+        const chunk = file.slice(from, Math.min(from + session.chunkSize, file.size))
+        try {
+          await withRetries(() => putChunk(`${uploads}/${session.uploadId}/chunks/${i}`, chunk))
+        } catch (e) {
+          failed = true
+          throw e
+        }
+        sent += chunk.size
+        // 100 % is reserved for the handover below, which the bytes do not cover
+        onProgress(Math.min(99, Math.round((sent / file.size) * 100)))
+      }
     }
-    // everything is up; assembling and handing over to the critics is what is
+    await Promise.all(Array.from({ length: CHUNKS_IN_FLIGHT }, worker))
+    // everything is up; handing the parts over to the critics is what is
     // left, and that is what the step shows as the handover
     onProgress(100)
     const dataset = await fetcher.post<DatasetView>(`${uploads}/${session.uploadId}/complete`, {})

@@ -124,8 +124,19 @@ describe("Chunked dataset uploads", () => {
   test("a wrong file is refused before anything is transferred", async () => {
     expect((await testFetcher.post(app, uploads, token, { fileName: "notes.txt", bytes: 20 })).status).toBe(400);
     expect((await testFetcher.post(app, uploads, token, { fileName: "d.zip", bytes: 0 })).status).toBe(400);
-    // larger than the integer column of the dataset row can hold
-    expect((await testFetcher.post(app, uploads, token, { fileName: "d.zip", bytes: 3_000_000_000 })).status).toBe(400);
+    // larger than the guard against a file picked by mistake
+    expect((await testFetcher.post(app, uploads, token, { fileName: "d.zip", bytes: 60 * 1000 ** 3 })).status).toBe(400);
+  });
+
+  test("a dataset of several gigabytes is announced like any other", async () => {
+    // beyond 2^31 bytes: the size lives in a bigint, and nothing is ever held as one piece
+    const bytes = 3 * 1000 ** 3 + 5;
+    const begun = await testFetcher.post(app, uploads, token, { fileName: "big.zip", bytes });
+    expect(begun.status).toBe(201);
+    expect(begun.jsonResponse.bytes).toBe(bytes);
+    expect(begun.jsonResponse.chunkCount).toBe(Math.ceil(bytes / CHUNK));
+    expect((await testFetcher.get(app, `${uploads}/${begun.jsonResponse.uploadId}`, token)).jsonResponse.bytes).toBe(bytes);
+    expect((await testFetcher.delete(app, `${uploads}/${begun.jsonResponse.uploadId}`, token)).status).toBe(204);
   });
 
   test("access: unauthenticated 401, another organisation 403", async () => {
@@ -159,7 +170,7 @@ describe("Chunked dataset uploads", () => {
     expect((await testFetcher.get(app, `${uploads}/${id}`, token)).status).toBe(404);
   });
 
-  test("an upload in chunks becomes one dataset at the critics, and resumes after an interruption", async () => {
+  test("an upload in chunks becomes one dataset in parts, and resumes after an interruption", async () => {
     const begun = await testFetcher.post(app, uploads, token, { fileName: "block_box_a.zip", bytes: ZIP.length, name: "Block box A" });
     const id = begun.jsonResponse.uploadId;
 
@@ -184,39 +195,78 @@ describe("Chunked dataset uploads", () => {
     expect(done.jsonResponse.bytes).toBe(ZIP.length);
     expect(done.jsonResponse.sourceFileName).toBe("block_box_a.zip");
     expect(done.jsonResponse.criticsJobId).toBe("job_1");
-    // the critics received the assembled archive, in one piece and in order
-    // the bytes never go to the critics: they are handed a link to the stored
-    // archive and fetch it themselves, and what arrives is the whole zip, in
-    // one piece and in order
-    expect(critics.uploads).toHaveLength(0);
-    expect(critics.jobs.at(-1)!.dataset).toMatch(/^https?:\/\//);
-    expect(critics.fetched).toHaveLength(1);
-    expect(critics.fetched[0]!.status).toBe(200);
-    expect(critics.fetched[0]!.bytes).toBe(ZIP.length);
-    expect(critics.fetched[0]!.head).toEqual([0x50, 0x4b, 0x03, 0x04]);
     expect(done.jsonResponse.criticsDatasetName).toMatch(/^Block_box_A_20260922_/);
 
-    // GYM keeps the archive: it owns the recorded data now, not the critics
-    const stored = await storedDatasets();
-    expect(stored).toHaveLength(1);
-    expect(new Uint8Array(stored[0]!.file)).toEqual(ZIP);
-    expect(done.jsonResponse.storageRef.startsWith("db:")).toBe(true);
+    // the zip is never put together here: the chunks are the dataset, and the
+    // critics are handed one link per chunk, in order, and join them. What
+    // they fetch adds up to the whole zip.
+    expect(critics.uploads).toHaveLength(0);
+    const job = critics.jobs.at(-1)!;
+    expect(job.parts).toHaveLength(3);
+    for (const link of job.parts!) expect(link).toMatch(/^https?:\/\//);
+    expect(critics.fetched).toHaveLength(3);
+    expect(critics.fetched.every((f) => f.status === 200)).toBe(true);
+    expect(critics.fetched.map((f) => f.bytes)).toEqual([8, 8, 4]);
+    expect(critics.fetched[0]!.head).toEqual([0x50, 0x4b, 0x03, 0x04]);
+
+    // GYM keeps the data, as the chunks it arrived in, in order; no second copy
+    expect(done.jsonResponse.storageRef).toBeNull();
+    expect(done.jsonResponse.storageParts).toHaveLength(3);
+    expect(await storedDatasets()).toHaveLength(0);
+    const parts = await storedChunkFiles();
+    expect(parts).toHaveLength(3);
+    const byName = new Map(parts.map((f) => [`db:${f.id}`, new Uint8Array(f.file)]));
+    const joined = (done.jsonResponse.storageParts as string[]).flatMap((ref) => [...byName.get(ref)!]);
+    expect(new Uint8Array(joined)).toEqual(ZIP);
 
     // the block moved on, exactly as after a single-request upload
     const block = await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
     expect(block.jsonResponse.step).toBe("review");
     expect(block.jsonResponse.datasets).toHaveLength(1);
 
-    // nothing is left behind of the upload: no row, no chunk row, no stored
-    // chunk, no scratch file. Only the dataset itself, which GYM keeps.
+    // nothing is left of the upload itself: no row, no chunk row, no scratch file
     expect((await testFetcher.get(app, uploads, token)).jsonResponse).toEqual([]);
     expect(await chunkRows()).toHaveLength(0);
-    expect(await storedChunkFiles()).toHaveLength(0);
     expect(await fs.readdir(`${storage}/gym-uploads`).catch(() => [])).toEqual([]);
+    // and the parts are not an abandoned upload to the cleanup
+    await cleanupStaleUploads();
+    expect(await storedChunkFiles()).toHaveLength(3);
 
-    // and deleting the dataset takes the archive with it
+    // deleting the dataset takes its parts with it
     expect((await testFetcher.delete(app, `${base}/datasets/${done.jsonResponse.id}`, token)).status).toBe(204);
-    expect(await storedDatasets()).toHaveLength(0);
+    expect(await storedChunkFiles()).toHaveLength(0);
+  });
+
+  test("a completion sent twice makes one dataset, and a deleted block takes the parts along", async () => {
+    const begun = await testFetcher.post(app, uploads, token, { fileName: "twice.zip", bytes: ZIP.length });
+    const id = begun.jsonResponse.uploadId;
+    await putChunk(`${uploads}/${id}/chunks/0`, ZIP.slice(0, 8));
+    await putChunk(`${uploads}/${id}/chunks/1`, ZIP.slice(8, 16));
+    await putChunk(`${uploads}/${id}/chunks/2`, ZIP.slice(16, 20));
+    const done = await testFetcher.post(app, `${uploads}/${id}/complete`, token, {});
+    expect(done.status).toBe(201);
+    // a retry after an unclear failure (a timeout on the way back) finds the
+    // upload gone and makes no second dataset of the same chunks
+    expect((await testFetcher.post(app, `${uploads}/${id}/complete`, token, {})).status).toBe(404);
+    const datasetId = done.jsonResponse.id;
+    expect((await testFetcher.get(app, `${base}/blocks/${blockId}`, token)).jsonResponse.datasets).toHaveLength(1);
+
+    // deleting the block takes the parts of its datasets with it
+    const other = await testFetcher.post(app, `${base}/blocks`, token, {
+      cellId: (await testFetcher.get(app, `${base}/cells`, token)).jsonResponse[0].id,
+      skillId: (await testFetcher.get(app, `${base}/skills`, token)).jsonResponse[0].id,
+      date: "2026-09-24",
+    });
+    const otherUploads = `${base}/blocks/${other.jsonResponse.block.id}/datasets/uploads`;
+    const second = await testFetcher.post(app, otherUploads, token, { fileName: "gone.zip", bytes: 8 });
+    await putChunk(`${otherUploads}/${second.jsonResponse.uploadId}/chunks/0`, ZIP.slice(0, 8));
+    expect((await testFetcher.post(app, `${otherUploads}/${second.jsonResponse.uploadId}/complete`, token, {})).status).toBe(201);
+    expect(await storedChunkFiles()).toHaveLength(4);
+    expect((await testFetcher.delete(app, `${base}/blocks/${other.jsonResponse.block.id}`, token)).status).toBe(204);
+    expect(await storedChunkFiles()).toHaveLength(3);
+
+    expect((await testFetcher.delete(app, `${base}/datasets/${datasetId}`, token)).status).toBe(204);
+    expect(await storedChunkFiles()).toHaveLength(0);
   });
 
   test("the chunks lie in the configured storage, not on the disc of the container", async () => {

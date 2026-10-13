@@ -236,7 +236,8 @@ export interface CriticsSelection {
 
 /** What to merge: per source dataset the episodes of it that were selected. */
 export interface MergeRequest {
-  sources: { dataset: string; episodes: number[] }[];
+  /** per source a link to the zip (`dataset`) or one link per part of it (`dataset_parts`) */
+  sources: (({ dataset: string } | { dataset_parts: string[] }) & { episodes: number[]; name?: string })[];
   name: string;
   with_videos?: boolean;
 }
@@ -303,7 +304,8 @@ export const criticsClient = {
 
   /** Start an analysis; `spec` is a stored spec name, an inline spec or null for an auto-generated one. */
   async createJob(
-    dataset: string,
+    /** a link to the zip, or one link per part of it in order (lib/gym/datasets.ts, `datasetLinks`) */
+    source: { dataset: string } | { dataset_parts: string[] },
     spec: string | Record<string, unknown> | null,
     options: CriticsRunOptions = {},
     purpose: CriticsPurpose = "recording",
@@ -311,7 +313,7 @@ export const criticsClient = {
     return json(`/jobs`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ dataset, spec, purpose, options }),
+      body: JSON.stringify({ ...source, spec, purpose, options }),
     });
   },
 

@@ -28,7 +28,7 @@ import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
 import { blocks, cells, datasets, dayProtocols, episodes, exports, HUMAN_VERDICTS, type DatasetSelect, type EpisodeSelect, type ExportSelect, type ExportSelection } from "../../db/schema";
 import { recordAudit, type Actor } from "./audit";
-import { shareDataset } from "./datasets";
+import { datasetLinks, isDatasetStored } from "./datasets";
 import { effectiveVerdict } from "./evaluations";
 import { criticsClient } from "../critics/client";
 import { upgradeStaleSummariesOf } from "../critics/sync";
@@ -40,7 +40,7 @@ import { utcRows } from "./time";
  * A dataset as the selection lists it. The selection is the skill's, over all
  * its recording blocks, so every dataset says which day and cell it came from.
  */
-export type SelectionDatasetInfo = Pick<DatasetSelect, "id" | "name" | "dayProtocolId" | "blockId" | "episodeCount" | "createdAt" | "analysisStatus" | "analysis" | "storageRef" | "criticsDatasetName" | "criticsJobId" | "selection"> & {
+export type SelectionDatasetInfo = Pick<DatasetSelect, "id" | "name" | "dayProtocolId" | "blockId" | "episodeCount" | "createdAt" | "analysisStatus" | "analysis" | "storageRef" | "storageParts" | "criticsDatasetName" | "criticsJobId" | "selection"> & {
   date: string;
   cellName: string;
 };
@@ -89,6 +89,7 @@ export async function getSelection(tenantId: string, skillId: string): Promise<S
       analysisStatus: datasets.analysisStatus,
       analysis: datasets.analysis,
       storageRef: datasets.storageRef,
+      storageParts: datasets.storageParts,
       criticsDatasetName: datasets.criticsDatasetName,
       criticsJobId: datasets.criticsJobId,
       selection: datasets.selection,
@@ -267,7 +268,7 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
     .map((d) => ({ ...d, episodes: d.episodes.filter((e) => e.selected) }))
     .filter((d) => d.episodes.length);
   if (!selectedSets.length) throw new InvalidInputError("No episodes selected");
-  const missing = selectedSets.filter((d) => !d.dataset.storageRef);
+  const missing = selectedSets.filter((d) => !isDatasetStored(d.dataset));
   if (missing.length) {
     throw new InvalidInputError(
       `The dataset "${missing[0]!.dataset.name}" was recorded before GYM kept the uploads, so it cannot be merged. Upload it again to include it.`,
@@ -295,7 +296,7 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
   // keep nothing, so a link is only ever as old as the request
   const sources = await Promise.all(
     selectedSets.map(async (d) => ({
-      dataset: (await shareDataset(tenantId, d.dataset.storageRef!)).url,
+      ...(await datasetLinks(tenantId, d.dataset)),
       episodes: d.episodes.map((e) => e.index),
       // a link carries a token, not a name: this is what the merged dataset's
       // manifest shows and what an error from the critics names

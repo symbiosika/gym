@@ -319,6 +319,13 @@ datasets stores them itself and hands over a **temporary URL** instead of the
 bytes: a presigned link of an object store, or a signed link of the app. Both
 `POST /jobs` and `POST /merge` take such a URL wherever they take a dataset.
 
+A dataset of several gigabytes may also come **in parts**: `"dataset_parts":
+[url, url, …]` instead of `"dataset"`, in `POST /jobs` and in a merge source.
+The parts are the zip cut into pieces (GYM keeps a dataset in the chunks it was
+uploaded in); they are fetched in order into one file, which is then the zip.
+The status of the job names such a dataset by its first part and the number of
+parts, never by its links.
+
 What follows from that:
 
 - the zip is fetched into the working directory of that one job or that one

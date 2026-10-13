@@ -50,6 +50,13 @@
       "when": 1790101385112,
       "tag": "0006_condemned_quasar",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791891321069,
+      "tag": "0007_loose_maverick",
+      "breakpoints": true
     }
   ]
 }

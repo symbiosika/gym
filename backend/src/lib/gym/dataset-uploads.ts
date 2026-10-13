@@ -19,17 +19,24 @@
  * object store), like every other byte the app keeps, and the
  * `dataset_upload_chunks` rows are the record of what arrived. Nothing of an
  * upload lies on the disc of a container, so a chunk that reaches one replica
- * is assembled by whichever replica is asked to complete the upload, and a
- * container that is replaced mid-upload costs nothing. `complete` reads the
- * chunks back in order, hands the zip to the critics through
- * lib/gym/datasets.ts and drops everything.
+ * is completed by whichever replica is asked, and a container that is
+ * replaced mid-upload costs nothing.
+ *
+ * `complete` does not put the zip together. The chunks become the dataset as
+ * they are (`datasets.storage_parts`), and the critics are handed one link per
+ * chunk and join them on their side (critics/lerobot_critics/api/sources.py).
+ * So completing an upload of several gigabytes is one short request that moves
+ * no bytes: no archive in the memory of the process, no file on its disc, no
+ * single object larger than a chunk in the storage (which the database could
+ * not hold: a Postgres value ends at one gigabyte), and nothing a proxy times
+ * out on.
  */
 import fs from "fs/promises";
 import { and, asc, eq, inArray, lt } from "drizzle-orm";
 import { getDb } from "@framework/lib/db/db-connection";
 import log from "@framework/lib/log";
 import { datasetUploadChunks, datasetUploads, type DatasetUploadSelect } from "../../db/schema";
-import { putFile, readFile, removeFile } from "../storage";
+import { putFile, removeFile } from "../storage";
 import { UPLOAD_CHUNK_BUCKET } from "./buckets";
 import { assertDatasetZip, createDataset, type DatasetView } from "./datasets";
 import { type Actor } from "./audit";
@@ -41,7 +48,7 @@ import { ConflictError, InvalidInputError, NotFoundError } from "./errors";
  * seconds, well inside every proxy default, and a 65 MB dataset is nine
  * requests rather than nine hundred. GYM_UPLOAD_CHUNK_SIZE lowers it for an
  * installation behind a tighter proxy (and for the tests, which would rather
- * not move megabytes to see the assembly work).
+ * not move megabytes to see the parts come together).
  */
 export const DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024;
 
@@ -50,21 +57,28 @@ const chunkSize = (): number => {
   return Number.isInteger(configured) && configured > 0 ? configured : DEFAULT_CHUNK_SIZE;
 };
 
-/** `datasets.bytes` is an integer column, so this is the ceiling the row can hold. */
-export const MAX_UPLOAD_BYTES = 2_000_000_000;
+/**
+ * 50 GB by default. Not a limit of the storage (a dataset is stored in chunks)
+ * but a guard against a file picked by mistake; GYM_MAX_UPLOAD_BYTES moves it.
+ * The critics need about twice the size of a dataset on their disc while they
+ * work on it, the zip and what it unpacks to.
+ */
+export const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1000 ** 3;
+
+export const maxUploadBytes = (): number => {
+  const configured = Number(process.env.GYM_MAX_UPLOAD_BYTES);
+  return Number.isSafeInteger(configured) && configured > 0 ? configured : DEFAULT_MAX_UPLOAD_BYTES;
+};
 
 /** An upload with no sign of life for this long is abandoned; the cron job clears it. */
 const STALE_AFTER_HOURS = 24;
 
 /**
- * Where the zip is put together. This is scratch space for the one request
- * that completes an upload, not storage: the file is written, handed to the
- * critics and deleted again, and nothing outside that request ever looks for
- * it. Assembling through a file is what keeps an archive of up to two
- * gigabytes out of the memory of the process.
+ * Where earlier versions put the zip together before handing it on. Nothing is
+ * written there any more; the cleanup still clears what an interrupted
+ * assembly of such a version left behind.
  */
 const scratchDir = () => `${process.env.TEMPORARY_STORAGE_PATH || "./tmp"}/gym-uploads`;
-const scratchZipPath = (uploadId: string) => `${scratchDir()}/${uploadId}.zip`;
 
 /** What the client needs to drive the upload, and to pick up one that was interrupted. */
 export interface DatasetUploadView {
@@ -127,8 +141,8 @@ export async function beginUpload(
 ): Promise<DatasetUploadView> {
   const block = await getBlockRow(tenantId, blockId);
   assertDatasetZip(file.fileName, file.bytes);
-  if (file.bytes > MAX_UPLOAD_BYTES) {
-    throw new InvalidInputError(`The dataset is larger than ${Math.floor(MAX_UPLOAD_BYTES / 1_000_000_000)} GB; split the recording into several zips`);
+  if (file.bytes > maxUploadBytes()) {
+    throw new InvalidInputError(`The dataset is larger than ${Math.floor(maxUploadBytes() / 1000 ** 3)} GB; split the recording into several zips`);
   }
   const [row] = await getDb()
     .insert(datasetUploads)
@@ -200,70 +214,55 @@ export async function putChunk(
 }
 
 /**
- * All chunks are in: assemble the zip, hand it to the critics and create the
- * dataset. Assembling appends one chunk at a time, so the archive never sits in
- * memory as a whole.
+ * All chunks are in: the chunks become the dataset and the critics run
+ * starts. Nothing is read, copied or put together; the critics are handed a
+ * link to each chunk and join them themselves (see the top of this file).
  *
- * If the critics refuse or cannot be reached the chunks stay where they are and
- * the row survives, so the operator can ask for completion again without
+ * If the critics refuse or cannot be reached the chunks stay with the upload
+ * and the row survives, so the operator can ask for completion again without
  * sending the data a second time.
  */
 export async function completeUpload(tenantId: string, actor: Actor, blockId: string, uploadId: string): Promise<DatasetView> {
   const row = await getUploadRow(tenantId, blockId, uploadId);
-  const received = await receivedChunks(uploadId);
-  if (received.length !== row.chunkCount) {
-    const missing = Array.from({ length: row.chunkCount }, (_, i) => i).filter((i) => !received.includes(i));
+  const chunks = await getDb()
+    .select({ index: datasetUploadChunks.index, storageRef: datasetUploadChunks.storageRef, bytes: datasetUploadChunks.bytes })
+    .from(datasetUploadChunks)
+    .where(eq(datasetUploadChunks.uploadId, uploadId))
+    .orderBy(asc(datasetUploadChunks.index));
+  if (chunks.length !== row.chunkCount) {
+    const received = new Set(chunks.map((c) => c.index));
+    const missing = Array.from({ length: row.chunkCount }, (_, i) => i).filter((i) => !received.has(i));
     throw new ConflictError(`The upload is incomplete: ${missing.length} of ${row.chunkCount} chunks are missing (${missing.slice(0, 10).join(", ")})`);
   }
-
-  // One chunk at a time, read back from the storage and appended to the
-  // scratch file: the archive is never held in memory as a whole. A writer
-  // truncates, so a completion that failed half way is simply redone.
-  const chunks = await chunkRefs(uploadId);
-  const path = scratchZipPath(uploadId);
-  await fs.mkdir(scratchDir(), { recursive: true });
-  try {
-    const sink = Bun.file(path).writer();
-    try {
-      for (let i = 0; i < row.chunkCount; i++) {
-        const ref = chunks.get(i);
-        if (!ref) throw new ConflictError(`The upload lost chunk ${i}; upload it again`);
-        sink.write(await (await readFile(tenantId, UPLOAD_CHUNK_BUCKET, ref)).arrayBuffer());
-      }
-    } finally {
-      await sink.end();
-    }
-    const zip = Bun.file(path);
-    if (zip.size !== row.bytes) {
-      // the chunks do not add up to what was announced: refuse rather than hand
-      // the critics half an archive, and let the operator start over
-      await dropUpload(tenantId, uploadId);
-      throw new InvalidInputError(`The assembled dataset is ${zip.size} bytes, ${row.bytes} were announced; upload it again`);
-    }
-
-    const dataset = await createDataset(tenantId, actor, blockId, {
-      fileName: row.fileName,
-      bytes: row.bytes,
-      blob: zip,
-      displayName: row.displayName || undefined,
-      contentType: "application/zip",
-    });
+  // every chunk was checked against its expected size when it arrived; this is
+  // the last word before the critics see the parts as one archive
+  const total = chunks.reduce((sum, c) => sum + c.bytes, 0);
+  if (total !== row.bytes) {
     await dropUpload(tenantId, uploadId);
-    return dataset;
-  } finally {
-    // the scratch file has done its job, whether the critics took the archive
-    // or refused it; the chunks are what a second attempt starts from
-    await fs.rm(path, { force: true }).catch(() => undefined);
+    throw new InvalidInputError(`The chunks add up to ${total} bytes, ${row.bytes} were announced; upload the dataset again`);
   }
-}
 
-/** The storage reference of every chunk of an upload, by index. */
-async function chunkRefs(uploadId: string): Promise<Map<number, string>> {
-  const rows = await getDb()
-    .select({ index: datasetUploadChunks.index, storageRef: datasetUploadChunks.storageRef })
-    .from(datasetUploadChunks)
-    .where(eq(datasetUploadChunks.uploadId, uploadId));
-  return new Map(rows.map((r) => [r.index, r.storageRef]));
+  // Claim the upload, so that a completion sent twice (a double click, a retry
+  // after a timeout) cannot make two datasets of the same chunks: deleting one
+  // would take the bytes of the other. Whoever moves the row on first wins.
+  const claimed = await getDb()
+    .update(datasetUploads)
+    .set({ updatedAt: new Date().toISOString() })
+    .where(and(eq(datasetUploads.id, uploadId), eq(datasetUploads.updatedAt, row.updatedAt)))
+    .returning({ id: datasetUploads.id });
+  if (!claimed.length) throw new ConflictError("The upload is being completed already");
+
+  const dataset = await createDataset(tenantId, actor, blockId, {
+    fileName: row.fileName,
+    bytes: row.bytes,
+    parts: chunks.map((c) => c.storageRef),
+    displayName: row.displayName || undefined,
+    contentType: "application/zip",
+  });
+  // the chunks belong to the dataset now: only the record of the upload goes
+  // (the chunk rows with it through the cascade), never the bytes
+  await getDb().delete(datasetUploads).where(eq(datasetUploads.id, uploadId));
+  return dataset;
 }
 
 /**

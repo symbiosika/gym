@@ -64,8 +64,8 @@ from ..runner import DatasetReport, RunOptions, parse_episodes
 from ..spec.autospec import auto_spec
 from ..spec.models import CriticSpec, Purpose, load_spec
 from .jobs import JobStore
+from .sources import DatasetSource, source_label
 from .sources import resolve_dataset as resolve_source
-from .sources import source_label
 
 JOBS_DIR = Path(os.environ.get("CRITICS_JOBS_DIR", "jobs"))
 SPECS_DIR = Path(os.environ.get("CRITICS_SPECS_DIR", "specs_store"))
@@ -99,6 +99,11 @@ class JobRequest(BaseModel):
         None, description="Local path (relative to CRITICS_DATA_DIR or absolute), zip URL, or HF repo id"
     )
     datasets: list[str] | None = Field(None, description="Several datasets -> one job per dataset, same spec")
+    dataset_parts: list[str] | None = Field(
+        None,
+        description="One zipped dataset stored in parts: temporary http(s) URLs, fetched in order and "
+        "joined into the zip. How an app hands over an archive of several gigabytes it never puts together.",
+    )
     spec: str | dict[str, Any] | None = Field(
         None, description="Stored spec name, inline spec object, or null = auto"
     )
@@ -110,8 +115,10 @@ class JobRequest(BaseModel):
     )
     options: RunOptions = Field(default_factory=RunOptions)
 
-    def all_datasets(self) -> list[str]:
-        out = list(self.datasets or [])
+    def all_datasets(self) -> list[DatasetSource]:
+        out: list[DatasetSource] = list(self.datasets or [])
+        if self.dataset_parts:
+            out.insert(0, list(self.dataset_parts))
         if self.dataset:
             out.insert(0, self.dataset)
         if not out:
@@ -124,7 +131,7 @@ class AutoSpecRequest(BaseModel):
     active_arms: list[str] | None = None
 
 
-def _auto_spec_name(dataset: str) -> str:
+def _auto_spec_name(dataset: DatasetSource) -> str:
     import re
 
     stem = source_label(dataset)
@@ -132,7 +139,7 @@ def _auto_spec_name(dataset: str) -> str:
 
 
 def _resolve_spec(
-    spec: str | dict[str, Any] | None, dataset: str, purpose: Purpose | None = None
+    spec: str | dict[str, Any] | None, dataset: DatasetSource, purpose: Purpose | None = None
 ) -> CriticSpec | None:
     """
     The spec of a run, or None for "generate one from the dataset".
@@ -231,12 +238,15 @@ async def upload_dataset(file: UploadFile = File(...), name: str | None = None) 
 
 
 class MergeSourceRequest(BaseModel):
-    dataset: str = Field(
-        ...,
+    dataset: str | None = Field(
+        None,
         description=(
             "A temporary http(s) URL to the zipped dataset, a dataset name under "
             "CRITICS_DATA_DIR, or an absolute path"
         ),
+    )
+    dataset_parts: list[str] | None = Field(
+        None, description="Instead of `dataset`: the zip in parts, temporary http(s) URLs joined in order"
     )
     episodes: list[int] = Field(..., description="The episode indexes of that dataset to take over")
     name: str | None = Field(
@@ -246,6 +256,13 @@ class MergeSourceRequest(BaseModel):
             "Give it when the source is a URL: a link carries a token, not a name."
         ),
     )
+
+    def source(self) -> DatasetSource:
+        if self.dataset_parts:
+            return list(self.dataset_parts)
+        if self.dataset:
+            return self.dataset
+        raise HTTPException(422, "dataset or dataset_parts required")
 
 
 class MergeRequest(BaseModel):
@@ -280,18 +297,24 @@ def merge(req: MergeRequest) -> Response:
     if not req.sources:
         raise HTTPException(400, "no sources given")
     stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", req.name).strip("._") or "merged"
+    from starlette.background import BackgroundTask
+
     work = Path(tempfile.mkdtemp(prefix="critics-merge-"))
+    # the work area goes when the answer has been streamed, or at once when
+    # there is no answer to stream
+    streaming = False
     try:
         sources = []
         for i, src in enumerate(req.sources):
             if not src.episodes:
                 continue
-            label = src.name or source_label(src.dataset)
+            source = src.source()
+            label = src.name or source_label(source)
             try:
                 # each source into its own directory of this request's work area,
                 # so two sources cannot overwrite each other and everything goes
                 # together in the finally below
-                root = resolve_source(src.dataset, work / f"src{i}", DATA_DIR)
+                root = resolve_source(source, work / f"src{i}", DATA_DIR)
             except FileNotFoundError as e:
                 raise HTTPException(404, f"dataset not found: {label}") from e
             except HTTPException:
@@ -313,18 +336,23 @@ def merge(req: MergeRequest) -> Response:
             for f in sorted((work / stem).rglob("*")):
                 if f.is_file():
                     z.write(f, f"{stem}/{f.relative_to(work / stem)}")
-        data = archive.read_bytes()
+        # streamed from the disc, never read into memory: the selection of a
+        # few datasets of several gigabytes each is a zip of the same order
+        response = FileResponse(
+            archive,
+            media_type="application/zip",
+            filename=f"{stem}.zip",
+            headers={
+                "X-Merged-Episodes": str(manifest["episodes"]),
+                "X-Merged-Frames": str(manifest["frames"]),
+            },
+            background=BackgroundTask(shutil.rmtree, work, ignore_errors=True),
+        )
+        streaming = True
+        return response
     finally:
-        shutil.rmtree(work, ignore_errors=True)
-    return Response(
-        content=data,
-        media_type="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="{stem}.zip"',
-            "X-Merged-Episodes": str(manifest["episodes"]),
-            "X-Merged-Frames": str(manifest["frames"]),
-        },
-    )
+        if not streaming:
+            shutil.rmtree(work, ignore_errors=True)
 
 
 @app.get("/health")
@@ -419,7 +447,10 @@ def create_job(req: JobRequest) -> dict[str, Any]:
     for ds in req.all_datasets():
         spec = _resolve_spec(req.spec, ds, req.purpose)
         job_id = store.submit(ds, spec, req.options, auto_spec_name=_auto_spec_name(ds), purpose=req.purpose)
-        jobs.append({"job_id": job_id, "dataset": ds, "status": "queued"})
+        # the parts of a dataset are links with a token each: the answer names them instead
+        jobs.append(
+            {"job_id": job_id, "dataset": ds if isinstance(ds, str) else source_label(ds), "status": "queued"}
+        )
     if len(jobs) == 1:
         return jobs[0]
     return {"jobs": jobs}
