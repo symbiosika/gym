@@ -18,6 +18,7 @@ import {
 import { defaultIndicators, fromSpec, toSpec, type SpecForm as SpecFormModel } from '@/utils/spec'
 import { cycleCounts, sampleTasks, softError, softState } from '@/utils/specSample'
 import { fmtDateTime } from '@/utils/time'
+import { specFingerprint } from '@/utils/episodes'
 import SpecForm from '@/components/spec/SpecForm.vue'
 import StepSample from '@/components/specwizard/StepSample.vue'
 import StepAnalysis from '@/components/specwizard/StepAnalysis.vue'
@@ -34,7 +35,7 @@ import IconAdd from '~icons/carbon/add'
 /**
  * The spec wizard. A critics spec is not written from a blank page but worked
  * out from a sample: a dataset is uploaded for the time of the wizard, the
- * critics run in auto mode over X of its episodes, and the person walks
+ * critics run in auto mode over the episodes picked ("0-9", "1-3,6,8"), and the person walks
  * through the spec they generated step by step, each step with what the sample
  * measured next to its fields. Every input is saved on the draft at once, so
  * the wizard resumes where it was left (lib/gym/spec-drafts.ts).
@@ -72,6 +73,12 @@ let testOf: string | null = null
 /** the analysis report changes with its job and with every run over picked episodes merged into it */
 const analysisKey = (d: SpecDraftView) =>
   [d.analysisJobId, ...d.extraRuns.filter((r) => r.status === 'done').map((r) => r.jobId)].join(':')
+/** the test report changes with every finished test run, the full ones and those of one episode */
+const testKey = (d: SpecDraftView) =>
+  d.testRuns
+    .filter((r) => r.status === 'done')
+    .map((r) => r.jobId)
+    .join(':')
 
 async function apply(next: SpecDraftView) {
   draft.value = next
@@ -82,10 +89,11 @@ async function apply(next: SpecDraftView) {
     analysis.value = null
     analysisOf = null
   }
-  if (next.testStatus === 'done' && next.testJobId && next.testJobId !== testOf) {
+  const tested = testKey(next)
+  if (tested && tested !== testOf) {
     test.value = await gymApi.specDraftReport(tenantId.value, next.id, 'test')
-    testOf = next.testJobId
-  } else if (next.testStatus !== 'done') {
+    testOf = tested
+  } else if (!tested) {
     test.value = null
     testOf = null
   }
@@ -239,11 +247,11 @@ function suggestIndicators() {
   }
 }
 
-/** Analyse one more episode, one the person knows by number; it joins the workbench when it is in. */
-async function addEpisode(episode: number) {
+/** Analyse more episodes, ones the person knows by number ("57", "40-42"); they join the workbench when they are in. */
+async function addEpisodes(pick: string) {
   if (!draft.value) return
   try {
-    await apply(await gymApi.addSpecEpisode(tenantId.value, draft.value.id, episode))
+    await apply(await gymApi.addSpecEpisodes(tenantId.value, draft.value.id, pick))
   } catch (e) {
     fail(e)
   }
@@ -256,19 +264,23 @@ async function judge(judgments: Record<string, 'accept' | 'reject'>) {
   await saveNow({ judgments })
 }
 
-async function rerun() {
+/** The analysis again, over a new pick of episodes when one is given. */
+async function rerun(pick?: string) {
   try {
+    if (pick && pick !== draft.value?.episodeSelection) await saveNow({ episodes: pick })
     await apply(await gymApi.analyzeSpecDraft(tenantId.value, draftId.value))
   } catch (e) {
     fail(e)
   }
 }
 
-async function runTest() {
+/** A test run of the spec on screen: over the analysed episodes, a pick, or one episode from the workbench. */
+async function runTest(episodes?: string) {
   if (!form.value || !draft.value) return
   await saveNow()
   try {
-    await apply(await gymApi.testSpecDraft(tenantId.value, draft.value.id, toSpec(form.value, name.value || draft.value.name)))
+    const spec = toSpec(form.value, name.value || draft.value.name)
+    await apply(await gymApi.testSpecDraft(tenantId.value, draft.value.id, spec, episodes))
   } catch (e) {
     fail(e)
   }
@@ -319,6 +331,11 @@ const soft = computed(() => (analysis.value ? softState(analysis.value) : 'off')
 const firstEpisode = computed(() => analysis.value?.episodes[0]?.episode ?? null)
 const sheetOf = (episode: number | null) =>
   episode == null || !draft.value ? null : gymApi.specDraftSheetUrl(tenantId.value, draft.value.id, episode)
+
+/** the fingerprint of the spec on screen, as the backend takes it of a test run's spec */
+const specHash = computed(() =>
+  form.value && draft.value ? specFingerprint(toSpec(form.value, name.value || draft.value.name)) : '',
+)
 
 const stepTitle = (s: SpecDraftStep) => t(`specWizard.steps.${s}`)
 
@@ -447,10 +464,13 @@ onBeforeUnmount(() => {
           v-model="form"
           :draft="draft"
           :report="analysis"
+          :test="test"
+          :spec-hash="specHash"
           :critics="critics"
           :tenant-id="tenantId"
           @judge="judge"
-          @add="addEpisode"
+          @add="addEpisodes"
+          @test="runTest"
         />
       </template>
 
@@ -528,6 +548,7 @@ onBeforeUnmount(() => {
           :form="form"
           :analysis="analysis"
           :test="test"
+          :spec-hash="specHash"
           :busy="busy"
           @test="runTest"
           @finish="finish"

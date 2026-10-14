@@ -19,9 +19,11 @@ import IconOk from '~icons/carbon/checkmark-filled'
 import IconNo from '~icons/carbon/close-filled'
 import IconWarn from '~icons/carbon/warning-alt-filled'
 import IconChevron from '~icons/carbon/chevron-down'
+import ScoreFormula from '@/components/specwizard/workbench/ScoreFormula.vue'
 
 /**
- * How the verdict of one episode comes about, as the four steps the critics
+ * How the verdict of one episode comes about, in two views: the calculation
+ * with every number plugged in (ScoreFormula, the default), or in short as the four steps the critics
  * take (lerobot_critics.scoring.aggregate), each with its own outcome:
  *
  *   1  stops      does a check or a criterion stop the episode? Then it is
@@ -48,6 +50,25 @@ const criterionLabel = (id: string) => {
   return text.length > 60 ? `${text.slice(0, 59)}…` : text
 }
 const tone = (v: Verdict | null) => (v === 'accept' ? 'ok' : v === 'review' ? 'warn' : 'bad')
+
+/** the calculation or the four steps in short; the choice is kept per browser */
+const MODE_KEY = 'gym.specWizard.explainMode'
+const readMode = (): 'formula' | 'short' => {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'short' ? 'short' : 'formula'
+  } catch {
+    return 'formula'
+  }
+}
+const mode = ref(readMode())
+function setMode(next: 'formula' | 'short') {
+  mode.value = next
+  try {
+    localStorage.setItem(MODE_KEY, next)
+  } catch {
+    /* private window: the choice lasts for the page */
+  }
+}
 
 const stops = computed(() => props.row.blockers.filter((b) => b.kind === 'gate'))
 const open = ref(false)
@@ -103,153 +124,179 @@ const tighten = computed<Fix | null>(() =>
 
 <template>
   <div class="mt-3 flex flex-col gap-2 text-sm">
-    <!-- 1 · stops -->
-    <div class="flex items-start gap-2">
-      <span class="mt-0.5 w-4 font-mono text-xs text-surface-400">1</span>
-      <IconNo v-if="stops.length" class="text-bad mt-0.5 size-4 shrink-0" />
-      <IconOk v-else class="text-ok mt-0.5 size-4 shrink-0" />
-      <div class="min-w-0">
-        <span class="me-1 font-medium">{{ t('specWizard.explain.stops') }}</span>
-        <span v-if="!stops.length" class="text-surface-600 dark:text-surface-300"> {{ t('specWizard.explain.noStop') }}</span>
-        <ul v-else class="mt-0.5 flex flex-col gap-0.5">
-          <li v-for="(b, i) in stops" :key="i" class="text-bad">
-            <template v-if="b.kind === 'gate' && b.flag">
-              <button
-                type="button"
-                class="cursor-pointer underline decoration-dotted"
-                @click="emit('select', { kind: 'check', id: b.id })"
-              >
-                {{ checkLabel(b.id) }}</button
-              >{{ t('specWizard.explain.stopFlag', { flag: b.flag }) }}
-            </template>
-            <template v-else-if="b.kind === 'gate'">
-              <button
-                type="button"
-                class="cursor-pointer underline decoration-dotted"
-                @click="emit('select', { kind: b.source === 'soft' ? 'criterion' : 'check', id: b.id })"
-              >
-                {{ b.source === 'soft' ? criterionLabel(b.id) : checkLabel(b.id) }}</button
-              >{{ t('specWizard.explain.stopScore', { score: fmt(b.score), limit: fmt(b.limit) }) }}
-            </template>
-          </li>
-          <li class="text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.explain.stopRule') }}</li>
-        </ul>
-      </div>
+    <div class="flex items-center gap-1" role="tablist">
+      <button
+        v-for="m in ['formula', 'short'] as const"
+        :key="m"
+        type="button"
+        role="tab"
+        :aria-selected="mode === m"
+        class="cursor-pointer rounded-md border px-2 py-0.5 text-xs"
+        :class="mode === m ? 'border-primary bg-primary/10 text-primary' : 'border-surface-300 dark:border-surface-700'"
+        @click="setMode(m)"
+      >
+        {{ t(`specWizard.formula.mode.${m}`) }}
+      </button>
     </div>
 
-    <!-- 2 · the score -->
-    <div class="flex items-start gap-2">
-      <span class="mt-0.5 w-4 font-mono text-xs text-surface-400">2</span>
-      <span class="mt-0.5 size-4 shrink-0" />
-      <div class="min-w-0 grow">
-        <button type="button" class="flex cursor-pointer flex-wrap items-baseline gap-x-1 text-start" @click="open = !open">
-          <span class="me-1 font-medium">{{ t('specWizard.explain.score') }}</span>
-          <span class="text-surface-600 dark:text-surface-300">
-            <template v-if="row.hard != null">{{
-              t('specWizard.explain.side.hard', { v: fmt(row.hard), w: sideWeights.hard })
-            }}</template>
-            <template v-if="row.hard != null && row.soft != null"> · </template>
-            <template v-if="row.soft != null">{{
-              t('specWizard.explain.side.soft', { v: fmt(row.soft), w: sideWeights.soft })
-            }}</template>
-          </span>
-          <span class="font-mono font-semibold">→ {{ fmt(row.total) }}</span>
-          <IconChevron class="size-3.5 self-center text-primary transition-transform" :class="open ? 'rotate-180' : ''" />
-          <span class="text-xs text-primary">{{
-            open ? t('specWizard.explain.hideParts') : t('specWizard.explain.showParts')
-          }}</span>
-        </button>
-        <div v-if="open" class="mt-2 overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="text-start text-surface-500 dark:text-surface-400">
-                <th class="py-1 text-start font-medium">{{ t('specWizard.explain.part') }}</th>
-                <th class="py-1 text-end font-medium">{{ t('specWizard.explain.partScore') }}</th>
-                <th class="py-1 text-end font-medium">{{ t('spec.weight') }}</th>
-                <th class="py-1 text-end font-medium" :title="t('specWizard.explain.costHint')">
-                  {{ t('specWizard.explain.cost') }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="p in parts"
-                :key="`${p.kind}:${p.id}`"
-                class="cursor-pointer border-t border-surface-200 hover:bg-surface-50 dark:border-surface-800 dark:hover:bg-surface-800/40"
-                @click="emit('select', { kind: p.kind, id: p.id })"
-              >
-                <td class="py-1 pe-2">
-                  <span class="me-1 text-[10px] text-surface-400 uppercase">{{
-                    p.kind === 'check' ? t('specWizard.explain.tagCheck') : t('specWizard.explain.tagModel')
-                  }}</span>
-                  <span :class="p.kind === 'criterion' ? 'italic' : ''">{{ p.label }}</span>
-                </td>
-                <td class="py-1 text-end font-mono tabular-nums">{{ fmt(p.score) }}</td>
-                <td class="py-1 text-end font-mono tabular-nums">{{ p.weight }}</td>
-                <td class="py-1 text-end font-mono tabular-nums" :class="costTone(p)">
-                  {{ p.cost < 0.005 ? '·' : `−${fmt(p.cost)}` }}
-                </td>
-              </tr>
-              <tr class="border-t-2 border-surface-300 font-semibold dark:border-surface-700">
-                <td class="py-1">{{ t('specWizard.explain.totalLine') }}</td>
-                <td colspan="3" class="py-1 text-end font-mono tabular-nums">{{ fmt(row.total) }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.explain.costHint') }}</p>
+    <ScoreFormula
+      v-if="mode === 'formula'"
+      :form="form"
+      :row="row"
+      :check-label="checkLabel"
+      :criterion-label="criterionLabel"
+      @select="emit('select', $event)"
+    />
+
+    <template v-else>
+      <!-- 1 · stops -->
+      <div class="flex items-start gap-2">
+        <span class="mt-0.5 w-4 font-mono text-xs text-surface-400">1</span>
+        <IconNo v-if="stops.length" class="text-bad mt-0.5 size-4 shrink-0" />
+        <IconOk v-else class="text-ok mt-0.5 size-4 shrink-0" />
+        <div class="min-w-0">
+          <span class="me-1 font-medium">{{ t('specWizard.explain.stops') }}</span>
+          <span v-if="!stops.length" class="text-surface-600 dark:text-surface-300"> {{ t('specWizard.explain.noStop') }}</span>
+          <ul v-else class="mt-0.5 flex flex-col gap-0.5">
+            <li v-for="(b, i) in stops" :key="i" class="text-bad">
+              <template v-if="b.kind === 'gate' && b.flag">
+                <button
+                  type="button"
+                  class="cursor-pointer underline decoration-dotted"
+                  @click="emit('select', { kind: 'check', id: b.id })"
+                >
+                  {{ checkLabel(b.id) }}</button
+                >{{ t('specWizard.explain.stopFlag', { flag: b.flag }) }}
+              </template>
+              <template v-else-if="b.kind === 'gate'">
+                <button
+                  type="button"
+                  class="cursor-pointer underline decoration-dotted"
+                  @click="emit('select', { kind: b.source === 'soft' ? 'criterion' : 'check', id: b.id })"
+                >
+                  {{ b.source === 'soft' ? criterionLabel(b.id) : checkLabel(b.id) }}</button
+                >{{ t('specWizard.explain.stopScore', { score: fmt(b.score), limit: fmt(b.limit) }) }}
+              </template>
+            </li>
+            <li class="text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.explain.stopRule') }}</li>
+          </ul>
         </div>
       </div>
-    </div>
 
-    <!-- 3 · thresholds -->
-    <div class="flex items-start gap-2">
-      <span class="mt-0.5 w-4 font-mono text-xs text-surface-400">3</span>
-      <IconOk v-if="row.scoreVerdict === 'accept'" class="text-ok mt-0.5 size-4 shrink-0" />
-      <IconWarn v-else-if="row.scoreVerdict === 'review'" class="text-warn mt-0.5 size-4 shrink-0" />
-      <IconNo v-else class="text-bad mt-0.5 size-4 shrink-0" />
-      <div>
-        <span class="me-1 font-medium">{{ t('specWizard.explain.thresholds') }}</span>
-        <span class="text-surface-600 dark:text-surface-300">
-          {{
-            row.scoreVerdict === 'accept'
-              ? t('specWizard.explain.overAccept', { total: fmt(row.total), accept: fmt(form.scoring.acceptThreshold) })
-              : row.scoreVerdict === 'review'
-                ? t('specWizard.explain.betweenReview', {
-                    total: fmt(row.total),
-                    accept: fmt(form.scoring.acceptThreshold),
-                    review: fmt(form.scoring.reviewThreshold),
-                  })
-                : t('specWizard.explain.belowReview', { total: fmt(row.total), review: fmt(form.scoring.reviewThreshold) })
-          }}
-        </span>
+      <!-- 2 · the score -->
+      <div class="flex items-start gap-2">
+        <span class="mt-0.5 w-4 font-mono text-xs text-surface-400">2</span>
+        <span class="mt-0.5 size-4 shrink-0" />
+        <div class="min-w-0 grow">
+          <button type="button" class="flex cursor-pointer flex-wrap items-baseline gap-x-1 text-start" @click="open = !open">
+            <span class="me-1 font-medium">{{ t('specWizard.explain.score') }}</span>
+            <span class="text-surface-600 dark:text-surface-300">
+              <template v-if="row.hard != null">{{
+                t('specWizard.explain.side.hard', { v: fmt(row.hard), w: sideWeights.hard })
+              }}</template>
+              <template v-if="row.hard != null && row.soft != null"> · </template>
+              <template v-if="row.soft != null">{{
+                t('specWizard.explain.side.soft', { v: fmt(row.soft), w: sideWeights.soft })
+              }}</template>
+            </span>
+            <span class="font-mono font-semibold">→ {{ fmt(row.total) }}</span>
+            <IconChevron class="size-3.5 self-center text-primary transition-transform" :class="open ? 'rotate-180' : ''" />
+            <span class="text-xs text-primary">{{
+              open ? t('specWizard.explain.hideParts') : t('specWizard.explain.showParts')
+            }}</span>
+          </button>
+          <div v-if="open" class="mt-2 overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-start text-surface-500 dark:text-surface-400">
+                  <th class="py-1 text-start font-medium">{{ t('specWizard.explain.part') }}</th>
+                  <th class="py-1 text-end font-medium">{{ t('specWizard.explain.partScore') }}</th>
+                  <th class="py-1 text-end font-medium">{{ t('spec.weight') }}</th>
+                  <th class="py-1 text-end font-medium" :title="t('specWizard.explain.costHint')">
+                    {{ t('specWizard.explain.cost') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="p in parts"
+                  :key="`${p.kind}:${p.id}`"
+                  class="cursor-pointer border-t border-surface-200 hover:bg-surface-50 dark:border-surface-800 dark:hover:bg-surface-800/40"
+                  @click="emit('select', { kind: p.kind, id: p.id })"
+                >
+                  <td class="py-1 pe-2">
+                    <span class="me-1 text-[10px] text-surface-400 uppercase">{{
+                      p.kind === 'check' ? t('specWizard.explain.tagCheck') : t('specWizard.explain.tagModel')
+                    }}</span>
+                    <span :class="p.kind === 'criterion' ? 'italic' : ''">{{ p.label }}</span>
+                  </td>
+                  <td class="py-1 text-end font-mono tabular-nums">{{ fmt(p.score) }}</td>
+                  <td class="py-1 text-end font-mono tabular-nums">{{ p.weight }}</td>
+                  <td class="py-1 text-end font-mono tabular-nums" :class="costTone(p)">
+                    {{ p.cost < 0.005 ? '·' : `−${fmt(p.cost)}` }}
+                  </td>
+                </tr>
+                <tr class="border-t-2 border-surface-300 font-semibold dark:border-surface-700">
+                  <td class="py-1">{{ t('specWizard.explain.totalLine') }}</td>
+                  <td colspan="3" class="py-1 text-end font-mono tabular-nums">{{ fmt(row.total) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="mt-1 text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.explain.costHint') }}</p>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- 4 · flags -->
-    <div class="flex items-start gap-2">
-      <span class="mt-0.5 w-4 font-mono text-xs text-surface-400">4</span>
-      <IconNo v-if="row.rejects.length" class="text-bad mt-0.5 size-4 shrink-0" />
-      <IconWarn v-else-if="row.caps.length" class="text-warn mt-0.5 size-4 shrink-0" />
-      <IconOk v-else class="text-ok mt-0.5 size-4 shrink-0" />
-      <div>
-        <span class="me-1 font-medium">{{ t('specWizard.explain.flags') }}</span>
-        <span v-if="!row.rejects.length && !row.caps.length" class="text-surface-600 dark:text-surface-300">
-          {{ t('specWizard.explain.noFlag') }}</span
-        >
-        <span v-for="f in row.rejects" :key="f" class="text-bad block">{{
-          t('specWizard.explain.rejectFlag', { flag: f })
-        }}</span>
-        <span v-for="f in row.caps" :key="f" class="text-warn block">{{
-          t('specWizard.explain.capFlag', { flag: f, meaning: report.flag_docs?.[f] ?? '' })
-        }}</span>
+      <!-- 3 · thresholds -->
+      <div class="flex items-start gap-2">
+        <span class="mt-0.5 w-4 font-mono text-xs text-surface-400">3</span>
+        <IconOk v-if="row.scoreVerdict === 'accept'" class="text-ok mt-0.5 size-4 shrink-0" />
+        <IconWarn v-else-if="row.scoreVerdict === 'review'" class="text-warn mt-0.5 size-4 shrink-0" />
+        <IconNo v-else class="text-bad mt-0.5 size-4 shrink-0" />
+        <div>
+          <span class="me-1 font-medium">{{ t('specWizard.explain.thresholds') }}</span>
+          <span class="text-surface-600 dark:text-surface-300">
+            {{
+              row.scoreVerdict === 'accept'
+                ? t('specWizard.explain.overAccept', { total: fmt(row.total), accept: fmt(form.scoring.acceptThreshold) })
+                : row.scoreVerdict === 'review'
+                  ? t('specWizard.explain.betweenReview', {
+                      total: fmt(row.total),
+                      accept: fmt(form.scoring.acceptThreshold),
+                      review: fmt(form.scoring.reviewThreshold),
+                    })
+                  : t('specWizard.explain.belowReview', { total: fmt(row.total), review: fmt(form.scoring.reviewThreshold) })
+            }}
+          </span>
+        </div>
       </div>
-    </div>
 
-    <div class="flex items-center gap-2 border-t border-surface-200 pt-2 dark:border-surface-800">
-      <span class="w-4" />
-      <span class="me-1 font-medium">{{ t('specWizard.explain.result') }}</span>
-      <Pill :tone="tone(row.verdict)">{{ t(`verdict.${row.verdict}`) }}</Pill>
-    </div>
+      <!-- 4 · flags -->
+      <div class="flex items-start gap-2">
+        <span class="mt-0.5 w-4 font-mono text-xs text-surface-400">4</span>
+        <IconNo v-if="row.rejects.length" class="text-bad mt-0.5 size-4 shrink-0" />
+        <IconWarn v-else-if="row.caps.length" class="text-warn mt-0.5 size-4 shrink-0" />
+        <IconOk v-else class="text-ok mt-0.5 size-4 shrink-0" />
+        <div>
+          <span class="me-1 font-medium">{{ t('specWizard.explain.flags') }}</span>
+          <span v-if="!row.rejects.length && !row.caps.length" class="text-surface-600 dark:text-surface-300">
+            {{ t('specWizard.explain.noFlag') }}</span
+          >
+          <span v-for="f in row.rejects" :key="f" class="text-bad block">{{
+            t('specWizard.explain.rejectFlag', { flag: f })
+          }}</span>
+          <span v-for="f in row.caps" :key="f" class="text-warn block">{{
+            t('specWizard.explain.capFlag', { flag: f, meaning: report.flag_docs?.[f] ?? '' })
+          }}</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 border-t border-surface-200 pt-2 dark:border-surface-800">
+        <span class="w-4" />
+        <span class="me-1 font-medium">{{ t('specWizard.explain.result') }}</span>
+        <Pill :tone="tone(row.verdict)">{{ t(`verdict.${row.verdict}`) }}</Pill>
+      </div>
+    </template>
 
     <!-- a criterion that probably does not fit the task -->
     <div v-for="m in misfits" :key="m.id" class="gym-note border-s-warn text-xs">

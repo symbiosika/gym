@@ -1231,8 +1231,8 @@
       "lead": "A typical dataset of this task, as it comes out of the recording. It is stored for the wizard only and deleted afterwards.",
       "skill": "For which skill?",
       "skillHint": "At the end the spec can be assigned to the skill directly.",
-      "size": "Episodes to analyse (X)",
-      "sizeHint": "Spread evenly over the dataset, at most {max}. More episodes show more but take longer.",
+      "size": "Episodes to analyse",
+      "sizeHint": "As when printing: 0-9 or 1-3,6,8. More episodes show more but take longer.",
       "purpose": "What is the spec for?",
       "file": "Dataset (zip)",
       "drop": "Drop the zip here or pick it",
@@ -1243,7 +1243,7 @@
     },
     "analysis": {
       "title": "Auto analysis",
-      "lead": "The critics look at {n} episodes, generate a spec proposal from them and judge the sample with it.",
+      "lead": "The critics look at the episodes {pick}, generate a spec proposal from them and judge the sample with it.",
       "stage": {
         "preparing": "Fetching and preparing the dataset",
         "hard": "Technical checks",
@@ -1254,7 +1254,7 @@
       "retry": "Analyse again",
       "rerun": "Analyse again",
       "noSample": "No sample dataset yet.",
-      "stale": "{ran} episodes were analysed, {want} are set now.",
+      "stale": "Episodes {ran} were analysed, {want} are set now.",
       "episodes": "Episodes analysed",
       "ofTotal": "of {n} in the dataset",
       "robot": "Robot",
@@ -1269,7 +1269,9 @@
       "verdicts": "Verdict with the proposal",
       "verdictsHint": "How the critics judge the sample with the automatically generated spec. This is the starting point you sharpen in the next steps.",
       "sheets": "The episodes of the sample",
-      "sheetsHint": "One contact sheet per episode: each row a camera, time from left to right. A click shows it large."
+      "sheetsHint": "One contact sheet per episode: each row a camera, time from left to right. A click shows it large.",
+      "pick": "Episodes",
+      "rerunPick": "Analyse again with these episodes"
     },
     "task": {
       "fromData": "Task in the dataset",
@@ -1318,7 +1320,7 @@
     },
     "save": {
       "testTitle": "Test run",
-      "testHint": "Your spec on the same episodes of the sample",
+      "testHint": "Your spec on the episodes of the sample or a pick of them",
       "testRun": "Start the test run",
       "testAgain": "Test again",
       "testRunning": "The critics check the sample with your spec.",
@@ -1341,7 +1343,10 @@
       "doneAssigned": "Spec “{name}” saved and assigned to “{skill}”.",
       "existsTitle": "A spec “{name}” exists already",
       "existsText": "Overwriting replaces it for every skill that uses it.",
-      "overwrite": "Overwrite"
+      "overwrite": "Overwrite",
+      "testEpisodes": "Episodes for the test run",
+      "older": "earlier state",
+      "olderHint": "This episode was last tested with an earlier state of the spec."
     },
     "flags": {
       "title": "Flags",
@@ -1475,6 +1480,67 @@
       "forAll": "Every change is a change of the whole spec, so of every episode. Next to it stands which other episodes it moves too.",
       "misfit": "The model gives “{name}” almost nothing in {n} of {of} episodes. That all of them failed is rare. More often the words do not fit the task, for example a place to put something the task does not have. Then reword or remove the criterion and run the test.",
       "misfitOpen": "Open the criterion"
+    },
+    "pick": {
+      "placeholder": "e.g. 0-9 or 1-3,6,8",
+      "hint": "As when printing: single episodes with commas, ranges with a hyphen, for example 1-3,6,8.",
+      "count": "{n} episodes:",
+      "syntax": "“{part}” is neither an episode nor a range like 1-3.",
+      "backwards": "“{part}” runs backwards. Ranges go from low to high, for example 2-5.",
+      "tooMany": "At most {max} episodes at once.",
+      "beyond": "The dataset holds episodes 0 to {last}."
+    },
+    "test": {
+      "short": "Test",
+      "running": "being tested",
+      "current": "Results of a test with the spec as it is now",
+      "older": "Results of a test with an earlier state of the spec",
+      "one": "Test E{n}",
+      "oneHint": "Only this episode with the spec as it is now: the critics run again, the language model included. Outlier flags are missing then, they compare an episode with the others of its run.",
+      "runningOne": "E{n} is being tested with the current spec …",
+      "fromCurrent": "Results of the test with this spec.",
+      "fromOlder": "Results of a test with an earlier state. Reworded criteria and changed parameters show only in a new test.",
+      "fromAnalysis": "Results of the auto analysis. Reworded criteria and changed parameters show in a test.",
+      "failed": "The test failed:"
+    },
+    "formula": {
+      "mode": {
+        "formula": "Calculation",
+        "short": "In short"
+      },
+      "hard": "Technical checks",
+      "soft": "Success criteria (language model)",
+      "sum": "Sum",
+      "noSide": {
+        "hard": "No check with a score and a weight, this side drops out of the total.",
+        "soft": "No criterion with a score and a weight (language model off, failed or without criteria), this side drops out of the total."
+      },
+      "notCounted": "Not in the sum:",
+      "skip": {
+        "off": "switched off",
+        "weight0": "weight 0",
+        "noScore": "no score",
+        "flagsOnly": "counts through its flags only",
+        "notInSpec": "no longer in the spec"
+      },
+      "total": "Total score",
+      "noTotal": "No total score: neither side has a score.",
+      "sideWeights": "W_h = {h} and W_s = {s} are set under “Overall” on the right. A side without a score drops out of numerator and denominator.",
+      "decision": "Decision",
+      "rule": {
+        "stop": "Does a check or a criterion stop it? ({which})",
+        "rejectFlag": "A flag that rejects? ({flags})",
+        "noScore": "No total score?",
+        "accept": "total {total} ≥ “accept from” {accept}?",
+        "review": "total {total} ≥ “review from” {review}?",
+        "else": "otherwise",
+        "cap": "Then: an accept with a flag that caps at “review” ({flags})?"
+      },
+      "yes": "yes",
+      "no": "no",
+      "none": "none",
+      "firstWins": "The rules apply from top to bottom, the first that holds decides. The cap acts on an accept only.",
+      "error": "The run of this episode had an error, so it is on “review” whatever the rules say."
     }
   }
 }

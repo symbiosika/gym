@@ -10,6 +10,7 @@ import VerdictExplain from '@/components/specwizard/workbench/VerdictExplain.vue
 import IconUp from '~icons/carbon/thumbs-up'
 import IconDown from '~icons/carbon/thumbs-down'
 import IconStop from '~icons/carbon/stop-filled-alt'
+import IconTest from '~icons/carbon/play-outline'
 
 /**
  * The middle of the workbench: one episode in full. Its camera videos, the
@@ -18,6 +19,9 @@ import IconStop from '~icons/carbon/stop-filled-alt'
  * success criterion with the model's score and reasoning, each technical check
  * with its score, flags and measurements. A click on a result opens its
  * settings on the right; the stop line of each result is drawn on its bar.
+ * The episode can be tested alone with the spec on screen: the critics run
+ * again on it, the language model included, and its results are those of
+ * the test from then on.
  */
 const props = defineProps<{
   draft: SpecDraftView
@@ -27,8 +31,17 @@ const props = defineProps<{
   row: PreviewRow | null
   selection: Selection
   tenantId: string
+  /** its results are from a test: of the spec on screen, or of an earlier state */
+  tested: 'current' | 'older' | null
+  testing: boolean
+  /** the error of a failed test run of this episode */
+  testFailed: string | null
 }>()
-const emit = defineEmits<{ select: [selection: Selection]; judge: [judgment: 'accept' | 'reject' | null] }>()
+const emit = defineEmits<{
+  select: [selection: Selection]
+  judge: [judgment: 'accept' | 'reject' | null]
+  test: []
+}>()
 const { t, te } = useI18n()
 
 // ------------------------------------------------------------------ video
@@ -172,6 +185,32 @@ const open = ref<string | null>(null)
         />
         <span class="bg-warn absolute -top-1 h-4.5 w-0.5" :style="{ left: pct(form.scoring.reviewThreshold) }" />
         <span class="bg-ok absolute -top-1 h-4.5 w-0.5" :style="{ left: pct(form.scoring.acceptThreshold) }" />
+      </div>
+      <div
+        class="mt-3 flex flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-xs"
+        :class="
+          tested === 'current' ? 'bg-primary/10' : tested === 'older' ? 'bg-warn/10' : 'bg-surface-50 dark:bg-surface-800/40'
+        "
+      >
+        <span class="grow">
+          <template v-if="testing">{{ t('specWizard.test.runningOne', { n: episode }) }}</template>
+          <template v-else-if="tested === 'current'">{{ t('specWizard.test.fromCurrent') }}</template>
+          <template v-else-if="tested === 'older'">{{ t('specWizard.test.fromOlder') }}</template>
+          <template v-else>{{ t('specWizard.test.fromAnalysis') }}</template>
+        </span>
+        <SecondaryButton
+          size="small"
+          :label="t('specWizard.test.one', { n: episode })"
+          :loading="testing"
+          :disabled="testing"
+          :title="t('specWizard.test.oneHint')"
+          @click="emit('test')"
+        >
+          <template #icon><IconTest class="size-4" /></template>
+        </SecondaryButton>
+        <span v-if="testFailed != null && !testing" class="text-bad basis-full font-mono">
+          {{ t('specWizard.test.failed') }} {{ testFailed }}
+        </span>
       </div>
       <VerdictExplain :model-value="form" :report="report" :row="row" :judgment="judgment" @select="emit('select', $event)" />
       <p v-if="episodeData?.task" class="mt-1 text-xs text-surface-500 dark:text-surface-400">

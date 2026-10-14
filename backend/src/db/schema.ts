@@ -146,13 +146,16 @@ export interface SpecDraftExtraRun {
   episodes: number[];
   status: SpecDraftRunStatus;
   error?: string | null;
+  /** a test run: the fingerprint of the spec it ran with (`specFingerprint`) */
+  specHash?: string;
+  startedAt?: string;
 }
 
 /** What a person says an episode of the sample is: good (accept) or bad (reject). */
 export type SpecDraftJudgment = "accept" | "reject";
 
-/** The sample dataset of a spec draft and the number of episodes looked at, within these bounds. */
-export const SPEC_DRAFT_SAMPLE = { min: 1, max: 50, default: 10 } as const;
+/** The episodes of the sample a new draft looks at, until the person picks others. */
+export const SPEC_DRAFT_DEFAULT_EPISODES = "0-9";
 
 export const FAILURE_CODES = ["F-01", "F-02", "F-03", "F-04", "F-05", "F-06", "F-07", "F-08"] as const;
 export type FailureCode = (typeof FAILURE_CODES)[number];
@@ -533,8 +536,8 @@ export const specDrafts = pgBaseTable(
     name: text("name").notNull().default(""),
     purpose: text("purpose").$type<BlockKind>().notNull().default("recording"),
     step: text("step").$type<SpecDraftStep>().notNull().default("sample"),
-    /** how many episodes of the sample the critics look at (X), spread over the dataset */
-    sampleSize: integer("sample_size").notNull().default(SPEC_DRAFT_SAMPLE.default),
+    /** the episodes of the sample the critics look at, picked like print pages ("0-9", "1-3,6,8") */
+    episodeSelection: text("episode_selection").notNull().default(SPEC_DRAFT_DEFAULT_EPISODES),
     /** the sample dataset: the file that was picked and its chunks in the storage, in order */
     fileName: text("file_name").notNull().default(""),
     bytes: bigint("bytes", { mode: "number" }).notNull().default(0),
@@ -552,11 +555,15 @@ export const specDrafts = pgBaseTable(
     judgments: jsonb("judgments").$type<Record<string, SpecDraftJudgment>>().notNull().default({}),
     /** the spec as drafted so far, in the shape the critics take (CriticSpec); null until the analysis seeds it */
     spec: jsonb("spec").$type<Record<string, unknown> | null>(),
-    /** the test run with the drafted spec over the same sample */
-    testJobId: text("test_job_id"),
-    testStatus: text("test_status").$type<SpecDraftRunStatus>().notNull().default("none"),
-    testError: text("test_error"),
+    /**
+     * The test runs with the drafted spec, over any episodes (one, a pick, the
+     * whole sample). Each finished run is merged into `testReport`, so an
+     * episode carries the result of its latest test; `testSpecs` says which
+     * spec (its fingerprint) each episode was tested with.
+     */
+    testRuns: jsonb("test_runs").$type<SpecDraftExtraRun[]>().notNull().default([]),
     testReport: jsonb("test_report").$type<DatasetReport | null>(),
+    testSpecs: jsonb("test_specs").$type<Record<string, string>>().notNull().default({}),
     createdBy: uuid("created_by"),
     createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "string" }).notNull().defaultNow(),

@@ -17,7 +17,7 @@ import { _GLOBAL_SERVER_CONFIG } from "@framework/store";
 import { files } from "@framework/lib/db/schema/files";
 import { auditLog, skills, specDrafts } from "../../../../db/schema";
 import { UPLOAD_CHUNK_BUCKET } from "../../../../lib/gym/buckets";
-import { cleanupStaleSpecDrafts, seedSpec } from "../../../../lib/gym/spec-drafts";
+import { cleanupStaleSpecDrafts, seedSpec, specFingerprint } from "../../../../lib/gym/spec-drafts";
 import { fixtureReport, startFakeCritics, type FakeCritics } from "../../../../lib/critics/fake-server.test-util";
 import defineGymRoutes from "./index";
 
@@ -100,7 +100,7 @@ describe("Spec wizard", () => {
   });
 
   test("from a sample to a stored spec on the skill", async () => {
-    const created = await testFetcher.post(app, drafts, token, { skillId, sampleSize: 6 });
+    const created = await testFetcher.post(app, drafts, token, { skillId, episodes: "0-3" });
     expect(created.status).toBe(201);
     const draft = created.jsonResponse;
     expect(draft.name).toBe("Cup_to_tray");
@@ -115,13 +115,13 @@ describe("Spec wizard", () => {
     // the answer already asked the critics once: the run is going
     expect(completed.jsonResponse.analysisStatus).toBe("running");
     expect(completed.jsonResponse.analysisProgress.hard.total).toBe(4);
-    // the critics got the parts, the auto mode, X episodes, a sheet of each, and keep no spec
+    // the critics got the parts, the auto mode, the picked episodes, a sheet of each, and keep no spec
     const job = critics.jobs.at(-1)!;
     expect(job.parts).toHaveLength(3);
     expect(job.spec).toBeNull();
     expect(job.storeAutoSpec).toBe(false);
     expect(job.purpose).toBe("recording");
-    expect(job.options).toEqual({ max_episodes: 6, contact_sheets: true, sheets_for_all: true });
+    expect(job.options).toEqual({ episodes: [0, 1, 2, 3], contact_sheets: true, sheets_for_all: true });
 
     // the next read has it done and the spec seeded
     const done = await testFetcher.get(app, `${drafts}/${draft.id}`, token);
@@ -150,7 +150,27 @@ describe("Spec wizard", () => {
     expect((testJob.spec as { task: { instruction: string } }).task.instruction).toBe("put the cup on the tray");
     expect(testJob.options).toEqual(job.options);
     expect(tested.jsonResponse.testStatus).toBe("running");
-    expect((await testFetcher.get(app, `${drafts}/${draft.id}`, token)).jsonResponse.testStatus).toBe("done");
+    const testedDone = (await testFetcher.get(app, `${drafts}/${draft.id}`, token)).jsonResponse;
+    expect(testedDone.testStatus).toBe("done");
+    const hash = testedDone.testRuns[0].specHash;
+    expect(hash).toBe(specFingerprint(spec));
+    // the frontend takes the same fingerprint (frontend/src/utils/episodes.spec.ts)
+    expect(specFingerprint({ task: { instruction: "put the cup on the tray" }, scoring: { accept: 0.7 } })).toBe("7a3c055a");
+    expect(testedDone.testSpecs).toEqual({ "0": hash, "1": hash, "2": hash, "3": hash });
+
+    // one episode again with a changed spec: only that one carries the new fingerprint
+    const changed = { ...spec, scoring: { accept: 0.5 } };
+    const single = await testFetcher.post(app, `${drafts}/${draft.id}/test`, token, { spec: changed, episodes: "2" });
+    expect(single.status).toBe(200);
+    expect(critics.jobs.at(-1)!.options).toMatchObject({ episodes: [2] });
+    const after = (await testFetcher.get(app, `${drafts}/${draft.id}`, token)).jsonResponse;
+    expect(after.testSpecs["2"]).toBe(specFingerprint(changed));
+    expect(after.testSpecs["0"]).toBe(hash);
+    const testReport = (await testFetcher.get(app, `${drafts}/${draft.id}/report?run=test`, token)).jsonResponse;
+    expect(testReport.episodes.map((e: { episode: number }) => e.episode)).toEqual([0, 1, 2, 3]);
+    // beyond the dataset or not a pick is refused
+    expect((await testFetcher.post(app, `${drafts}/${draft.id}/test`, token, { episodes: "199-200" })).status).toBe(400);
+    expect((await testFetcher.post(app, `${drafts}/${draft.id}/test`, token, { episodes: "3-1" })).status).toBe(400);
 
     // a stored spec of the same name is not replaced without asking
     expect((await testFetcher.post(app, `${drafts}/${draft.id}/finish`, token, { name: "cup_tray" })).status).toBe(409);
@@ -166,32 +186,35 @@ describe("Spec wizard", () => {
     expect((await testFetcher.get(app, `${drafts}/${draft.id}`, token)).status).toBe(404);
     expect(await storedChunkFiles()).toHaveLength(0);
     expect(critics.deleted).toEqual(expect.arrayContaining([job.id, testJob.id]));
+    expect(critics.deleted).toContain(critics.jobs.at(-1)!.id);
   });
 
-  test("a new sample size runs the analysis again and keeps the spec drafted so far", async () => {
+  test("a new pick of episodes runs the analysis again and keeps the spec drafted so far", async () => {
     const draft = (await testFetcher.post(app, drafts, token, { purpose: "evaluation" })).jsonResponse;
     await uploadSample(draft.id);
     expect(critics.jobs.at(-1)!.purpose).toBe("evaluation");
     await testFetcher.get(app, `${drafts}/${draft.id}`, token);
     const spec = { task: { instruction: "my own words" } };
-    await testFetcher.put(app, `${drafts}/${draft.id}`, token, { step: "task", spec, sampleSize: 3 });
+    await testFetcher.put(app, `${drafts}/${draft.id}`, token, { step: "task", spec, episodes: "1, 4-5" });
     const first = critics.jobs.at(-1)!.id;
 
     const again = await testFetcher.post(app, `${drafts}/${draft.id}/analyze`, token, {});
     expect(again.status).toBe(200);
     expect(again.jsonResponse.step).toBe("task");
-    expect(critics.jobs.at(-1)!.options).toMatchObject({ max_episodes: 3 });
+    expect(critics.jobs.at(-1)!.options).toMatchObject({ episodes: [1, 4, 5] });
+    expect(again.jsonResponse.episodeSelection).toBe("1,4-5");
     expect(critics.deleted).toContain(first);
     const done = await testFetcher.get(app, `${drafts}/${draft.id}`, token);
     expect(done.jsonResponse.analysisStatus).toBe("done");
     expect(done.jsonResponse.spec).toEqual(spec);
 
-    // X is bounded
-    expect((await testFetcher.put(app, `${drafts}/${draft.id}`, token, { sampleSize: 500 })).status).toBe(400);
+    // a pick is written like a print range, and bounded
+    expect((await testFetcher.put(app, `${drafts}/${draft.id}`, token, { episodes: "a-b" })).status).toBe(400);
+    expect((await testFetcher.put(app, `${drafts}/${draft.id}`, token, { episodes: "0-999" })).status).toBe(400);
   });
 
   test("the workbench: an episode picked by number, its video, the person's word", async () => {
-    const draft = (await testFetcher.post(app, drafts, token, { sampleSize: 4 })).jsonResponse;
+    const draft = (await testFetcher.post(app, drafts, token, { episodes: "0-3" })).jsonResponse;
     await uploadSample(draft.id);
     await testFetcher.get(app, `${drafts}/${draft.id}`, token);
     const analysisJob = critics.jobs.at(-1)!;
@@ -205,7 +228,7 @@ describe("Spec wizard", () => {
     expect((extraJob.spec as { task: { instruction: string } }).task.instruction).toBe("put the red block in the box");
     // beyond the dataset is refused, one already there is no new run
     expect((await testFetcher.post(app, `${drafts}/${draft.id}/episodes`, token, { episode: 500 })).status).toBe(400);
-    await testFetcher.post(app, `${drafts}/${draft.id}/episodes`, token, { episode: 2 });
+    await testFetcher.post(app, `${drafts}/${draft.id}/episodes`, token, { episodes: "1-2" });
     expect(critics.jobs.at(-1)!.id).toBe(extraJob.id);
 
     // done, it is part of the analysis report
@@ -233,7 +256,7 @@ describe("Spec wizard", () => {
 
     // a new analysis takes the picked episode in, and the test run too
     await testFetcher.post(app, `${drafts}/${draft.id}/analyze`, token, {});
-    expect(critics.jobs.at(-1)!.options).toMatchObject({ max_episodes: 4, include_episodes: [57] });
+    expect(critics.jobs.at(-1)!.options).toMatchObject({ episodes: [0, 1, 2, 3, 57] });
     expect(critics.deleted).toEqual(expect.arrayContaining([analysisJob.id, extraJob.id]));
     expect((await testFetcher.get(app, `${drafts}/${draft.id}`, token)).jsonResponse.extraRuns).toEqual([]);
 
