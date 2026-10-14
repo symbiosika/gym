@@ -36,6 +36,7 @@ declare global {
   const emptySpec: typeof import('./utils/spec').emptySpec
   const fetcher: typeof import('./utils/fetcher').fetcher
   const fileNameFrom: typeof import('./utils/download').fileNameFrom
+  const flagEffect: typeof import('./utils/specSample').flagEffect
   const fmtBytes: typeof import('./utils/time').fmtBytes
   const fmtDate: typeof import('./utils/time').fmtDate
   const fmtDateLong: typeof import('./utils/time').fmtDateLong
@@ -93,7 +94,9 @@ declare global {
   const ref: typeof import('vue').ref
   const resolveComponent: typeof import('vue').resolveComponent
   const runFlags: typeof import('./utils/specSample').runFlags
+  const sampleFlags: typeof import('./utils/specSample').sampleFlags
   const sampleTasks: typeof import('./utils/specSample').sampleTasks
+  const setFlagEffect: typeof import('./utils/specSample').setFlagEffect
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
@@ -162,6 +165,6 @@ declare global {
   export type { ObjectRole, PerEpisode, SpecObject, SpecIndicator, SpecHardCritic, SpecForm, SpecFormSection, PresetId } from './utils/spec'
   import('./utils/spec')
   // @ts-ignore
-  export type { Verdict, CriticEvidence, Blocker, PreviewRow, BlockerGroup, IndicatorEvidence } from './utils/specSample'
+  export type { Verdict, CriticEvidence, Blocker, PreviewRow, BlockerGroup, IndicatorEvidence, FlagEffect, SampleFlag } from './utils/specSample'
   import('./utils/specSample')
 }

@@ -1382,6 +1382,36 @@
       "existsTitle": "A spec “{name}” exists already",
       "existsText": "Overwriting replaces it for every skill that uses it.",
       "overwrite": "Overwrite"
+    },
+    "flags": {
+      "title": "Flags",
+      "hint": "What the model and the checks found in the sample, and what each flag does",
+      "none": "The sample raised no flags.",
+      "fromModel": "From the language model",
+      "fromChecks": "From the technical checks",
+      "model": "Language model",
+      "inEpisodes": "in {n} of {of} episodes ({list})",
+      "criterion": "The model scores the success criterion “{text}” below 0.5.",
+      "noMeaning": "The critics gave no description for this flag.",
+      "choice": {
+        "out": "Rejects",
+        "review": "Review",
+        "info": "Note only",
+        "ignore": "Off"
+      },
+      "choiceHint": {
+        "out": "An episode with this flag is rejected.",
+        "review": "An episode with this flag is held at review at most, a person looks at it.",
+        "info": "The flag is shown with the episode but does not change the verdict.",
+        "ignore": "The flag is switched off: not shown, not counted."
+      },
+      "effect": {
+        "stop": "stops the episode through the check “{check}”",
+        "reject": "rejects the episode",
+        "review": "holds the episode at review",
+        "info": "shown only",
+        "ignore": "switched off"
+      }
     }
   }
 }

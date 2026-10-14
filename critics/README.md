@@ -197,7 +197,8 @@ Every number a critic emits has an English *what / how* description
   flags that occurred); the episode Markdown carries the glossary for its own metrics;
 * `episodes_columns.csv` next to `episodes.csv` describes every column (critic, unit, which
   direction is good, what, how);
-* `report.json` has `metric_docs` for every metric key present in the run, and
+* `report.json` has `metric_docs` for every metric key present in the run, `flag_docs` with
+  the meaning of every flag the run raised (episode and run level, the model's included), and
   `dataset_summaries` / `dataset_flags` with the run-level findings;
 * the web UI shows the description next to each metric (hover for the formula) and the
   run-level findings on the result card;

@@ -562,3 +562,22 @@ def test_a_sample_with_a_generated_spec_that_is_not_stored(client, synthetic_dat
     for e in report["episodes"]:
         sheet = client.get(f"/jobs/{r.json()['job_id']}/files/sheets/episode_{e['episode']:06d}.jpg")
         assert sheet.status_code == 200, e["score"]["verdict"]
+
+
+def test_the_report_says_what_every_flag_means(client, synthetic_dataset):
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(synthetic_dataset),
+            "spec": None,
+            "store_auto_spec": False,
+            "options": {"workers": 1, "contact_sheets": False, "run_soft": False},
+        },
+    )
+    st = _wait(client, r.json()["job_id"])
+    assert st["status"] == "done", st.get("error")
+    report = client.get(f"/jobs/{r.json()['job_id']}/report").json()
+    raised = {f for e in report["episodes"] for c in e["hard"] for f in c["flags"]}
+    assert raised, "the synthetic dataset raises flags"
+    assert raised <= set(report["flag_docs"])
+    assert all(text and text != "(no description)" for text in report["flag_docs"].values())

@@ -184,8 +184,9 @@ export function previewVerdicts(
   extra: { reviewFlags?: string[]; rejectFlags?: string[] } = {},
 ): PreviewRow[] {
   const muted = new Set(form.scoring.ignoreFlags)
-  const reviewFlags = new Set(extra.reviewFlags ?? [])
-  const rejectFlags = new Set(extra.rejectFlags ?? [])
+  // the form's lists once the person set them, else those the run was scored with
+  const reviewFlags = new Set(form.scoring.reviewFlags ?? extra.reviewFlags ?? [])
+  const rejectFlags = new Set(form.scoring.rejectFlags ?? extra.rejectFlags ?? [])
   const indicators = new Map(form.soft.indicators.map((i) => [i.id, i]))
 
   return report.episodes.map((e: SampleEpisode) => {
@@ -212,7 +213,12 @@ export function previewVerdicts(
     const softRows: { score: number | null; weight: number }[] = []
     if (form.soft.enabled) {
       for (const s of e.soft as SampleCriticResult[]) {
-        if (!s.id.startsWith('vlm.') || s.id === 'vlm.summary') continue
+        // the model's overall word (task failed, a person in the workspace) counts by its flags only
+        if (s.id === 'vlm.summary') {
+          s.flags.filter((f) => !muted.has(f)).forEach((f) => flags.add(f))
+          continue
+        }
+        if (!s.id.startsWith('vlm.')) continue
         const ind = indicators.get(s.id.slice(4))
         if (!ind) continue
         softRows.push({ score: s.score, weight: ind.weight })
@@ -347,4 +353,121 @@ export function runFlags(report: SampleReport): { reviewFlags: string[]; rejectF
   const scoring = (report.spec?.scoring ?? {}) as { review_flags?: unknown; reject_flags?: unknown }
   const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
   return { reviewFlags: list(scoring.review_flags), rejectFlags: list(scoring.reject_flags) }
+}
+
+// ---------------------------------------------------------------------------
+// the flags of the sample, one by one
+// ---------------------------------------------------------------------------
+
+/**
+ * What a flag does to an episode with the spec as it stands:
+ *
+ *   stop     a technical check stops the episode on it (the check's gate flags)
+ *   reject   it rejects the episode on its own (scoring.reject_flags)
+ *   review   it caps the episode at review (scoring.review_flags)
+ *   info     it is shown, nothing more
+ *   ignore   it is switched off: not shown, not counted (scoring.ignore_flags)
+ */
+export type FlagEffect = 'stop' | 'reject' | 'review' | 'info' | 'ignore'
+
+/** One flag raised in the sample, where it came from, what it means and what it does. */
+export interface SampleFlag {
+  flag: string
+  /** `vlm` for the vision-language model, else the technical check that raised it */
+  source: 'vlm' | 'check'
+  /** the check (`duplication`) or the success criterion (`object_in_target`) behind it, when there is one */
+  criticId: string | null
+  /** the critics' sentence for it */
+  meaning: string
+  episodes: number[]
+  /** what the model said where it raised the flag: a criterion's reasoning, the anomalies it saw */
+  evidence: { episode: number; text: string }[]
+  effect: FlagEffect
+}
+
+const anomalyText = (metrics: Record<string, unknown>): string => {
+  const list = Array.isArray(metrics.anomalies) ? (metrics.anomalies as { description?: unknown; type?: unknown }[]) : []
+  return list
+    .map((a) => String(a?.description ?? a?.type ?? ''))
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/** What a flag does with the form as it is, given the lists the run was scored with. */
+export function flagEffect(
+  flag: string,
+  form: SpecForm,
+  run: { reviewFlags: string[]; rejectFlags: string[] },
+  criticId: string | null = null,
+): FlagEffect {
+  if (form.scoring.ignoreFlags.includes(flag)) return 'ignore'
+  if ((form.scoring.rejectFlags ?? run.rejectFlags).includes(flag)) return 'reject'
+  const stopping = form.hardCritics.some((c) => c.enabled && c.gateFlags.includes(flag) && (!criticId || c.id === criticId))
+  if (stopping) return 'stop'
+  if ((form.scoring.reviewFlags ?? run.reviewFlags).includes(flag)) return 'review'
+  return 'info'
+}
+
+/**
+ * Every flag the sample raised, the model's first, then the most frequent.
+ * Read from the results as the critics raised them, so a flag the form
+ * switches off stays in the list and can be switched on again.
+ */
+export function sampleFlags(report: SampleReport, form: SpecForm): SampleFlag[] {
+  const run = runFlags(report)
+  const docs = report.flag_docs ?? {}
+  const byFlag = new Map<string, SampleFlag>()
+  const add = (flag: string, source: 'vlm' | 'check', criticId: string | null, episode: number, text = '') => {
+    const row =
+      byFlag.get(flag) ??
+      ({ flag, source, criticId, meaning: docs[flag] ?? '', episodes: [], evidence: [], effect: 'info' } as SampleFlag)
+    if (!row.episodes.includes(episode)) row.episodes.push(episode)
+    if (text) row.evidence.push({ episode, text })
+    byFlag.set(flag, row)
+  }
+  for (const e of report.episodes) {
+    for (const h of e.hard) for (const f of h.flags) add(f, 'check', h.id, e.episode)
+    for (const s of e.soft) {
+      const text = s.id === 'vlm.summary' ? anomalyText(s.metrics ?? {}) : (s.evidence[0] ?? '')
+      for (const f of s.flags) add(f, 'vlm', s.id === 'vlm.summary' ? null : s.id.replace(/^vlm\./, ''), e.episode, text)
+    }
+  }
+  const rows = [...byFlag.values()]
+  for (const r of rows) r.effect = flagEffect(r.flag, form, run, r.source === 'check' ? r.criticId : null)
+  return rows.sort((a, b) => (a.source === b.source ? b.episodes.length - a.episodes.length : a.source === 'vlm' ? -1 : 1))
+}
+
+/**
+ * Give a flag the effect the person picked. Each flag sits in at most one of
+ * the lists; the review list is written out in full the first time it is
+ * touched (until then the critics' default applies), so switching one flag
+ * never drops the others the default holds.
+ */
+export function setFlagEffect(
+  form: SpecForm,
+  flag: string,
+  effect: FlagEffect,
+  run: { reviewFlags: string[]; rejectFlags: string[] },
+  criticId: string | null = null,
+): void {
+  const without = (list: string[]) => list.filter((f) => f !== flag)
+  form.scoring.ignoreFlags = without(form.scoring.ignoreFlags)
+  const review = without(form.scoring.reviewFlags ?? run.reviewFlags)
+  const reject = without(form.scoring.rejectFlags ?? run.rejectFlags)
+  for (const c of form.hardCritics)
+    if (c.gateFlags.includes(flag) && (!criticId || c.id === criticId)) c.gateFlags = without(c.gateFlags)
+  if (effect === 'ignore') form.scoring.ignoreFlags = [...form.scoring.ignoreFlags, flag]
+  if (effect === 'review') review.push(flag)
+  if (effect === 'reject') reject.push(flag)
+  if (effect === 'stop' && criticId) {
+    const c = form.hardCritics.find((x) => x.id === criticId)
+    if (c) {
+      c.gateFlags = [...c.gateFlags, flag]
+      c.enabled = true
+    }
+  }
+  // only write a list out when it differs from what the run used, so an untouched spec stays short
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))
+  form.scoring.reviewFlags = form.scoring.reviewFlags || !same(review, run.reviewFlags) ? review : null
+  form.scoring.rejectFlags = form.scoring.rejectFlags || !same(reject, run.rejectFlags) ? reject : null
 }

@@ -10,6 +10,9 @@ import {
   criticEvidence,
   cycleCounts,
   durationRange,
+  flagEffect,
+  sampleFlags,
+  setFlagEffect,
   metricRange,
   previewVerdicts,
   runFlags,
@@ -137,5 +140,72 @@ describe('the sample of the spec wizard', () => {
     expect(accepted.every((x) => x.blockers.length === 1 && x.blockers[0]!.kind === 'score')).toBe(true)
     // the stops come first in the summary
     expect(blockerSummary(rows)[0]!.blocker.kind).toBe('gate')
+  })
+})
+
+describe('the flags of the sample', () => {
+  const sample = (): SampleReport => {
+    const r = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../backend/src/lib/critics/fixtures/report.json'), 'utf8'),
+    ) as SampleReport
+    r.flag_docs = { LAGGY: 'command vector frozen', NOGRASP: 'the gripper never closed' }
+    r.spec = { ...r.spec, scoring: { ...(r.spec.scoring as object), review_flags: ['VLM_TASK_FAILED'] } }
+    // the model's overall word on episode 0: the task failed
+    r.episodes[0]!.soft = [
+      {
+        id: 'vlm.summary',
+        kind: 'soft',
+        weight: 0,
+        score: 0,
+        gate: false,
+        gate_below: 0,
+        gate_failed: false,
+        flags: ['VLM_TASK_FAILED'],
+        metrics: { anomalies: [{ description: 'the cup falls off the tray' }] },
+        evidence: [],
+        error: null,
+      },
+    ]
+    return r
+  }
+
+  it('lists every flag with its source, meaning, episodes and effect', () => {
+    const r = sample()
+    const flags = sampleFlags(r, fromSpec(r.spec))
+    expect(flags[0]).toMatchObject({ flag: 'VLM_TASK_FAILED', source: 'vlm', episodes: [0], effect: 'review' })
+    expect(flags[0]!.evidence).toEqual([{ episode: 0, text: 'the cup falls off the tray' }])
+    expect(flags.find((f) => f.flag === 'NOGRASP')).toMatchObject({
+      source: 'check',
+      criticId: 'grasp_cycles',
+      effect: 'stop',
+      meaning: 'the gripper never closed',
+    })
+  })
+
+  it('takes the model summary into the preview: a failed task holds an accepted episode at review', () => {
+    const r = sample()
+    const rows = previewVerdicts(r, fromSpec(r.spec), runFlags(r))
+    expect(rows.find((x) => x.episode === 0)!.verdict).toBe('review')
+  })
+
+  it('switches a flag on purpose, and the preview follows', () => {
+    const r = sample()
+    const form = fromSpec(r.spec)
+    const run = runFlags(r)
+    setFlagEffect(form, 'VLM_TASK_FAILED', 'ignore', run)
+    expect(form.scoring.ignoreFlags).toEqual(['VLM_TASK_FAILED'])
+    expect(form.scoring.reviewFlags).toEqual([])
+    expect(previewVerdicts(r, form, run).find((x) => x.episode === 0)!.verdict).toBe('accept')
+
+    setFlagEffect(form, 'VLM_TASK_FAILED', 'reject', run)
+    expect(form.scoring.ignoreFlags).toEqual([])
+    expect(form.scoring.rejectFlags).toEqual(['VLM_TASK_FAILED'])
+    expect(previewVerdicts(r, form, run).find((x) => x.episode === 0)!.verdict).toBe('reject')
+
+    // a check's stop on a flag is a gate flag of that check; "note only" lifts it
+    setFlagEffect(form, 'NOGRASP', 'info', run, 'grasp_cycles')
+    expect(form.hardCritics.find((c) => c.id === 'grasp_cycles')!.gateFlags).not.toContain('NOGRASP')
+    expect(flagEffect('NOGRASP', form, run, 'grasp_cycles')).toBe('info')
+    expect(previewVerdicts(r, form, run).find((x) => x.episode === 3)!.verdict).toBe('accept')
   })
 })

@@ -30,6 +30,7 @@ declare module 'vue' {
     EvaluationReportBody: typeof import('./components/EvaluationReportBody.vue')['default']
     FileUpload: typeof import('./volt/FileUpload.vue')['default']
     FindingsOverrides: typeof import('./components/FindingsOverrides.vue')['default']
+    FlagPanel: typeof import('./components/specwizard/FlagPanel.vue')['default']
     FormField: typeof import('./components/FormField.vue')['default']
     InfoButton: typeof import('./components/InfoButton.vue')['default']
     InfoPopover: typeof import('./components/InfoPopover.vue')['default']

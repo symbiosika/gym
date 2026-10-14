@@ -32,6 +32,7 @@ import StepAnalysis from '@/components/specwizard/StepAnalysis.vue'
 import StepRobot from '@/components/specwizard/StepRobot.vue'
 import StepSave from '@/components/specwizard/StepSave.vue'
 import ScoringPreview from '@/components/specwizard/ScoringPreview.vue'
+import FlagPanel from '@/components/specwizard/FlagPanel.vue'
 import SampleSheet from '@/components/specwizard/SampleSheet.vue'
 import IconCheck from '~icons/carbon/checkmark'
 import IconArrowLeft from '~icons/carbon/arrow-left'
@@ -545,10 +546,13 @@ onBeforeUnmount(() => {
         </template>
 
         <!-- scoring: thresholds with the sample moving along -->
-        <div v-else-if="step === 'scoring'" class="grid gap-6 xl:grid-cols-[2fr_3fr]">
-          <SpecForm v-model="form" :critics="critics" :sections="['scoring']" />
-          <ScoringPreview v-if="analysis" v-model="form" :report="analysis" @goto="go" />
-        </div>
+        <template v-else-if="step === 'scoring'">
+          <div class="grid gap-6 xl:grid-cols-[2fr_3fr]">
+            <SpecForm v-model="form" :critics="critics" :sections="['scoring']" />
+            <ScoringPreview v-if="analysis" v-model="form" :report="analysis" @goto="go" />
+          </div>
+          <FlagPanel v-if="analysis" v-model="form" :report="analysis" class="mt-8" />
+        </template>
 
         <StepSave
           v-else-if="step === 'save'"

@@ -9,6 +9,7 @@ import {
   indicatorEvidence,
   previewVerdicts,
   runFlags,
+  setFlagEffect,
   type Blocker,
   type BlockerGroup,
   type Verdict,
@@ -93,9 +94,8 @@ const icon = (b: Blocker) =>
   b.kind === 'gate' ? IconStop : b.kind === 'score' ? IconScore : b.kind === 'error' ? IconWarning : IconFlag
 
 // ------------------------------------------------------------------ the fixes
-function ignoreFlag(flag: string) {
-  if (!form.value.scoring.ignoreFlags.includes(flag)) form.value.scoring.ignoreFlags = [...form.value.scoring.ignoreFlags, flag]
-}
+/** switched off the way the flag list below does it, so the two never disagree */
+const ignoreFlag = (flag: string) => setFlagEffect(form.value, flag, 'ignore', runFlags(props.report))
 function liftSoftGate(id: string) {
   const ind = indicatorOf(id)
   if (ind) ind.gate = false

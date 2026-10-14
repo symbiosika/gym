@@ -1382,6 +1382,36 @@
       "existsTitle": "Es gibt schon einen Spec „{name}“",
       "existsText": "Überschreiben ersetzt ihn für alle Skills, die ihn verwenden.",
       "overwrite": "Überschreiben"
+    },
+    "flags": {
+      "title": "Markierungen",
+      "hint": "Was das Modell und die Prüfungen in der Stichprobe gefunden haben, und was jede Markierung bewirkt",
+      "none": "Die Stichprobe hat keine Markierungen.",
+      "fromModel": "Vom Sprachmodell",
+      "fromChecks": "Von den technischen Prüfungen",
+      "model": "Sprachmodell",
+      "inEpisodes": "in {n} von {of} Episoden ({list})",
+      "criterion": "Das Modell bewertet das Erfolgskriterium „{text}“ unter 0,5.",
+      "noMeaning": "Für diese Markierung haben die Critics keine Beschreibung geliefert.",
+      "choice": {
+        "out": "Lehnt ab",
+        "review": "Prüfen",
+        "info": "Nur Hinweis",
+        "ignore": "Aus"
+      },
+      "choiceHint": {
+        "out": "Eine Episode mit dieser Markierung wird abgelehnt.",
+        "review": "Eine Episode mit dieser Markierung wird höchstens auf „prüfen“ gesetzt, ein Mensch schaut sie an.",
+        "info": "Die Markierung wird an der Episode angezeigt, ändert aber nichts am Urteil.",
+        "ignore": "Die Markierung wird abgeschaltet: nicht angezeigt, nicht gezählt."
+      },
+      "effect": {
+        "stop": "stoppt die Episode über die Prüfung „{check}“",
+        "reject": "lehnt die Episode ab",
+        "review": "hält die Episode auf „prüfen“",
+        "info": "wird nur angezeigt",
+        "ignore": "abgeschaltet"
+      }
     }
   }
 }

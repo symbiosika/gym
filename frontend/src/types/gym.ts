@@ -907,5 +907,7 @@ export interface SampleReport {
   flag_counts: Record<string, number>
   dataset_flags: Record<string, string>
   metric_docs: Record<string, { what?: string; how?: string; unit?: string } | undefined>
+  /** what every flag of the run means, in the critics' words (absent from older services) */
+  flag_docs?: Record<string, string>
   episodes: SampleEpisode[]
 }

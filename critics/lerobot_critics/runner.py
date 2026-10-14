@@ -115,6 +115,8 @@ class DatasetReport(BaseModel):
     dataset_flags: dict[str, str] = Field(default_factory=dict)
     # what/how documentation of every metric key that occurs in this run ({"critic.key": doc})
     metric_docs: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    # what every flag raised in this run means, in one sentence ({"CAMSTALL": "camera frames ..."})
+    flag_docs: dict[str, str] = Field(default_factory=dict)
     # recording-session profile: latency, tremor, grasp behaviour, diversity, hygiene (session_profile.py)
     session_profile: dict[str, Any] = Field(default_factory=dict)
     timing_s: dict[str, float] = Field(default_factory=dict)
@@ -340,6 +342,7 @@ def run(
         dataset_summaries=summaries,
         dataset_flags=dataset_flags,
         metric_docs=docs_for_metrics(present_metrics(reports)),
+        flag_docs=flag_docs_for(reports, dataset_flags),
         timing_s={**timing, "total_s": time.time() - t_start},
         episodes=reports,
     )
@@ -353,6 +356,14 @@ def run(
         report.session_profile = {"error": f"{type(e).__name__}: {e}"}
     write_reports(report, out_dir, ds if options.contact_sheets else None, all_sheets=options.sheets_for_all)
     return report
+
+
+def flag_docs_for(reports: list[EpisodeReport], dataset_flags: dict[str, str]) -> dict[str, str]:
+    """The meaning of every flag the run raised: on an episode, by any critic, or on the run."""
+    from .ai_report import flag_meaning
+
+    flags = {f for r in reports for c in r.hard + r.soft for f in c.flags} | set(dataset_flags)
+    return {f: dataset_flags.get(f) or flag_meaning(f) for f in sorted(flags)}
 
 
 def present_metrics(reports: list[EpisodeReport]) -> dict[str, set[str]]:
