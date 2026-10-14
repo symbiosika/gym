@@ -5,6 +5,10 @@ import type { SampleReport } from '@/types/gym'
 import { fromSpec } from './spec'
 import {
   agreement,
+  allFixes,
+  applyFix,
+  fixesFor,
+  fixImpact,
   blockerSummary,
   disagrees,
   resultRows,
@@ -238,5 +242,71 @@ describe('the workbench', () => {
     expect(disagrees('accept', undefined)).toBe(false)
     expect(scoresOf(r, 'check', 'duplication').map((d) => d.episode)).toEqual([0, 1, 2, 3])
     expect(scoresOf(r, 'criterion', 'object_in_target')).toEqual([])
+  })
+})
+
+describe('how a verdict comes about, and the way to accept', () => {
+  it('splits the total into what each result costs it', () => {
+    const r = report()
+    for (const row of previewVerdicts(r, fromSpec(r.spec), runFlags(r))) {
+      const cost = [...row.hardParts, ...row.softParts].reduce((a, p) => a + p.cost, 0)
+      expect(1 - cost).toBeCloseTo(row.total!, 6)
+    }
+  })
+
+  it('finds the change that lets a stopped episode through, and what else it moves', () => {
+    const r = report()
+    const form = fromSpec(r.spec)
+    const run = runFlags(r)
+    const row = previewVerdicts(r, form, run).find((x) => x.episode === 3)!
+    expect(row.verdict).toBe('reject')
+    const fixes = fixesFor(row, form)
+    expect(fixes[0]).toEqual({ type: 'flag', flag: 'NOGRASP', checkId: 'grasp_cycles' })
+    // the change touches no other episode of this sample
+    expect(fixImpact(r, form, [fixes[0]!]).changed).toEqual([{ episode: 3, from: 'reject', to: 'accept' }])
+    for (const f of allFixes(fixes)) applyFix(form, f, run)
+    expect(previewVerdicts(r, form, run).find((x) => x.episode === 3)!.verdict).toBe('accept')
+  })
+
+  it('offers the threshold, or dropping what costs most, when the score is short', () => {
+    const r = report()
+    const form = fromSpec(r.spec)
+    const run = runFlags(r)
+    form.scoring.acceptThreshold = 1.01
+    const row = previewVerdicts(r, form, run).find((x) => x.episode === 0)!
+    expect(row.verdict).not.toBe('accept')
+    const fixes = fixesFor(row, form)
+    const at = fixes.find((f) => f.type === 'acceptAt')!
+    applyFix(form, at, run)
+    expect(previewVerdicts(r, form, run).find((x) => x.episode === 0)!.verdict).toBe('accept')
+    expect(form.scoring.reviewThreshold).toBeLessThanOrEqual(form.scoring.acceptThreshold)
+  })
+
+  it('names a flag that caps at review, and lets it go', () => {
+    const r = report()
+    r.spec = { ...r.spec, scoring: { ...(r.spec.scoring as object), review_flags: ['VLM_TASK_FAILED'] } }
+    r.episodes[0]!.soft = [
+      {
+        id: 'vlm.summary',
+        kind: 'soft',
+        weight: 0,
+        score: 0,
+        gate: false,
+        gate_below: 0,
+        gate_failed: false,
+        flags: ['VLM_TASK_FAILED'],
+        metrics: {},
+        evidence: [],
+        error: null,
+      },
+    ]
+    const form = fromSpec(r.spec)
+    const run = runFlags(r)
+    const row = previewVerdicts(r, form, run).find((x) => x.episode === 0)!
+    expect(row).toMatchObject({ verdict: 'review', scoreVerdict: 'accept', caps: ['VLM_TASK_FAILED'] })
+    const [fix] = fixesFor(row, form)
+    expect(fix).toEqual({ type: 'flag', flag: 'VLM_TASK_FAILED', checkId: null })
+    applyFix(form, fix!, run)
+    expect(previewVerdicts(r, form, run).find((x) => x.episode === 0)!.verdict).toBe('accept')
   })
 })

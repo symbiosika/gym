@@ -1394,8 +1394,6 @@
       "yourWord": "Your word:",
       "good": "Good",
       "bad": "Bad",
-      "because": "Because:",
-      "stoppedBy": "stop by {name}",
       "task": "Task: {task}",
       "groupModel": "Language model",
       "groupChecks": "Technical checks",
@@ -1429,6 +1427,54 @@
       "previewNote": "Live from the results of the analysis. Reworded criteria and changed parameters show in the test run.",
       "flagStops": "Besides, the flag {flag} stops {n} of {of} episodes wherever the line lies. Change that with the flag below."
     },
-    "lead_workbench": "The whole sample in one view: the episodes on the left, the video and every result of the open episode in the middle, the settings on the right. Every change acts on every verdict at once."
+    "lead_workbench": "The whole sample in one view: the episodes on the left, the video and every result of the open episode in the middle, the settings on the right. Every change acts on every verdict at once.",
+    "explain": {
+      "stops": "Stops:",
+      "noStop": "no check and no criterion stops this episode.",
+      "stopFlag": " stops through the flag {flag}.",
+      "stopScore": " stops: score {score} is below the stop line {limit}.",
+      "stopRule": "A stop rejects however high the score is. Thresholds do not change that.",
+      "score": "Score:",
+      "side": {
+        "hard": "technical {v} (weight {w})",
+        "soft": "model {v} (weight {w})"
+      },
+      "showParts": "show what it is made of",
+      "hideParts": "hide what it is made of",
+      "part": "What counts",
+      "partScore": "Score",
+      "cost": "costs",
+      "costHint": "“costs” is how much the total lies below 1 because of this result: its share of the total times (1 minus its score). A click opens its settings.",
+      "tagCheck": "check",
+      "tagModel": "model",
+      "totalLine": "Total score",
+      "thresholds": "Thresholds:",
+      "overAccept": "{total} is at or above “accept from” {accept}, so accepted.",
+      "betweenReview": "{total} is below “accept from” {accept} but at or above “review from” {review}, so review.",
+      "belowReview": "{total} is below “review from” {review}, so rejected.",
+      "flags": "Flags:",
+      "noFlag": "no flag rejects or caps.",
+      "rejectFlag": "{flag} rejects the episode.",
+      "capFlag": "{flag} caps it at review: {meaning}",
+      "result": "Result:",
+      "toAccept": "For E{n} to be accepted:",
+      "youSayGood": "You say E{n} is good. This would have to change:",
+      "youSayBad": "You say E{n} is bad, but the spec accepts it.",
+      "badHint": "Or: click the check or the criterion that rates it too well here and raise its stop line.",
+      "fix": {
+        "flag": "set {flag} to “note only”",
+        "lowerStop": "lower the stop of “{name}” to {v}",
+        "liftStop": "lift the stop of “{name}”",
+        "acceptAt": "set “accept from” to {v}",
+        "weightZero": "stop counting “{name}” (total then {total})"
+      },
+      "apply": "Apply",
+      "applyAll": "Apply all together",
+      "allTogether": "All the changes needed, together",
+      "alsoMoves": "also moves:",
+      "forAll": "Every change is a change of the whole spec, so of every episode. Next to it stands which other episodes it moves too.",
+      "misfit": "The model gives “{name}” almost nothing in {n} of {of} episodes. That all of them failed is rare. More often the words do not fit the task, for example a place to put something the task does not have. Then reword or remove the criterion and run the test.",
+      "misfitOpen": "Open the criterion"
+    }
   }
 }

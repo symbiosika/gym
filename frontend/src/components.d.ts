@@ -82,6 +82,7 @@ declare module 'vue' {
     Toast: typeof import('./volt/Toast.vue')['default']
     ToggleButton: typeof import('./volt/ToggleButton.vue')['default']
     TokenField: typeof import('./components/spec/TokenField.vue')['default']
+    VerdictExplain: typeof import('./components/specwizard/workbench/VerdictExplain.vue')['default']
     WizardSteps: typeof import('./components/WizardSteps.vue')['default']
     Workbench: typeof import('./components/specwizard/workbench/Workbench.vue')['default']
   }

@@ -1394,8 +1394,6 @@
       "yourWord": "Deine Einschätzung:",
       "good": "Gut",
       "bad": "Schlecht",
-      "because": "Weil:",
-      "stoppedBy": "Stopp durch {name}",
       "task": "Aufgabe: {task}",
       "groupModel": "Sprachmodell",
       "groupChecks": "Technische Prüfungen",
@@ -1429,6 +1427,54 @@
       "previewNote": "Live aus den Ergebnissen der Analyse. Umformulierte Kriterien und geänderte Parameter zeigt der Testlauf.",
       "flagStops": "Außerdem stoppt die Markierung {flag} {n} von {of} Episoden, egal wo die Linie liegt. Das änderst du unten bei der Markierung."
     },
-    "lead_workbench": "Die ganze Stichprobe in einer Ansicht: links die Episoden, in der Mitte Video und alle Ergebnisse der geöffneten Episode, rechts die Einstellungen. Jede Änderung wirkt sofort auf alle Urteile."
+    "lead_workbench": "Die ganze Stichprobe in einer Ansicht: links die Episoden, in der Mitte Video und alle Ergebnisse der geöffneten Episode, rechts die Einstellungen. Jede Änderung wirkt sofort auf alle Urteile.",
+    "explain": {
+      "stops": "Stopps:",
+      "noStop": "keine Prüfung und kein Kriterium stoppt diese Episode.",
+      "stopFlag": " stoppt über die Markierung {flag}.",
+      "stopScore": " stoppt: Score {score} liegt unter der Stopp-Linie {limit}.",
+      "stopRule": "Ein Stopp lehnt ab, egal wie hoch der Score ist. Schwellen ändern daran nichts.",
+      "score": "Score:",
+      "side": {
+        "hard": "Technik {v} (Gewicht {w})",
+        "soft": "Modell {v} (Gewicht {w})"
+      },
+      "showParts": "Zusammensetzung zeigen",
+      "hideParts": "Zusammensetzung ausblenden",
+      "part": "Was zählt",
+      "partScore": "Score",
+      "cost": "kostet",
+      "costHint": "„kostet“ ist, wie viel der Gesamtscore wegen dieses Ergebnisses unter 1 liegt: sein Anteil am Gesamtscore mal (1 minus sein Score). Ein Klick öffnet die Einstellungen dazu.",
+      "tagCheck": "Prüfung",
+      "tagModel": "Modell",
+      "totalLine": "Gesamtscore",
+      "thresholds": "Schwellen:",
+      "overAccept": "{total} liegt bei oder über „akzeptieren ab“ {accept}, also akzeptiert.",
+      "betweenReview": "{total} liegt unter „akzeptieren ab“ {accept}, aber bei oder über „prüfen ab“ {review}, also prüfen.",
+      "belowReview": "{total} liegt unter „prüfen ab“ {review}, also abgelehnt.",
+      "flags": "Markierungen:",
+      "noFlag": "keine Markierung lehnt ab oder deckelt.",
+      "rejectFlag": "{flag} lehnt die Episode ab.",
+      "capFlag": "{flag} deckelt auf „prüfen“: {meaning}",
+      "result": "Ergebnis:",
+      "toAccept": "Damit E{n} akzeptiert wird:",
+      "youSayGood": "Du sagst: E{n} ist gut. Das müsste sich dafür ändern:",
+      "youSayBad": "Du sagst: E{n} ist schlecht, der Spec akzeptiert sie aber.",
+      "badHint": "Oder: die Prüfung oder das Kriterium, das hier zu gut bewertet, anklicken und die Stopp-Linie höher setzen.",
+      "fix": {
+        "flag": "{flag} auf „Nur Hinweis“ stellen",
+        "lowerStop": "Stopp von „{name}“ auf {v} senken",
+        "liftStop": "Stopp von „{name}“ aufheben",
+        "acceptAt": "„Akzeptieren ab“ auf {v} setzen",
+        "weightZero": "„{name}“ nicht mehr mitzählen (Gesamtscore dann {total})"
+      },
+      "apply": "Anwenden",
+      "applyAll": "Alles zusammen anwenden",
+      "allTogether": "Alle nötigen Änderungen zusammen",
+      "alsoMoves": "ändert auch:",
+      "forAll": "Jede Änderung gilt für den ganzen Spec, also für alle Episoden. Daneben steht, welche anderen Episoden sie mit verschiebt.",
+      "misfit": "Das Modell gibt „{name}“ in {n} von {of} Episoden fast nichts. Dass alle misslungen sind, ist selten. Meist passt der Wortlaut nicht zur Aufgabe, zum Beispiel ein Ablageort, den die Aufgabe gar nicht hat. Dann das Kriterium umformulieren oder entfernen und den Testlauf machen.",
+      "misfitOpen": "Kriterium öffnen"
+    }
   }
 }
