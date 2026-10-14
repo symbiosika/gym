@@ -18,6 +18,8 @@ declare global {
   const activeStep: typeof import('./utils/plan').activeStep
   const addDays: typeof import('./utils/time').addDays
   const agreement: typeof import('./utils/specSample').agreement
+  const allFixes: typeof import('./utils/specSample').allFixes
+  const applyFix: typeof import('./utils/specSample').applyFix
   const blockerKey: typeof import('./utils/specSample').blockerKey
   const blockerSummary: typeof import('./utils/specSample').blockerSummary
   const computed: typeof import('vue').computed
@@ -38,6 +40,8 @@ declare global {
   const emptySpec: typeof import('./utils/spec').emptySpec
   const fetcher: typeof import('./utils/fetcher').fetcher
   const fileNameFrom: typeof import('./utils/download').fileNameFrom
+  const fixImpact: typeof import('./utils/specSample').fixImpact
+  const fixesFor: typeof import('./utils/specSample').fixesFor
   const flagEffect: typeof import('./utils/specSample').flagEffect
   const fmtBytes: typeof import('./utils/time').fmtBytes
   const fmtDate: typeof import('./utils/time').fmtDate
@@ -169,6 +173,6 @@ declare global {
   export type { ObjectRole, PerEpisode, SpecObject, SpecIndicator, SpecHardCritic, SpecForm, SpecFormSection, PresetId } from './utils/spec'
   import('./utils/spec')
   // @ts-ignore
-  export type { Verdict, CriticEvidence, Blocker, PreviewRow, BlockerGroup, IndicatorEvidence, FlagEffect, SampleFlag, Selection, ResultRow } from './utils/specSample'
+  export type { Verdict, CriticEvidence, Blocker, PreviewRow, ScorePart, BlockerGroup, IndicatorEvidence, FlagEffect, SampleFlag, Selection, ResultRow, Fix } from './utils/specSample'
   import('./utils/specSample')
 }

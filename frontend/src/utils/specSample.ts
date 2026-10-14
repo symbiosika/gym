@@ -160,6 +160,23 @@ export interface PreviewRow {
   flags: string[]
   /** why it is not accepted; empty for an accepted episode */
   blockers: Blocker[]
+  /** what went into the total: every check and criterion that counts, with its score and weight */
+  hardParts: ScorePart[]
+  softParts: ScorePart[]
+  /** the verdict of the total score against the thresholds alone, before stops and flags */
+  scoreVerdict: Verdict | null
+  /** flags on the episode that cap it at review, and that reject it */
+  caps: string[]
+  rejects: string[]
+}
+
+/** One result in the total score: its score, its weight, and what it costs the total (from 1). */
+export interface ScorePart {
+  id: string
+  score: number
+  weight: number
+  /** how much lower the total is because this result is not 1: weight share times (1 minus score) */
+  cost: number
 }
 
 const weightedMean = (rows: { score: number | null; weight: number }[]): number | null => {
@@ -192,14 +209,14 @@ export function previewVerdicts(
   return report.episodes.map((e: SampleEpisode) => {
     const gates: Blocker[] = []
     const flags = new Set<string>()
-    const hardRows: { score: number | null; weight: number }[] = []
+    const hardRows: { id: string; score: number | null; weight: number }[] = []
     for (const h of e.hard) {
       const c = form.hardCritics.find((x) => x.id === h.id)
       if (c && !c.enabled) continue
       const own = h.flags.filter((f) => !muted.has(f))
       own.forEach((f) => flags.add(f))
       const weight = c ? c.weight : h.weight
-      hardRows.push({ score: h.score, weight })
+      hardRows.push({ id: h.id, score: h.score, weight })
       const gateBelow = c ? (c.gate ? c.gateBelow : null) : h.gate ? h.gate_below : null
       const gateFlag = (c ? c.gateFlags : []).find((f) => own.includes(f))
       if (gateBelow != null && h.score != null && h.score < gateBelow) {
@@ -210,7 +227,7 @@ export function previewVerdicts(
         gates.push({ kind: 'gate', source: 'hard', id: h.id, score: h.score, limit: h.gate_below })
       }
     }
-    const softRows: { score: number | null; weight: number }[] = []
+    const softRows: { id: string; score: number | null; weight: number }[] = []
     if (form.soft.enabled) {
       for (const s of e.soft as SampleCriticResult[]) {
         // the model's overall word (task failed, a person in the workspace) counts by its flags only
@@ -221,7 +238,7 @@ export function previewVerdicts(
         if (!s.id.startsWith('vlm.')) continue
         const ind = indicators.get(s.id.slice(4))
         if (!ind) continue
-        softRows.push({ score: s.score, weight: ind.weight })
+        softRows.push({ id: ind.id, score: s.score, weight: ind.weight })
         s.flags.filter((f) => !muted.has(f)).forEach((f) => flags.add(f))
         if (ind.gate && s.score != null && s.score < ind.gateBelow) {
           gates.push({
@@ -241,6 +258,26 @@ export function previewVerdicts(
     if (hard != null) parts.push({ score: hard, weight: form.scoring.hardWeight })
     if (soft != null) parts.push({ score: soft, weight: form.scoring.softWeight })
     const total = weightedMean(parts)
+    // what each result costs the total: its share of its side, times its side's share of the total
+    const sideShare = (w: number) => {
+      const sum = (hard != null ? form.scoring.hardWeight : 0) + (soft != null ? form.scoring.softWeight : 0)
+      return sum > 0 ? w / sum : 0
+    }
+    const partsOf = (rows: { id: string; score: number | null; weight: number }[], side: number): ScorePart[] => {
+      const counted = rows.filter((r): r is { id: string; score: number; weight: number } => r.score != null && r.weight > 0)
+      const sum = counted.reduce((a, r) => a + r.weight, 0)
+      return counted.map((r) => ({ ...r, cost: sum > 0 ? (side * r.weight * (1 - r.score)) / sum : 0 }))
+    }
+    const hardParts = partsOf(hardRows, hard != null ? sideShare(form.scoring.hardWeight) : 0)
+    const softParts = partsOf(softRows, soft != null ? sideShare(form.scoring.softWeight) : 0)
+    const scoreVerdict: Verdict | null =
+      total == null
+        ? null
+        : total >= form.scoring.acceptThreshold
+          ? 'accept'
+          : total >= form.scoring.reviewThreshold
+            ? 'review'
+            : 'reject'
     const flagList = [...flags].sort()
     const rejecting = flagList.filter((f) => rejectFlags.has(f))
     const capping = flagList.filter((f) => reviewFlags.has(f))
@@ -272,6 +309,11 @@ export function previewVerdicts(
       gates: gates.map((g) => (g.kind === 'gate' && g.source === 'soft' ? `vlm.${g.id}` : (g as { id: string }).id)),
       flags: flagList,
       blockers: verdict === 'accept' ? [] : blockers,
+      hardParts,
+      softParts,
+      scoreVerdict,
+      caps: capping,
+      rejects: rejecting,
     }
   })
 }
@@ -583,4 +625,125 @@ export function scoresOf(report: SampleReport, kind: 'check' | 'criterion', id: 
     const r = kind === 'check' ? e.hard.find((h) => h.id === id) : e.soft.find((s) => s.id === `vlm.${id}`)
     return typeof r?.score === 'number' ? [{ episode: e.episode, score: r.score }] : []
   })
+}
+
+// ---------------------------------------------------------------------------
+// the way to accept: what would have to change for one episode
+// ---------------------------------------------------------------------------
+
+/**
+ * One change of the spec that moves an episode towards accept. It changes
+ * the spec for every episode, so the workbench shows what else it moves.
+ *
+ *   flag        give a flag the effect "note only" (a cap, a reject, a check's stop on it)
+ *   liftStop    a check or a criterion no longer stops
+ *   lowerStop   its stop line goes just under the episode's score
+ *   acceptAt    "accept from" goes down to the episode's total
+ *   weightZero  a result that costs the total a lot no longer counts (`totalAfter`
+ *               says where the total would be then; it may still be short)
+ */
+export type Fix =
+  | { type: 'flag'; flag: string; checkId: string | null }
+  | { type: 'liftStop' | 'lowerStop'; source: 'hard' | 'soft'; id: string; to?: number }
+  | { type: 'acceptAt'; to: number }
+  | { type: 'weightZero'; source: 'hard' | 'soft'; id: string; totalAfter: number }
+
+/** a value just below `v` on a 0.01 grid: a line there lets `v` pass */
+const justBelow = (v: number) => Math.floor((v - 1e-9) * 100) / 100
+
+/**
+ * The changes that would let this episode be accepted, in the order they
+ * matter: the stops first (nothing else helps while one fires), then flags
+ * that reject or cap, then the score. Each stop gets its own line; for the
+ * score both ways are offered, a lower threshold or a result that no longer
+ * counts.
+ */
+export function fixesFor(row: PreviewRow, form: SpecForm): Fix[] {
+  if (row.verdict === 'accept') return []
+  const fixes: Fix[] = []
+  for (const b of row.blockers) {
+    if (b.kind !== 'gate') continue
+    if (b.flag) fixes.push({ type: 'flag', flag: b.flag, checkId: b.id })
+    else if (b.score != null && justBelow(b.score) >= 0.01)
+      fixes.push({ type: 'lowerStop', source: b.source, id: b.id, to: justBelow(b.score) })
+    else fixes.push({ type: 'liftStop', source: b.source, id: b.id })
+  }
+  for (const flag of row.rejects) fixes.push({ type: 'flag', flag, checkId: null })
+  for (const flag of row.caps) fixes.push({ type: 'flag', flag, checkId: null })
+  if (row.total != null && row.total < form.scoring.acceptThreshold) {
+    fixes.push({ type: 'acceptAt', to: Math.floor(row.total * 100) / 100 })
+    // a result that costs enough that the total would reach the threshold without it
+    const parts = [
+      ...row.hardParts.map((p) => ({ ...p, source: 'hard' as const })),
+      ...row.softParts.map((p) => ({ ...p, source: 'soft' as const })),
+    ].sort((a, b) => b.cost - a.cost)
+    for (const p of parts.slice(0, 3)) {
+      const side = p.source === 'hard' ? row.hardParts : row.softParts
+      const rest = side.filter((x) => x.id !== p.id)
+      const restMean = rest.length
+        ? rest.reduce((a, x) => a + x.weight * x.score, 0) / rest.reduce((a, x) => a + x.weight, 0)
+        : null
+      const other = p.source === 'hard' ? row.soft : row.hard
+      const wSelf = p.source === 'hard' ? form.scoring.hardWeight : form.scoring.softWeight
+      const wOther = p.source === 'hard' ? form.scoring.softWeight : form.scoring.hardWeight
+      const sides = [
+        ...(restMean != null ? [{ v: restMean, w: wSelf }] : []),
+        ...(other != null ? [{ v: other, w: wOther }] : []),
+      ].filter((x) => x.w > 0)
+      const den = sides.reduce((a, x) => a + x.w, 0)
+      const totalAfter = den > 0 ? sides.reduce((a, x) => a + x.v * x.w, 0) / den : null
+      // offered when it reaches the threshold, or when the result costs the total a lot
+      if (
+        totalAfter != null &&
+        row.total != null &&
+        (totalAfter >= form.scoring.acceptThreshold || totalAfter - row.total >= 0.05)
+      ) {
+        fixes.push({ type: 'weightZero', source: p.source, id: p.id, totalAfter })
+      }
+    }
+  }
+  return fixes
+}
+
+/** Make the change of a fix on the form. */
+export function applyFix(form: SpecForm, fix: Fix, run: { reviewFlags: string[]; rejectFlags: string[] }): void {
+  if (fix.type === 'flag') {
+    setFlagEffect(form, fix.flag, 'info', run, fix.checkId)
+    return
+  }
+  if (fix.type === 'acceptAt') {
+    form.scoring.acceptThreshold = fix.to
+    if (form.scoring.reviewThreshold > fix.to) form.scoring.reviewThreshold = Math.max(0, Math.round((fix.to - 0.1) * 100) / 100)
+    return
+  }
+  const target =
+    fix.source === 'hard' ? form.hardCritics.find((c) => c.id === fix.id) : form.soft.indicators.find((i) => i.id === fix.id)
+  if (!target) return
+  if (fix.type === 'liftStop') target.gate = false
+  else if (fix.type === 'lowerStop' && fix.to != null) target.gateBelow = fix.to
+  else if (fix.type === 'weightZero') target.weight = 0
+}
+
+/**
+ * The fixes that are needed together for the episode to be accepted: every
+ * stop, reject and cap fix, and for the score the threshold (the smallest
+ * change that does not drop a result).
+ */
+export const allFixes = (fixes: Fix[]): Fix[] => fixes.filter((f) => f.type !== 'weightZero')
+
+/** What a set of fixes would do to the sample: every episode whose verdict changes. */
+export function fixImpact(
+  report: SampleReport,
+  form: SpecForm,
+  fixes: Fix[],
+): { changed: { episode: number; from: Verdict; to: Verdict }[] } {
+  const run = runFlags(report)
+  const before = previewVerdicts(report, form, run)
+  // a plain copy: the form on screen is a reactive proxy, which structuredClone refuses
+  const after = JSON.parse(JSON.stringify(form)) as SpecForm
+  for (const f of fixes) applyFix(after, f, run)
+  const next = previewVerdicts(report, after, run)
+  return {
+    changed: next.map((r, i) => ({ episode: r.episode, from: before[i]!.verdict, to: r.verdict })).filter((c) => c.from !== c.to),
+  }
 }

@@ -6,6 +6,7 @@ import type { SampleReport, SampleVideo, SpecDraftView } from '@/types/gym'
 import type { SpecForm } from '@/utils/spec'
 import { resultRows, type FlagEffect, type PreviewRow, type ResultRow, type Selection, type Verdict } from '@/utils/specSample'
 import SampleSheet from '@/components/specwizard/SampleSheet.vue'
+import VerdictExplain from '@/components/specwizard/workbench/VerdictExplain.vue'
 import IconUp from '~icons/carbon/thumbs-up'
 import IconDown from '~icons/carbon/thumbs-down'
 import IconStop from '~icons/carbon/stop-filled-alt'
@@ -172,25 +173,7 @@ const open = ref<string | null>(null)
         <span class="bg-warn absolute -top-1 h-4.5 w-0.5" :style="{ left: pct(form.scoring.reviewThreshold) }" />
         <span class="bg-ok absolute -top-1 h-4.5 w-0.5" :style="{ left: pct(form.scoring.acceptThreshold) }" />
       </div>
-      <p v-if="row.blockers.length" class="mt-2 text-xs text-surface-600 dark:text-surface-300">
-        {{ t('specWizard.bench.because') }}
-        <template v-for="(b, i) in row.blockers" :key="i">
-          <span v-if="i" class="text-surface-400"> · </span>
-          <button
-            v-if="b.kind === 'gate'"
-            type="button"
-            class="text-bad cursor-pointer underline decoration-dotted"
-            @click="emit('select', { kind: b.source === 'soft' ? 'criterion' : 'check', id: b.id })"
-          >
-            {{ t('specWizard.bench.stoppedBy', { name: b.source === 'soft' ? criterionText(b.id) : checkLabel(b.id) }) }}
-          </button>
-          <span v-else-if="b.kind === 'score'">{{
-            t('specWizard.scoring.tag.score', { total: fmt(b.total), limit: fmt(b.limit) })
-          }}</span>
-          <span v-else-if="b.kind === 'error'">{{ t('specWizard.scoring.tag.error') }}</span>
-          <span v-else>{{ b.flag }}</span>
-        </template>
-      </p>
+      <VerdictExplain :model-value="form" :report="report" :row="row" :judgment="judgment" @select="emit('select', $event)" />
       <p v-if="episodeData?.task" class="mt-1 text-xs text-surface-500 dark:text-surface-400">
         {{ t('specWizard.bench.task', { task: episodeData.task }) }} · {{ episodeData.duration_s.toFixed(1) }} s
       </p>
