@@ -40,6 +40,11 @@ class RunOptions(BaseModel):
     run_hard: bool = True
     run_soft: bool = True
     contact_sheets: bool = True
+    include_episodes: list[int] | None = Field(
+        None,
+        description="episodes analysed in addition to the sample (`max_episodes`): ones a person "
+        "picked by number",
+    )
     sheets_for_all: bool = Field(
         False,
         description="write a contact sheet for every episode, not only for the ones not accepted "
@@ -203,6 +208,8 @@ def run(
     eps = options.episodes if options.episodes is not None else ds.episode_indices()
     eps = [e for e in eps if e in ds.episodes]
     eps = sample_episodes(eps, options.max_episodes)
+    if options.include_episodes:
+        eps = sorted(set(eps) | {e for e in options.include_episodes if e in ds.episodes})
     spec_dict = json.loads(spec.model_dump_json())
     soft_on = options.run_soft and spec.soft_critics.enabled and spec.soft_critics.vlm.provider != "none"
     composite = (

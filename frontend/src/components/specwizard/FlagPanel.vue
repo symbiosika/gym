@@ -20,7 +20,8 @@ import { runFlags, sampleFlags, setFlagEffect, type FlagEffect, type SampleFlag 
  * review_flags, ignore_flags) and the preview above follows at once.
  */
 const form = defineModel<SpecForm>({ required: true })
-const props = defineProps<{ report: SampleReport }>()
+/** `compact` stacks every row, for the narrow side panel of the workbench */
+const props = defineProps<{ report: SampleReport; compact?: boolean }>()
 const { t, te } = useI18n()
 
 const run = computed(() => runFlags(props.report))
@@ -57,13 +58,14 @@ const criterionText = (f: SampleFlag) =>
 
 <template>
   <section>
-    <SectionHeader :title="t('specWizard.flags.title')" :hint="t('specWizard.flags.hint')" />
+    <SectionHeader v-if="!compact" :title="t('specWizard.flags.title')" :hint="t('specWizard.flags.hint')" />
+    <p v-else class="mb-3 text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.flags.hint') }}</p>
     <div v-if="!flags.length" class="gym-empty">{{ t('specWizard.flags.none') }}</div>
     <template v-else>
       <div v-for="group in [vlm, checks].filter((g) => g.length)" :key="group === vlm ? 'vlm' : 'checks'" class="mb-4">
         <span class="gym-field">{{ group === vlm ? t('specWizard.flags.fromModel') : t('specWizard.flags.fromChecks') }}</span>
         <div class="gym-panel divide-y divide-surface-200 dark:divide-surface-800">
-          <div v-for="f in group" :key="f.flag" class="grid gap-x-4 gap-y-2 p-3 lg:grid-cols-[1fr_auto]">
+          <div v-for="f in group" :key="f.flag" :class="['grid gap-x-4 gap-y-2 p-3', compact ? '' : 'lg:grid-cols-[1fr_auto]']">
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-mono text-sm font-semibold" :class="f.effect === 'ignore' ? 'line-through opacity-60' : ''">{{
@@ -91,7 +93,7 @@ const criterionText = (f: SampleFlag) =>
                 </ul>
               </details>
             </div>
-            <div class="flex flex-col gap-1 lg:items-end">
+            <div class="flex flex-col gap-1" :class="compact ? '' : 'lg:items-end'">
               <div class="flex flex-wrap gap-1" role="radiogroup" :aria-label="f.flag">
                 <button
                   v-for="c in CHOICES"

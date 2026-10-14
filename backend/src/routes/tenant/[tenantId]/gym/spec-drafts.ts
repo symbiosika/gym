@@ -12,6 +12,9 @@
  *   POST   /tenant/:tenantId/gym/spec-drafts/:id/finish          { name, assignToSkill?, overwrite? } store the spec, name it on the skill
  *   GET    /tenant/:tenantId/gym/spec-drafts/:id/report?run      the report of the analysis or the test run
  *   GET    /tenant/:tenantId/gym/spec-drafts/:id/files/*?run     contact sheets of the sample (proxied)
+ *   POST   /tenant/:tenantId/gym/spec-drafts/:id/episodes        { episode } analyse one more episode, picked by number
+ *   GET    /tenant/:tenantId/gym/spec-drafts/:id/episodes/:episode/videos          the camera videos of an episode
+ *   GET    /tenant/:tenantId/gym/spec-drafts/:id/episodes/:episode/video?camera    one of them, streamed (range requests)
  *
  *   the sample, uploaded in chunks like a dataset (lib/gym/dataset-uploads.ts):
  *   GET    /tenant/:tenantId/gym/spec-drafts/:id/uploads
@@ -30,7 +33,10 @@ import * as v from "valibot";
 import { criticsClient } from "../../../../lib/critics/client";
 import { abortUpload, beginUpload, getUpload, listUploads, putChunk } from "../../../../lib/gym/dataset-uploads";
 import {
+  addEpisode,
   assertSpecDraft,
+  episodeVideo,
+  episodeVideos,
   completeSampleUpload,
   createSpecDraft,
   deleteSpecDraft,
@@ -65,6 +71,15 @@ const chunkParam = v.object({
 });
 
 const runQuery = v.object({ run: v.optional(v.picklist(RUNS), "analysis") });
+
+const episodeParam = v.object({
+  tenantId: v.pipe(v.string(), v.uuid()),
+  id: v.pipe(v.string(), v.uuid()),
+  episode: v.pipe(v.string(), v.regex(/^\d{1,7}$/), v.transform(Number)),
+});
+
+/** The headers of a video answer a player needs to seek, passed on as the critics sent them. */
+const VIDEO_HEADERS = ["content-type", "content-length", "content-range", "accept-ranges"] as const;
 
 export default function defineSpecDraftRoutes(app: SymbiosikaFrameworkHonoApp, API_BASE_PATH = "") {
   const base = `${API_BASE_PATH}/tenant/:tenantId/gym/spec-drafts`;
@@ -166,14 +181,52 @@ export default function defineSpecDraftRoutes(app: SymbiosikaFrameworkHonoApp, A
     async (c) => {
       try {
         const { tenantId, id } = c.req.valid("param");
-        const jobId = await specDraftJob(tenantId, id, c.req.valid("query").run);
         const path = c.req.path.split(`/files/`).slice(1).join("/files/");
         if (!path || path.includes("..")) throw new HTTPException(400, { message: "Invalid path" });
+        // the sheet of an episode picked by number lies with the run over that episode
+        const episode = /episode_(\d+)\./.exec(path)?.[1];
+        const jobId = await specDraftJob(tenantId, id, c.req.valid("query").run, episode ? Number(episode) : undefined);
         const upstream = await criticsClient.file(jobId, path);
         return new Response(upstream.body, {
           status: 200,
           headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream", "Cache-Control": "private, max-age=300" },
         });
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.post(`${base}/:id/episodes`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "Analyse one more episode of the sample, picked by number", responses: ok }),
+    validator("param", tenantIdParam), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id } = c.req.valid("param");
+        return c.json(await addEpisode(tenantId, id, await c.req.json()));
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.get(`${base}/:id/episodes/:episode/videos`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "The camera videos of an episode of the sample", responses: ok }),
+    validator("param", episodeParam), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id, episode } = c.req.valid("param");
+        return c.json(await episodeVideos(tenantId, id, episode));
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.get(`${base}/:id/episodes/:episode/video`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "One camera video of an episode of the sample, streamed with range requests", responses: ok }),
+    validator("param", episodeParam), validator("query", v.object({ camera: v.pipe(v.string(), v.minLength(1), v.maxLength(300)) })), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id, episode } = c.req.valid("param");
+        const upstream = await episodeVideo(tenantId, id, episode, c.req.valid("query").camera, c.req.header("range"));
+        const headers = new Headers({ "Cache-Control": "private, max-age=300" });
+        for (const name of VIDEO_HEADERS) {
+          const value = upstream.headers.get(name);
+          if (value) headers.set(name, value);
+        }
+        return new Response(upstream.body, { status: upstream.status, headers });
       } catch (e) { throw toHttpError(e); }
     });
 

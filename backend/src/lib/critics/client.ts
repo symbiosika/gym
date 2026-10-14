@@ -101,6 +101,10 @@ export interface CriticsRunOptions {
   episodes?: number[] | null;
   /** look at no more than this many episodes, spread evenly over the dataset (a sample) */
   max_episodes?: number | null;
+  /** episodes looked at in addition to the sample, picked by number */
+  include_episodes?: number[] | null;
+  /** a contact sheet of every episode, not only of the ones not accepted */
+  sheets_for_all?: boolean;
   run_hard?: boolean;
   run_soft?: boolean;
   contact_sheets?: boolean;
@@ -189,6 +193,8 @@ export interface DatasetReport {
   n_episodes: number;
   /** the episodes the dataset holds; more than n_episodes for a sample (absent from older services) */
   dataset_episodes?: number;
+  /** the meaning of every flag the run raised (absent from older services) */
+  flag_docs?: Record<string, string>;
   counts: Record<string, number>;
   include: number[];
   review: number[];
@@ -358,6 +364,18 @@ export const criticsClient = {
    */
   merge: (body: MergeRequest) =>
     request(`/merge`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+
+  /** The camera videos of one episode of a job's dataset, with the episode's window in a packed file. */
+  episodeVideos: (jobId: string, episode: number) =>
+    json<{ camera: string; available: boolean; from_s: number | null; to_s: number | null }[]>(
+      `/jobs/${encodeURIComponent(jobId)}/episodes/${episode}/videos`,
+    ),
+
+  /** One camera video of an episode, streamed; a `range` header is passed on so a player can seek. */
+  episodeVideo: (jobId: string, episode: number, camera: string, range?: string | null) =>
+    request(`/jobs/${encodeURIComponent(jobId)}/episodes/${episode}/video?camera=${encodeURIComponent(camera)}`, {
+      headers: range ? { range } : {},
+    }),
 
   /** Any artifact of a job (contact sheets, composites, csv), streamed through. */
   file: (jobId: string, path: string) => request(`/jobs/${encodeURIComponent(jobId)}/files/${path.split("/").map(encodeURIComponent).join("/")}`),

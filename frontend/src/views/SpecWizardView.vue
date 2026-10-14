@@ -16,30 +16,20 @@ import {
   type SpecDraftView,
 } from '@/types/gym'
 import { defaultIndicators, fromSpec, toSpec, type SpecForm as SpecFormModel } from '@/utils/spec'
-import {
-  criticEvidence,
-  cycleCounts,
-  durationRange,
-  indicatorEvidence,
-  sampleTasks,
-  softError,
-  softState,
-} from '@/utils/specSample'
+import { cycleCounts, sampleTasks, softError, softState } from '@/utils/specSample'
 import { fmtDateTime } from '@/utils/time'
 import SpecForm from '@/components/spec/SpecForm.vue'
 import StepSample from '@/components/specwizard/StepSample.vue'
 import StepAnalysis from '@/components/specwizard/StepAnalysis.vue'
 import StepRobot from '@/components/specwizard/StepRobot.vue'
 import StepSave from '@/components/specwizard/StepSave.vue'
-import ScoringPreview from '@/components/specwizard/ScoringPreview.vue'
-import FlagPanel from '@/components/specwizard/FlagPanel.vue'
+import Workbench from '@/components/specwizard/workbench/Workbench.vue'
 import SampleSheet from '@/components/specwizard/SampleSheet.vue'
 import IconCheck from '~icons/carbon/checkmark'
 import IconArrowLeft from '~icons/carbon/arrow-left'
 import IconArrowRight from '~icons/carbon/arrow-right'
 import IconTrash from '~icons/carbon/trash-can'
 import IconAdd from '~icons/carbon/add'
-import IconMagic from '~icons/carbon/magic-wand'
 
 /**
  * The spec wizard. A critics spec is not written from a blank page but worked
@@ -79,11 +69,15 @@ const fail = (e: unknown) => ui.showBanner('err', e instanceof Error ? e.message
 let analysisOf: string | null = null
 let testOf: string | null = null
 
+/** the analysis report changes with its job and with every run over picked episodes merged into it */
+const analysisKey = (d: SpecDraftView) =>
+  [d.analysisJobId, ...d.extraRuns.filter((r) => r.status === 'done').map((r) => r.jobId)].join(':')
+
 async function apply(next: SpecDraftView) {
   draft.value = next
-  if (next.analysisStatus === 'done' && next.analysisJobId && next.analysisJobId !== analysisOf) {
+  if (next.analysisStatus === 'done' && next.analysisJobId && analysisKey(next) !== analysisOf) {
     analysis.value = await gymApi.specDraftReport(tenantId.value, next.id, 'analysis')
-    analysisOf = next.analysisJobId
+    analysisOf = analysisKey(next)
   } else if (next.analysisStatus !== 'done') {
     analysis.value = null
     analysisOf = null
@@ -123,8 +117,14 @@ async function load() {
 }
 
 let timer: ReturnType<typeof setInterval> | undefined
+const OPEN_RUN = ['queued', 'running']
+/** a run of the critics is going: the analysis, the test, or one over episodes picked by number */
 const running = computed(
-  () => !!draft.value && ['queued', 'running'].some((s) => s === draft.value!.analysisStatus || s === draft.value!.testStatus),
+  () =>
+    !!draft.value &&
+    (OPEN_RUN.includes(draft.value.analysisStatus) ||
+      OPEN_RUN.includes(draft.value.testStatus) ||
+      draft.value.extraRuns.some((r) => OPEN_RUN.includes(r.status))),
 )
 function schedulePolling() {
   clearInterval(timer)
@@ -228,15 +228,32 @@ const canNext = computed(() => !!next.value && reachable.value.includes(next.val
 async function go(target: SpecDraftStep) {
   if (!reachable.value.includes(target) || target === step.value) return
   await saveNow({ step: target })
-  if (target === 'success') suggestIndicators()
+  if (target === 'workbench') suggestIndicators()
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-/** The success step starts with indicators worded from the objects of the task, never empty. */
+/** The workbench starts with success criteria worded from the objects of the task, never with none. */
 function suggestIndicators() {
   if (form.value && form.value.soft.enabled && !form.value.soft.indicators.length) {
     form.value.soft.indicators = defaultIndicators(form.value.task.objects)
   }
+}
+
+/** Analyse one more episode, one the person knows by number; it joins the workbench when it is in. */
+async function addEpisode(episode: number) {
+  if (!draft.value) return
+  try {
+    await apply(await gymApi.addSpecEpisode(tenantId.value, draft.value.id, episode))
+  } catch (e) {
+    fail(e)
+  }
+}
+
+/** The person's word on episodes of the sample, saved at once. */
+async function judge(judgments: Record<string, 'accept' | 'reject'>) {
+  if (!draft.value) return
+  draft.value = { ...draft.value, judgments }
+  await saveNow({ judgments })
 }
 
 async function rerun() {
@@ -298,33 +315,10 @@ async function finish(body: { name: string; assignToSkill: boolean }, overwrite 
 // ------------------------------------------------------------- the evidence
 const tasks = computed(() => (analysis.value ? sampleTasks(analysis.value) : []))
 const cycles = computed(() => (analysis.value ? cycleCounts(analysis.value) : { perEpisode: [], typical: null }))
-const evidence = computed(() => (analysis.value ? criticEvidence(analysis.value) : undefined))
-const softEvidence = computed(() =>
-  analysis.value && softState(analysis.value) === 'judged' ? indicatorEvidence(analysis.value) : undefined,
-)
-const durations = computed(() => (analysis.value ? durationRange(analysis.value) : null))
 const soft = computed(() => (analysis.value ? softState(analysis.value) : 'off'))
 const firstEpisode = computed(() => analysis.value?.episodes[0]?.episode ?? null)
 const sheetOf = (episode: number | null) =>
   episode == null || !draft.value ? null : gymApi.specDraftSheetUrl(tenantId.value, draft.value.id, episode)
-
-/**
- * Limits for the duration check from the sample: half the shortest, half again
- * the longest. Not offered when the check measures per repetition (per_cycle):
- * the sample's durations are whole episodes.
- */
-const durationSuggestion = computed(() => {
-  const d = durations.value
-  const check = form.value?.hardCritics.find((h) => h.id === 'duration')
-  if (!d || !check || check.params.per_cycle === true) return null
-  return { min_s: Math.max(0.5, Math.floor(d.min * 0.5 * 10) / 10), max_s: Math.ceil(d.max * 1.5) }
-})
-function applyDurationLimits() {
-  const c = form.value?.hardCritics.find((h) => h.id === 'duration')
-  if (!c || !durationSuggestion.value) return
-  c.params = { ...c.params, min_s: durationSuggestion.value.min_s, max_s: durationSuggestion.value.max_s }
-  c.enabled = true
-}
 
 const stepTitle = (s: SpecDraftStep) => t(`specWizard.steps.${s}`)
 
@@ -345,7 +339,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="gym-wrap">
+  <div class="gym-wrap" :class="draftId && step === 'workbench' ? 'max-w-[1800px]!' : ''">
     <PageTitle :title="t('specWizard.title')" :sub="draft?.skillName ?? draft?.name ?? undefined">
       <span v-if="draft && saving !== 'idle'" class="text-xs text-surface-500 dark:text-surface-400">{{
         saving === 'saving' ? t('app.saving') : t('app.saved')
@@ -442,6 +436,24 @@ onBeforeUnmount(() => {
 
       <StepAnalysis v-else-if="step === 'analysis'" :draft="draft" :report="analysis" :tenant-id="tenantId" @rerun="rerun" />
 
+      <!-- the workbench: the whole sample in one live view -->
+      <template v-else-if="step === 'workbench' && form && analysis">
+        <p class="mb-3 max-w-4xl text-sm text-surface-600 dark:text-surface-300">{{ t('specWizard.lead_workbench') }}</p>
+        <div v-if="soft !== 'judged'" class="gym-note border-s-warn mb-3 text-sm">
+          {{ soft === 'failed' ? t('specWizard.success.vlmFailed') : t('specWizard.success.vlmOff') }}
+          <span v-if="softError(analysis)" class="block font-mono text-xs opacity-80">{{ softError(analysis) }}</span>
+        </div>
+        <Workbench
+          v-model="form"
+          :draft="draft"
+          :report="analysis"
+          :critics="critics"
+          :tenant-id="tenantId"
+          @judge="judge"
+          @add="addEpisode"
+        />
+      </template>
+
       <div v-else-if="form" class="gym-stepbox">
         <h2 class="font-display text-xl font-semibold tracking-tight">{{ stepTitle(step) }}</h2>
         <p class="mt-1 mb-5 text-surface-600 dark:text-surface-300">{{ t(`specWizard.lead_${step}`) }}</p>
@@ -508,51 +520,6 @@ onBeforeUnmount(() => {
           :sheet-src="sheetOf(firstEpisode)"
           :episode="firstEpisode"
         />
-
-        <!-- checks: every technical check with what it found in the sample -->
-        <template v-else-if="step === 'checks'">
-          <div v-if="durationSuggestion" class="gym-note mb-4 flex flex-wrap items-center gap-3">
-            <span class="grow">{{
-              t('specWizard.checks.duration', {
-                min: durations!.min.toFixed(1),
-                median: durations!.median.toFixed(1),
-                max: durations!.max.toFixed(1),
-                lo: durationSuggestion.min_s,
-                hi: durationSuggestion.max_s,
-              })
-            }}</span>
-            <SecondaryButton size="small" :label="t('specWizard.checks.useDuration')" @click="applyDurationLimits">
-              <template #icon><IconMagic class="size-4" /></template>
-            </SecondaryButton>
-          </div>
-          <SpecForm
-            v-model="form"
-            :critics="critics"
-            :sections="['hard']"
-            :sample="evidence"
-            :sample-episodes="analysis?.n_episodes"
-          />
-        </template>
-
-        <!-- success: what the vision-language model judges -->
-        <template v-else-if="step === 'success'">
-          <div v-if="soft !== 'judged'" class="gym-note border-s-warn mb-4">
-            {{ soft === 'failed' ? t('specWizard.success.vlmFailed') : t('specWizard.success.vlmOff') }}
-            <span v-if="analysis && softError(analysis)" class="block font-mono text-xs opacity-80">{{
-              softError(analysis)
-            }}</span>
-          </div>
-          <SpecForm v-model="form" :critics="critics" :sections="['soft']" :soft-sample="softEvidence" />
-        </template>
-
-        <!-- scoring: thresholds with the sample moving along -->
-        <template v-else-if="step === 'scoring'">
-          <div class="grid gap-6 xl:grid-cols-[2fr_3fr]">
-            <SpecForm v-model="form" :critics="critics" :sections="['scoring']" />
-            <ScoringPreview v-if="analysis" v-model="form" :report="analysis" @goto="go" />
-          </div>
-          <FlagPanel v-if="analysis" v-model="form" :report="analysis" class="mt-8" />
-        </template>
 
         <StepSave
           v-else-if="step === 'save'"

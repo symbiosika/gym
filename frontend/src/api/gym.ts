@@ -35,6 +35,7 @@ import type {
   SkillListItem,
   SkillView,
   SampleReport,
+  SampleVideo,
   SpecDraftRun,
   SpecDraftStep,
   SpecDraftView,
@@ -395,8 +396,18 @@ export const gymApi = {
       sampleSize?: number
       step?: SpecDraftStep
       spec?: Record<string, unknown> | null
+      judgments?: Record<string, 'accept' | 'reject'>
     },
   ) => fetcher.put<SpecDraftView>(`${base(t)}/spec-drafts/${id}`, body),
+  /** Analyse one more episode of the sample, one the person knows by number. */
+  addSpecEpisode: (t: string, id: string, episode: number) =>
+    fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts/${id}/episodes`, { episode }),
+  specEpisodeVideos: (t: string, id: string, episode: number) =>
+    fetcher.get<SampleVideo[]>(`${base(t)}/spec-drafts/${id}/episodes/${episode}/videos`),
+  /** The address a <video> plays; a window inside a packed file is added as a media fragment. */
+  specEpisodeVideoUrl: (t: string, id: string, episode: number, video: SampleVideo) =>
+    `${base(t)}/spec-drafts/${id}/episodes/${episode}/video?camera=${encodeURIComponent(video.camera)}` +
+    (video.from_s != null ? `#t=${video.from_s},${video.to_s ?? ''}` : ''),
   deleteSpecDraft: (t: string, id: string) => fetcher.delete<void>(`${base(t)}/spec-drafts/${id}`),
   /** Upload the sample dataset of a draft in chunks; the analysis in auto mode starts when it is complete. */
   uploadSpecSample: (t: string, id: string, file: File, onProgress: (percent: number) => void, handle: UploadHandle = {}) =>

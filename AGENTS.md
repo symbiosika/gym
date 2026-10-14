@@ -70,7 +70,7 @@ repository. Only create a PR when asked.
     `npx volt-vue add <Name>`; never restyle PrimeVue from the outside
   - `src/components/` own components, also auto-imported (`Pill`, `KpiTile`,
     `FormField`, `PageTitle`, `SectionHeader`, `TabBar`, `Modal`, …);
-    `RolloutReview` the human review of a block's rollouts, `EvaluationReportBody` the report; `specwizard/` the steps of the spec wizard (`SpecWizardView`), whose sample evidence and verdict preview live in `utils/specSample.ts`
+    `RolloutReview` the human review of a block's rollouts, `EvaluationReportBody` the report; `specwizard/` the steps of the spec wizard (`SpecWizardView`), `specwizard/workbench/` its live view (episodes, video and results, settings), whose evidence, verdict preview and flag switches live in `utils/specSample.ts`
   - `src/views/` also `EvaluationReportView` (the report, editable) and `EvaluationReportSharedView` (public, printable)
   - icons are components: `import IconUpload from '~icons/carbon/upload'`
     (unplugin-icons). Never an icon font, never a PrimeVue icon class

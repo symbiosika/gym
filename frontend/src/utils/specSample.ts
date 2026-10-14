@@ -471,3 +471,116 @@ export function setFlagEffect(
   form.scoring.reviewFlags = form.scoring.reviewFlags || !same(review, run.reviewFlags) ? review : null
   form.scoring.rejectFlags = form.scoring.rejectFlags || !same(reject, run.rejectFlags) ? reject : null
 }
+
+// ---------------------------------------------------------------------------
+// the workbench: one episode in full, and the person's word against the spec
+// ---------------------------------------------------------------------------
+
+/** What is open on the right of the workbench: a result of the episode, or nothing (the whole spec). */
+export type Selection = { kind: 'check' | 'criterion' | 'model'; id: string } | null
+
+/** One result of the critics on one episode, read against the form as it stands. */
+export interface ResultRow {
+  /** `check` a technical check, `criterion` a success criterion, `model` the model's overall word */
+  kind: 'check' | 'criterion' | 'model'
+  /** the check id (`duplication`), the criterion id (`object_in_target`), or `summary` */
+  id: string
+  score: number | null
+  /** the weight the form gives it; 0 for the model's overall word, which counts by its flags only */
+  weight: number
+  /** switched on in the form (a criterion the form no longer has is off) */
+  enabled: boolean
+  /** the stop line of the form, when the result has one */
+  stopBelow: number | null
+  /** stopped with the form as it stands (by its score or, for a check, by a flag) */
+  stopped: boolean
+  flags: { flag: string; effect: FlagEffect }[]
+  /** what the model said, or the anomalies it saw */
+  evidence: string
+  metrics: Record<string, unknown>
+  error: string | null
+}
+
+/** Every result of one episode, the model's first, each with what the form makes of it. */
+export function resultRows(report: SampleReport, form: SpecForm, episode: number): ResultRow[] {
+  const e = report.episodes.find((x) => x.episode === episode)
+  if (!e) return []
+  const run = runFlags(report)
+  const flagsOf = (flags: string[], criticId: string | null) =>
+    flags.map((flag) => ({ flag, effect: flagEffect(flag, form, run, criticId) }))
+  const rows: ResultRow[] = []
+  for (const s of e.soft) {
+    if (s.id === 'vlm.summary') {
+      rows.push({
+        kind: 'model',
+        id: 'summary',
+        score: s.score,
+        weight: 0,
+        enabled: form.soft.enabled,
+        stopBelow: null,
+        stopped: false,
+        flags: flagsOf(s.flags, null),
+        evidence: anomalyText(s.metrics ?? {}),
+        metrics: s.metrics ?? {},
+        error: s.error,
+      })
+      continue
+    }
+    const id = s.id.replace(/^vlm\./, '')
+    const ind = form.soft.indicators.find((i) => i.id === id)
+    const stopBelow = ind?.gate ? ind.gateBelow : null
+    rows.push({
+      kind: 'criterion',
+      id,
+      score: s.score,
+      weight: ind?.weight ?? 0,
+      enabled: form.soft.enabled && !!ind,
+      stopBelow,
+      stopped: !!ind && form.soft.enabled && stopBelow != null && s.score != null && s.score < stopBelow,
+      flags: flagsOf(s.flags, null),
+      evidence: s.evidence[0] ?? '',
+      metrics: s.metrics ?? {},
+      error: s.error,
+    })
+  }
+  for (const h of e.hard) {
+    const c = form.hardCritics.find((x) => x.id === h.id)
+    const enabled = c ? c.enabled : true
+    const stopBelow = c ? (c.gate ? c.gateBelow : null) : h.gate ? h.gate_below : null
+    const flags = flagsOf(h.flags, h.id)
+    rows.push({
+      kind: 'check',
+      id: h.id,
+      score: h.score,
+      weight: c ? c.weight : h.weight,
+      enabled,
+      stopBelow,
+      stopped:
+        enabled && ((stopBelow != null && h.score != null && h.score < stopBelow) || flags.some((f) => f.effect === 'stop')),
+      flags,
+      evidence: h.evidence.join(' · '),
+      metrics: h.metrics ?? {},
+      error: h.error,
+    })
+  }
+  return rows
+}
+
+/** Does the spec decide differently from the person? Review counts as "not accepted". */
+export const disagrees = (verdict: Verdict, judgment: 'accept' | 'reject' | undefined): boolean =>
+  judgment === 'accept' ? verdict !== 'accept' : judgment === 'reject' ? verdict === 'accept' : false
+
+/** How the spec as it stands agrees with the person's word on the sample. */
+export function agreement(rows: PreviewRow[], judgments: Record<string, 'accept' | 'reject'>) {
+  const judged = rows.filter((r) => judgments[String(r.episode)])
+  const differ = judged.filter((r) => disagrees(r.verdict, judgments[String(r.episode)])).map((r) => r.episode)
+  return { judged: judged.length, agree: judged.length - differ.length, differ }
+}
+
+/** The scores of one result over the sample, for the dots on a slider. */
+export function scoresOf(report: SampleReport, kind: 'check' | 'criterion', id: string): { episode: number; score: number }[] {
+  return report.episodes.flatMap((e) => {
+    const r = kind === 'check' ? e.hard.find((h) => h.id === id) : e.soft.find((s) => s.id === `vlm.${id}`)
+    return typeof r?.score === 'number' ? [{ episode: e.episode, score: r.score }] : []
+  })
+}

@@ -1212,16 +1212,11 @@
       "analysis": "Auto analysis",
       "task": "Task",
       "robot": "Robot & cameras",
-      "checks": "Technical checks",
-      "success": "Success",
-      "scoring": "Scoring",
+      "workbench": "Workbench",
       "save": "Test & save"
     },
     "lead_task": "What should the robot do, with which objects? On the right is what the dataset recorded.",
     "lead_robot": "Which arm works, and which camera does the language model look at first?",
-    "lead_checks": "The checks of the signals and videos. Next to each check is what it found in the sample.",
-    "lead_success": "How the language model tells that an episode succeeded. Each criterion one sentence you can see in the video.",
-    "lead_scoring": "When an episode is accepted. On the right you see live how the sample comes out, and what holds back the episodes that do not get through.",
     "lead_save": "Check the spec on the same episodes and store it.",
     "purpose": {
       "recording": "Recording (training data)",
@@ -1302,12 +1297,6 @@
       "lookHint": "row 1 on top, the other cameras below"
     },
     "checks": {
-      "sample": "Sample ({n})",
-      "flagged": "{n} of {of} flagged",
-      "clean": "nothing found",
-      "stopped": "{n} stopped",
-      "notRun": "did not run",
-      "duration": "The episodes of the sample last {min} to {max} s (median {median} s). Proposal for the duration check: {lo} to {hi} s.",
       "useDuration": "Use the limits"
     },
     "success": {
@@ -1320,41 +1309,12 @@
     "scoring": {
       "live": "live",
       "liveHint": "Every change on the left and every button below acts on the episodes at once.",
-      "range": "{min} to {max}",
-      "whyTitle": "What holds the episodes back",
-      "why": {
-        "softGate": "A success criterion stops {n} of {of} episodes: the model gives {scores}, the stop applies below {limit}. A stop rejects however high the score is. The thresholds on the left do not change that.",
-        "hardGate": "The check “{check}” stops {n} of {of} episodes: score {scores}, the stop applies below {limit}. The thresholds on the left do not change that.",
-        "flagGate": "The flag {flag} of the check “{check}” stops {n} of {of} episodes. The thresholds on the left do not change that.",
-        "rejectFlag": "The flag {flag} rejects {n} of {of} episodes.",
-        "reviewFlag": "The flag {flag} keeps {n} of {of} episodes at review.",
-        "score": "{n} of {of} episodes score {scores}, below “accept from” {limit}.",
-        "error": "A critic failed on {n} of {of} episodes, so they stand at review."
-      },
-      "episodes": "episodes {list}",
-      "reworded": "The model judged the old wording: “{old}”. The scores belong to it, the test run shows the new one.",
       "modelSaw": "What the model saw",
       "noEvidence": "no reason given",
-      "modelRight": "If the model is right these episodes really failed and the stop does its job. Then do not loosen the spec, let the episodes count as they are.",
-      "fix": {
-        "lowerGate": "Stop only below {v}",
-        "liftGate": "Lift the stop",
-        "editCriterion": "Reword the criterion",
-        "editCheck": "Look at the check",
-        "ignoreFlag": "Ignore {flag}",
-        "lowerAccept": "“Accept from” to {v}"
-      },
-      "allThrough": "Every episode of the sample gets through.",
       "tag": {
-        "softGate": "stop: {name} ({score})",
-        "hardGate": "stop: {name} ({score})",
-        "flagGate": "stop: {flag}",
         "score": "score {total} below {limit}",
         "error": "critic failed"
-      },
-      "preview": "The sample with these values",
-      "changed": "{n} episodes change their verdict",
-      "previewHint": "A preview from the results of the auto analysis. Changed parameters and reworded success criteria show only in the test run on the last step. Green line: accept from, yellow line: review from."
+      }
     },
     "save": {
       "testTitle": "Test run",
@@ -1412,6 +1372,63 @@
         "info": "shown only",
         "ignore": "switched off"
       }
-    }
+    },
+    "bench": {
+      "open": "Open episode",
+      "openPlaceholder": "episode 0 to {max}",
+      "agree": "the spec decides {n} of {of} like you",
+      "judgeHint": "Say of episodes whether they are good or bad: then you see where the spec decides differently.",
+      "filter": {
+        "all": "All",
+        "differ": "Differ",
+        "out": "Not accepted",
+        "judged": "Judged by you"
+      },
+      "differs": "The spec decides differently from you",
+      "analysing": "being analysed",
+      "noneShown": "No episode in this selection.",
+      "addFailed": "Episode {list} could not be analysed.",
+      "noEpisode": "No episode in the sample.",
+      "noVideo": "No video, the contact sheet instead",
+      "wasVerdict": "in the run: {v}",
+      "yourWord": "Your word:",
+      "good": "Good",
+      "bad": "Bad",
+      "because": "Because:",
+      "stoppedBy": "stop by {name}",
+      "task": "Task: {task}",
+      "groupModel": "Language model",
+      "groupChecks": "Technical checks",
+      "modelOverall": "The model's overall word",
+      "stops": "stops this episode",
+      "taskDone": "task done",
+      "taskFailed": "task failed",
+      "moreDetail": "Measurements",
+      "lessDetail": "Hide measurements",
+      "evidence": "Finding",
+      "tab": {
+        "selected": "Selected",
+        "scoring": "Overall",
+        "criteria": "Criteria",
+        "flags": "Flags"
+      },
+      "checkOn": "Check on",
+      "stopBelow": "Stops below the line",
+      "stopLine": "Stop line",
+      "cut": "stops {n} of {of} episodes",
+      "itsFlags": "Flags of this check",
+      "itsTag": "Flag of this criterion",
+      "durations": "The sample lasts {min} to {max} s.",
+      "paramsNote": "Parameters change what the check measures. Only the test run shows that, the live view works with the measured values.",
+      "criterionText": "Success criterion (the words for the model)",
+      "stopVsTag": "The stop hangs on the model's score. The flag below is only a label, set for a score below 0.5.",
+      "removeCriterion": "Remove the criterion",
+      "criterionGone": "This criterion is no longer in the spec. It does not count any more.",
+      "modelHint": "Whether the model sees the task done as a whole, and what it noticed. Counts through its flags only.",
+      "totalsHint": "The dots are the total scores of the episodes. Left of the line: not accepted. A stop rejects wherever the dot lies.",
+      "previewNote": "Live from the results of the analysis. Reworded criteria and changed parameters show in the test run.",
+      "flagStops": "Besides, the flag {flag} stops {n} of {of} episodes wherever the line lies. Change that with the flag below."
+    },
+    "lead_workbench": "The whole sample in one view: the episodes on the left, the video and every result of the open episode in the middle, the settings on the right. Every change acts on every verdict at once."
   }
 }

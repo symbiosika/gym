@@ -17,6 +17,7 @@ declare global {
   const THEME_KEY: typeof import('./stores/ui').THEME_KEY
   const activeStep: typeof import('./utils/plan').activeStep
   const addDays: typeof import('./utils/time').addDays
+  const agreement: typeof import('./utils/specSample').agreement
   const blockerKey: typeof import('./utils/specSample').blockerKey
   const blockerSummary: typeof import('./utils/specSample').blockerSummary
   const computed: typeof import('vue').computed
@@ -29,6 +30,7 @@ declare global {
   const defaultIndicators: typeof import('./utils/spec').defaultIndicators
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
+  const disagrees: typeof import('./utils/specSample').disagrees
   const downloadBlob: typeof import('./utils/download').downloadBlob
   const duplicateStep: typeof import('./utils/plan').duplicateStep
   const durationRange: typeof import('./utils/specSample').durationRange
@@ -93,9 +95,11 @@ declare global {
   const rebalanceToTarget: typeof import('./utils/plan').rebalanceToTarget
   const ref: typeof import('vue').ref
   const resolveComponent: typeof import('vue').resolveComponent
+  const resultRows: typeof import('./utils/specSample').resultRows
   const runFlags: typeof import('./utils/specSample').runFlags
   const sampleFlags: typeof import('./utils/specSample').sampleFlags
   const sampleTasks: typeof import('./utils/specSample').sampleTasks
+  const scoresOf: typeof import('./utils/specSample').scoresOf
   const setFlagEffect: typeof import('./utils/specSample').setFlagEffect
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly
@@ -165,6 +169,6 @@ declare global {
   export type { ObjectRole, PerEpisode, SpecObject, SpecIndicator, SpecHardCritic, SpecForm, SpecFormSection, PresetId } from './utils/spec'
   import('./utils/spec')
   // @ts-ignore
-  export type { Verdict, CriticEvidence, Blocker, PreviewRow, BlockerGroup, IndicatorEvidence, FlagEffect, SampleFlag } from './utils/specSample'
+  export type { Verdict, CriticEvidence, Blocker, PreviewRow, BlockerGroup, IndicatorEvidence, FlagEffect, SampleFlag, Selection, ResultRow } from './utils/specSample'
   import('./utils/specSample')
 }

@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest'
 import type { SampleReport } from '@/types/gym'
 import { fromSpec } from './spec'
 import {
+  agreement,
   blockerSummary,
+  disagrees,
+  resultRows,
+  scoresOf,
   countVerdicts,
   indicatorEvidence,
   criticEvidence,
@@ -207,5 +211,32 @@ describe('the flags of the sample', () => {
     expect(form.hardCritics.find((c) => c.id === 'grasp_cycles')!.gateFlags).not.toContain('NOGRASP')
     expect(flagEffect('NOGRASP', form, run, 'grasp_cycles')).toBe('info')
     expect(previewVerdicts(r, form, run).find((x) => x.episode === 3)!.verdict).toBe('accept')
+  })
+})
+
+describe('the workbench', () => {
+  it('shows every result of an episode against the form as it stands', () => {
+    const r = report()
+    const form = fromSpec(r.spec)
+    const rows = resultRows(r, form, 3)
+    const grasp = rows.find((x) => x.kind === 'check' && x.id === 'grasp_cycles')!
+    expect(grasp).toMatchObject({ score: 0, stopped: true, enabled: true })
+    expect(grasp.flags).toEqual([{ flag: 'NOGRASP', effect: 'stop' }])
+    // switched off in the form, it neither stops nor counts
+    form.hardCritics.find((c) => c.id === 'grasp_cycles')!.enabled = false
+    expect(resultRows(r, form, 3).find((x) => x.id === 'grasp_cycles')).toMatchObject({ enabled: false, stopped: false })
+    expect(resultRows(r, form, 99)).toEqual([])
+  })
+
+  it('compares the spec with the person and gives the dots of a slider', () => {
+    const r = report()
+    const rows = previewVerdicts(r, fromSpec(r.spec), runFlags(r))
+    // the person says 2 is good and 0 is bad: the spec rejects 2 and accepts 0
+    expect(agreement(rows, { '0': 'reject', '1': 'accept', '2': 'accept' })).toEqual({ judged: 3, agree: 1, differ: [0, 2] })
+    expect(disagrees('review', 'accept')).toBe(true)
+    expect(disagrees('review', 'reject')).toBe(false)
+    expect(disagrees('accept', undefined)).toBe(false)
+    expect(scoresOf(r, 'check', 'duplication').map((d) => d.episode)).toEqual([0, 1, 2, 3])
+    expect(scoresOf(r, 'criterion', 'object_in_target')).toEqual([])
   })
 })
