@@ -419,7 +419,7 @@ async function syncAnalysis(row: SpecDraftSelect): Promise<{ row: SpecDraftSelec
     const updated = next === status ? row : await touch(row.id, { analysisStatus: next });
     return { row: updated, progress: job.progress ?? {} };
   }
-  const report = await criticsClient.report(jobId);
+  const report = withQuestions(await criticsClient.report(jobId));
   return {
     row: await touch(row.id, {
       analysisStatus: "done",
@@ -459,7 +459,7 @@ async function syncTestRuns(row: SpecDraftSelect): Promise<{ row: SpecDraftSelec
           sum.total += p.total;
         }
       } else {
-        const done = await criticsClient.report(run.jobId);
+        const done = withQuestions(await criticsClient.report(run.jobId));
         report = report ? mergeReports(report, done, true) : done;
         for (const e of done.episodes) if (run.specHash) specs[String(e.episode)] = run.specHash;
         runs.push({ ...run, status: "done" });
@@ -501,6 +501,25 @@ export async function addEpisode(tenantId: string, id: string, input: unknown): 
     extraRuns: [...row.extraRuns.filter((r) => !r.episodes.some((e) => fresh.includes(e))), run],
   });
   return getSpecDraft(tenantId, id);
+}
+
+/**
+ * Each success criterion's result in a report with the words the model was
+ * asked, from the spec of that run. Once runs with different wordings are
+ * merged into one report, its spec names only the latest; the wizard tells by
+ * these words whether a result answers the criterion as it is worded now.
+ */
+export function withQuestions(report: DatasetReport): DatasetReport {
+  const indicators = (report.spec?.soft_critics as { indicators?: { id?: unknown; description?: unknown }[] } | undefined)?.indicators;
+  if (!Array.isArray(indicators)) return report;
+  const words = new Map(indicators.map((i) => [`vlm.${String(i.id ?? "")}`, String(i.description ?? "")]));
+  return {
+    ...report,
+    episodes: report.episodes.map((e) => ({
+      ...e,
+      soft: e.soft.map((r) => (r.question == null && words.has(r.id) ? { ...r, question: words.get(r.id)! } : r)),
+    })),
+  };
 }
 
 /**
@@ -549,7 +568,7 @@ async function syncExtraRuns(row: SpecDraftSelect): Promise<SpecDraftSelect> {
       if (job.status === "failed") runs.push({ ...run, status: "failed", error: job.error ?? "The critics run failed" });
       else if (job.status !== "done") runs.push({ ...run, status: job.status === "queued" ? "queued" : "running" });
       else {
-        if (report) report = mergeReports(report, await criticsClient.report(run.jobId));
+        if (report) report = mergeReports(report, withQuestions(await criticsClient.report(run.jobId)));
         runs.push({ ...run, status: "done" });
       }
     } catch (error) {

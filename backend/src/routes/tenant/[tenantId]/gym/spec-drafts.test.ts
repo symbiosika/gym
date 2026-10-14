@@ -17,7 +17,7 @@ import { _GLOBAL_SERVER_CONFIG } from "@framework/store";
 import { files } from "@framework/lib/db/schema/files";
 import { auditLog, skills, specDrafts } from "../../../../db/schema";
 import { UPLOAD_CHUNK_BUCKET } from "../../../../lib/gym/buckets";
-import { cleanupStaleSpecDrafts, seedSpec, specFingerprint } from "../../../../lib/gym/spec-drafts";
+import { cleanupStaleSpecDrafts, mergeReports, seedSpec, specFingerprint, withQuestions } from "../../../../lib/gym/spec-drafts";
 import { fixtureReport, startFakeCritics, type FakeCritics } from "../../../../lib/critics/fake-server.test-util";
 import defineGymRoutes from "./index";
 
@@ -97,6 +97,23 @@ describe("Spec wizard", () => {
     expect(Array.isArray(seeded.hard_critics)).toBe(true);
     // the indicators are worded afresh from the objects the person names
     expect(seeded.soft_critics).toBeUndefined();
+  });
+
+  test("each answer of the model keeps the words it was asked, also once runs are merged", () => {
+    const run = (episode: number, words: string) => {
+      const r = structuredClone(fixtureReport());
+      r.spec = { ...r.spec, soft_critics: { indicators: [{ id: "grasped", description: words }] } };
+      const base = r.episodes[0]!;
+      const answer = { ...base.soft[0]!, id: "vlm.grasped", score: 1, error: null };
+      r.episodes = [{ ...base, episode, soft: [answer, { ...answer, id: "vlm.summary" }] }];
+      return withQuestions(r);
+    };
+    const first = run(0, "Was the cup grasped?");
+    expect(first.episodes[0]!.soft[0]!.question).toBe("Was the cup grasped?");
+    // the overall word has no criterion behind it
+    expect(first.episodes[0]!.soft[1]!.question).toBeUndefined();
+    const merged = mergeReports(first, run(1, "Was the cup lifted?"), true);
+    expect(merged.episodes.map((e) => e.soft[0]!.question)).toEqual(["Was the cup grasped?", "Was the cup lifted?"]);
   });
 
   test("from a sample to a stored spec on the skill", async () => {

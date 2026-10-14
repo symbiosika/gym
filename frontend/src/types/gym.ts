@@ -894,6 +894,8 @@ export interface SampleCriticResult {
   metrics: Record<string, unknown>
   evidence: string[]
   error: string | null
+  /** for a success criterion: the words the model was asked (set by GYM from the spec of its run) */
+  question?: string
 }
 
 export interface SampleEpisode {

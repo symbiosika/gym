@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CriticsHardCriticInfo, SampleReport, SpecDraftView } from '@/types/gym'
 import type { SpecForm } from '@/utils/spec'
-import { agreement, countVerdicts, previewVerdicts, runFlags, type Selection } from '@/utils/specSample'
+import { agreement, countVerdicts, previewVerdicts, questionRows, runFlags, type Selection } from '@/utils/specSample'
 import EpisodeList from '@/components/specwizard/workbench/EpisodeList.vue'
 import EpisodeView from '@/components/specwizard/workbench/EpisodeView.vue'
 import SettingsPanel from '@/components/specwizard/workbench/SettingsPanel.vue'
+import QuestionsPanel from '@/components/specwizard/workbench/QuestionsPanel.vue'
 import IconLive from '~icons/carbon/dot-mark'
 
 /**
@@ -16,8 +17,8 @@ import IconLive from '~icons/carbon/dot-mark'
  *           person's word on them, and a field to open any episode by number
  *   middle  the open episode: its videos, its verdict and why, every result
  *           of the critics for it
- *   right   the settings: the result clicked in the middle, the thresholds,
- *           the success criteria, all flags
+ *   right   the questions to the model, written and tested here; under
+ *           "Details" the rest: the result clicked, thresholds, all flags
  *
  * Every change on the right moves the verdicts on the left and in the middle
  * at once (`previewVerdicts`, from the results of the run). What a changed
@@ -72,6 +73,13 @@ const stats = computed(() => agreement(rows.value, props.draft.judgments))
 const episode = ref<number | null>(props.report.episodes[0]?.episode ?? null)
 const selection = ref<Selection>(null)
 const row = computed(() => rows.value.find((r) => r.episode === episode.value) ?? null)
+const questions = computed(() => (episode.value == null ? [] : questionRows(effective.value, form.value, episode.value)))
+
+/** the right side: the questions, or the details; a check or the model's overall word clicked opens the details */
+const side = ref<'questions' | 'details'>('questions')
+watch(selection, (s) => {
+  if (s) side.value = s.kind === 'criterion' ? 'questions' : 'details'
+})
 
 // an episode picked by number opens as soon as its analysis is in
 const waitingFor = ref<number | null>(null)
@@ -114,8 +122,7 @@ function judge(value: 'accept' | 'reject' | null) {
       <span v-if="stats.judged" class="text-sm" :class="stats.differ.length ? 'text-warn' : 'text-ok'">
         {{ t('specWizard.bench.agree', { n: stats.agree, of: stats.judged }) }}
       </span>
-      <span class="grow" />
-      <span class="text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.bench.previewNote') }}</span>
+      <InfoButton k="wbLive" />
     </div>
 
     <div class="grid items-start gap-4 xl:grid-cols-[14rem_minmax(0,1fr)_22rem]">
@@ -154,7 +161,32 @@ function judge(value: 'accept' | 'reject' | null) {
       </main>
 
       <aside class="gym-panel p-3 xl:sticky xl:top-4 xl:flex xl:max-h-[calc(100vh-6rem)] xl:flex-col">
+        <div class="mb-3 grid grid-cols-2 gap-1 rounded-lg bg-surface-100 p-1 text-sm dark:bg-surface-800" role="tablist">
+          <button
+            v-for="s in ['questions', 'details'] as const"
+            :key="s"
+            type="button"
+            role="tab"
+            :aria-selected="side === s"
+            class="cursor-pointer rounded-md px-2 py-1 font-medium"
+            :class="side === s ? 'bg-surface-0 shadow-sm dark:bg-surface-950' : 'text-surface-500 dark:text-surface-400'"
+            @click="side = s"
+          >
+            {{ t(`specWizard.q.side.${s}`) }}
+          </button>
+        </div>
+        <QuestionsPanel
+          v-if="side === 'questions'"
+          v-model="form"
+          :episode="episode"
+          :rows="questions"
+          :active="selection?.kind === 'criterion' ? selection.id : null"
+          :testing="episode != null && testing.includes(episode)"
+          @select="selection = { kind: 'criterion', id: $event }"
+          @test="episode != null && emit('test', String(episode))"
+        />
         <SettingsPanel
+          v-else
           v-model="form"
           :report="effective"
           :critics="critics"

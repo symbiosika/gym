@@ -634,7 +634,28 @@
     "reject": "reject",
     "unknown": "open"
   },
-  "info": {},
+  "info": {
+    "wbQuestions": [
+      "Questions to the model",
+      "Each question is one sentence the language model answers for every episode. “Must hold”: if the answer is no, the episode is rejected. “Only counts”: the answer goes into the total score. A changed question counts only once it is tested.",
+      "Did the gripper grasp the yellow cup and lift it?"
+    ],
+    "wbTest": [
+      "Test one episode",
+      "The critics run again on this one episode with the spec as it is now, the language model included. It usually takes less than a minute. Outlier flags are missing then, they compare an episode with the others of its run.",
+      "Question reworded, “Test E0”, shortly after it shows ✓ or ✗."
+    ],
+    "wbLive": [
+      "Live",
+      "The verdicts are worked out again with every setting, from the answers already there. Reworded questions count only after a test.",
+      "Switch “Must hold” off: the list on the left changes at once."
+    ],
+    "wbJudge": [
+      "Your word",
+      "Say of a few episodes whether they are good or bad. Then you see where the spec decides differently from you.",
+      "E3 is good, E7 is bad: the spec should accept E3 and not E7."
+    ]
+  },
   "profile": {
     "title": "Profile",
     "menu": "Profile",
@@ -1430,9 +1451,10 @@
       "modelHint": "Whether the model sees the task done as a whole, and what it noticed. Counts through its flags only.",
       "totalsHint": "The dots are the total scores of the episodes. Left of the line: not accepted. A stop rejects wherever the dot lies.",
       "previewNote": "Live from the results of the analysis. Reworded criteria and changed parameters show in the test run.",
-      "flagStops": "Besides, the flag {flag} stops {n} of {of} episodes wherever the line lies. Change that with the flag below."
+      "flagStops": "Besides, the flag {flag} stops {n} of {of} episodes wherever the line lies. Change that with the flag below.",
+      "judgeShort": "Say good or bad on episodes."
     },
-    "lead_workbench": "The whole sample in one view: the episodes on the left, the video and every result of the open episode in the middle, the settings on the right. Every change acts on every verdict at once.",
+    "lead_workbench": "Episodes on the left, the open episode in the middle, your questions to the model on the right.",
     "explain": {
       "stops": "Stops:",
       "noStop": "no check and no criterion stops this episode.",
@@ -1521,7 +1543,8 @@
         "weight0": "weight 0",
         "noScore": "no score",
         "flagsOnly": "counts through its flags only",
-        "notInSpec": "no longer in the spec"
+        "notInSpec": "no longer in the spec",
+        "untested": "not tested yet"
       },
       "total": "Total score",
       "noTotal": "No total score: neither side has a score.",
@@ -1541,6 +1564,42 @@
       "none": "none",
       "firstWins": "The rules apply from top to bottom, the first that holds decides. The cap acts on an accept only.",
       "error": "The run of this episode had an error, so it is on “review” whatever the rules say."
+    },
+    "q": {
+      "title": "Questions to the model",
+      "enable": "Switch the language model on",
+      "placeholder": "One question, e.g.: Did the gripper grasp the yellow cup and lift it?",
+      "text": "Question to the model",
+      "remove": "Remove the question",
+      "mustHold": "Must hold",
+      "counts": "Only counts",
+      "add": "Add a question",
+      "testOn": "Test the questions on E{n}",
+      "untestedCount": "{n} not tested yet",
+      "allTested": "All questions are tested in these words.",
+      "overall": "Task done as a whole (overall impression)",
+      "must": "must",
+      "untested": "Reworded, not tested yet. Counts only after the test.",
+      "scoreTitle": "The model's score: {s}",
+      "details": "Details",
+      "detailsHint": "calculation, technical checks, measurements",
+      "total": "Total score {v}",
+      "side": {
+        "questions": "Questions",
+        "details": "Details"
+      }
+    },
+    "why": {
+      "mustNo": "Rejected because “{q}” does not hold.",
+      "checkFlag": "Rejected: the check “{c}” reports {flag}.",
+      "check": "Rejected: the check “{c}” failed.",
+      "rejectFlag": "Rejected because of {flag}.",
+      "cap": "Review: good in itself, but {flag} asks for a look.",
+      "accept": "Accepted: total score {total} reaches {accept}.",
+      "review": "Review: total score {total} is just below {accept}.",
+      "low": "Rejected: total score {total} is below {review}.",
+      "noScore": "Review: there is no score yet.",
+      "error": "Review: the run of this episode had an error."
     }
   }
 }
