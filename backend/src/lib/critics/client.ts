@@ -124,6 +124,8 @@ export interface CriticResult {
   metrics: Record<string, unknown>;
   evidence: string[];
   error: string | null;
+  /** for a success criterion (`vlm.<id>`): the words the model was asked, set by GYM from the spec of its run */
+  question?: string;
 }
 
 /** lerobot_critics.scoring.EpisodeScore */

@@ -634,7 +634,28 @@
     "reject": "abgelehnt",
     "unknown": "offen"
   },
-  "info": {},
+  "info": {
+    "wbQuestions": [
+      "Fragen an das Modell",
+      "Jede Frage ist ein Satz, den das Sprachmodell zu jeder Episode beantwortet. „Muss erfüllt sein“: ist die Antwort nein, wird die Episode abgelehnt. „Zählt nur mit“: die Antwort fließt in den Gesamtscore ein. Eine geänderte Frage zählt erst, wenn sie getestet ist.",
+      "Hat der Greifer den gelben Becher gegriffen und angehoben?"
+    ],
+    "wbTest": [
+      "Eine Episode testen",
+      "Die Critics laufen auf dieser einen Episode neu, mit dem Spec, wie er jetzt ist, das Sprachmodell eingeschlossen. Das dauert meist unter einer Minute. Ausreißer-Markierungen fehlen dabei, sie vergleichen eine Episode mit den anderen ihres Laufs.",
+      "Frage umformuliert, „E0 testen“, nach kurzer Zeit steht dort ✓ oder ✗."
+    ],
+    "wbLive": [
+      "Live",
+      "Die Urteile rechnen sofort mit jeder Einstellung neu, aus den Antworten, die schon da sind. Neu formulierte Fragen zählen erst nach einem Test.",
+      "„Muss erfüllt sein“ ausschalten: die Liste links ändert sich sofort."
+    ],
+    "wbJudge": [
+      "Deine Einschätzung",
+      "Sag bei ein paar Episoden, ob sie gut oder schlecht sind. Dann siehst du, wo der Spec anders entscheidet als du.",
+      "E3 ist gut, E7 ist schlecht: der Spec sollte E3 akzeptieren und E7 nicht."
+    ]
+  },
   "profile": {
     "title": "Profil",
     "menu": "Profil",
@@ -1430,9 +1451,10 @@
       "modelHint": "Ob das Modell die Aufgabe insgesamt gelungen sieht, und was es Auffälliges bemerkt hat. Zählt nur über die Markierungen.",
       "totalsHint": "Die Punkte sind die Gesamtscores der Episoden. Links der Linie: nicht akzeptiert. Ein Stopp lehnt ab, egal wo der Punkt liegt.",
       "previewNote": "Live aus den Ergebnissen der Analyse. Umformulierte Kriterien und geänderte Parameter zeigt der Testlauf.",
-      "flagStops": "Außerdem stoppt die Markierung {flag} {n} von {of} Episoden, egal wo die Linie liegt. Das änderst du unten bei der Markierung."
+      "flagStops": "Außerdem stoppt die Markierung {flag} {n} von {of} Episoden, egal wo die Linie liegt. Das änderst du unten bei der Markierung.",
+      "judgeShort": "Sag bei Episoden gut oder schlecht."
     },
-    "lead_workbench": "Die ganze Stichprobe in einer Ansicht: links die Episoden, in der Mitte Video und alle Ergebnisse der geöffneten Episode, rechts die Einstellungen. Jede Änderung wirkt sofort auf alle Urteile.",
+    "lead_workbench": "Links die Episoden, in der Mitte die offene Episode, rechts deine Fragen an das Modell.",
     "explain": {
       "stops": "Stopps:",
       "noStop": "keine Prüfung und kein Kriterium stoppt diese Episode.",
@@ -1521,7 +1543,8 @@
         "weight0": "Gewicht 0",
         "noScore": "kein Score",
         "flagsOnly": "zählt nur über seine Markierungen",
-        "notInSpec": "nicht mehr im Spec"
+        "notInSpec": "nicht mehr im Spec",
+        "untested": "noch nicht getestet"
       },
       "total": "Gesamtscore",
       "noTotal": "Kein Gesamtscore: keine Seite hat einen Score.",
@@ -1541,6 +1564,42 @@
       "none": "keine",
       "firstWins": "Die Regeln gelten von oben nach unten, die erste zutreffende entscheidet. Die Deckelung wirkt nur auf ein Akzeptiert.",
       "error": "Der Lauf dieser Episode hatte einen Fehler, deshalb steht sie auf „prüfen“, egal wie die Regeln ausgehen."
+    },
+    "q": {
+      "title": "Fragen an das Modell",
+      "enable": "Sprachmodell einschalten",
+      "placeholder": "Eine Frage, z. B.: Hat der Greifer den gelben Becher gegriffen und angehoben?",
+      "text": "Frage an das Modell",
+      "remove": "Frage entfernen",
+      "mustHold": "Muss erfüllt sein",
+      "counts": "Zählt nur mit",
+      "add": "Frage hinzufügen",
+      "testOn": "Fragen an E{n} testen",
+      "untestedCount": "{n} noch nicht getestet",
+      "allTested": "Alle Fragen sind mit diesem Wortlaut getestet.",
+      "overall": "Aufgabe insgesamt gelungen (Gesamteindruck)",
+      "must": "muss",
+      "untested": "Neu formuliert, noch nicht getestet. Zählt erst nach dem Test.",
+      "scoreTitle": "Score des Modells: {s}",
+      "details": "Details",
+      "detailsHint": "Rechenweg, technische Prüfungen, Messwerte",
+      "total": "Gesamtscore {v}",
+      "side": {
+        "questions": "Fragen",
+        "details": "Details"
+      }
+    },
+    "why": {
+      "mustNo": "Abgelehnt, weil „{q}“ nicht erfüllt ist.",
+      "checkFlag": "Abgelehnt: die Prüfung „{c}“ meldet {flag}.",
+      "check": "Abgelehnt: die Prüfung „{c}“ ist nicht bestanden.",
+      "rejectFlag": "Abgelehnt wegen {flag}.",
+      "cap": "Prüfen: eigentlich gut, aber {flag} verlangt einen Blick.",
+      "accept": "Akzeptiert: Gesamtscore {total} erreicht {accept}.",
+      "review": "Prüfen: Gesamtscore {total} liegt knapp unter {accept}.",
+      "low": "Abgelehnt: Gesamtscore {total} liegt unter {review}.",
+      "noScore": "Prüfen: es gibt noch keinen Score.",
+      "error": "Prüfen: der Lauf dieser Episode hatte einen Fehler."
     }
   }
 }

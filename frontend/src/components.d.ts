@@ -52,6 +52,8 @@ declare module 'vue' {
     PlanEditor: typeof import('./components/PlanEditor.vue')['default']
     ProfileModal: typeof import('./components/ProfileModal.vue')['default']
     QrCode: typeof import('./components/QrCode.vue')['default']
+    QuestionList: typeof import('./components/specwizard/workbench/QuestionList.vue')['default']
+    QuestionsPanel: typeof import('./components/specwizard/workbench/QuestionsPanel.vue')['default']
     RolloutReview: typeof import('./components/RolloutReview.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

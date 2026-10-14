@@ -23,6 +23,7 @@ import {
   setFlagEffect,
   metricRange,
   previewVerdicts,
+  questionRows,
   runFlags,
   sampleTasks,
   softState,
@@ -340,5 +341,65 @@ describe('how a verdict comes about, and the way to accept', () => {
     expect(fix).toEqual({ type: 'flag', flag: 'VLM_TASK_FAILED', checkId: null })
     applyFix(form, fix!, run)
     expect(previewVerdicts(r, form, run).find((x) => x.episode === 0)!.verdict).toBe('accept')
+  })
+
+  describe('questions reworded since the model answered', () => {
+    /** the fixture with one question the model answered: yes on episode 0, no on the others */
+    const withAnswers = (): SampleReport => {
+      const r = report()
+      r.spec = {
+        ...r.spec,
+        soft_critics: {
+          enabled: true,
+          indicators: [{ id: 'grasped', description: 'Was the cup grasped?', gate: true, gate_below: 0.5, weight: 1 }],
+        },
+      }
+      for (const e of r.episodes) {
+        const base = e.hard[0]!
+        e.soft = [
+          {
+            ...base,
+            id: 'vlm.grasped',
+            kind: 'soft',
+            score: e.episode === 0 ? 1 : 0,
+            flags: [],
+            evidence: ['seen'],
+            error: null,
+            question: 'Was the cup grasped?',
+          },
+        ]
+      }
+      return r
+    }
+
+    it('lets an answer stop and count only for the words it answered', () => {
+      const r = withAnswers()
+      const form = fromSpec(r.spec)
+      const stopped = previewVerdicts(r, form, runFlags(r)).filter((x) => x.gates.includes('vlm.grasped'))
+      expect(stopped.map((x) => x.episode)).toEqual(r.episodes.filter((e) => e.episode !== 0).map((e) => e.episode))
+
+      // reworded: not tested yet, it stops nothing and is not in the sum
+      form.soft.indicators[0]!.description = 'Was the cup lifted?'
+      const rows = previewVerdicts(r, form, runFlags(r))
+      expect(rows.some((x) => x.gates.includes('vlm.grasped'))).toBe(false)
+      expect(rows[0]!.skipped).toContainEqual({ source: 'soft', id: 'grasped', reason: 'untested' })
+      expect(rows[0]!.softParts).toEqual([])
+      // case, spacing and a full stop are the same words
+      form.soft.indicators[0]!.description = '  was the cup  grasped '
+      expect(previewVerdicts(r, form, runFlags(r))[1]!.gates).toContain('vlm.grasped')
+    })
+
+    it('lists the questions of an episode with yes, no or not tested yet', () => {
+      const r = withAnswers()
+      const form = fromSpec(r.spec)
+      const first = r.episodes[0]!.episode
+      const second = r.episodes[1]!.episode
+      expect(questionRows(r, form, first)).toMatchObject([
+        { id: 'grasped', answer: 'yes', must: true, stops: false, evidence: 'seen' },
+      ])
+      expect(questionRows(r, form, second)).toMatchObject([{ id: 'grasped', answer: 'no', stops: true }])
+      form.soft.indicators.push({ ...form.soft.indicators[0]!, id: 'lifted', description: 'Was it lifted?' })
+      expect(questionRows(r, form, second).map((q) => q.answer)).toEqual(['no', 'untested'])
+    })
   })
 })

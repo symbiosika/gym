@@ -87,7 +87,9 @@ function open() {
           t('specWizard.bench.agree', { n: stats.agree, of: stats.judged })
         }}</span>
       </template>
-      <span v-else class="text-surface-500 dark:text-surface-400">{{ t('specWizard.bench.judgeHint') }}</span>
+      <span v-else class="flex items-center gap-1.5 text-surface-500 dark:text-surface-400"
+        >{{ t('specWizard.bench.judgeShort') }} <InfoButton k="wbJudge"
+      /></span>
     </div>
 
     <div class="flex flex-wrap gap-1">

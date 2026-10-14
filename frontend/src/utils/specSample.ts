@@ -188,7 +188,7 @@ export type Decision = 'stop' | 'rejectFlag' | 'noScore' | 'accept' | 'review' |
 export interface SkippedPart {
   source: 'hard' | 'soft'
   id: string
-  reason: 'off' | 'weight0' | 'noScore' | 'flagsOnly' | 'notInSpec'
+  reason: 'off' | 'weight0' | 'noScore' | 'flagsOnly' | 'notInSpec' | 'untested'
 }
 
 /** One result in the total score: its score, its weight, and what it costs the total (from 1). */
@@ -267,6 +267,8 @@ export function previewVerdicts(
           skipped.push({ source: 'soft', id: s.id.slice(4), reason: 'notInSpec' })
           continue
         }
+        // reworded since the model answered: its old answer neither stops nor counts
+        if (!answered(report, e, ind)) continue
         softRows.push({ id: ind.id, score: s.score, weight: ind.weight })
         s.flags.filter((f) => !muted.has(f)).forEach((f) => flags.add(f))
         if (ind.gate && s.score != null && s.score < ind.gateBelow) {
@@ -279,6 +281,12 @@ export function previewVerdicts(
             evidence: s.evidence[0] || undefined,
           })
         }
+      }
+    }
+    // criteria the model has not answered in their present words yet
+    if (form.soft.enabled) {
+      for (const ind of form.soft.indicators) {
+        if (ind.description.trim() && !answered(report, e, ind)) skipped.push({ source: 'soft', id: ind.id, reason: 'untested' })
       }
     }
     for (const [source, rows] of [
@@ -401,6 +409,35 @@ export function blockerSummary(rows: PreviewRow[]): BlockerGroup[] {
   }
   const rank = (b: Blocker) => (b.kind === 'gate' || b.kind === 'rejectFlag' ? 0 : b.kind === 'score' ? 2 : 1)
   return [...groups.values()].sort((a, b) => rank(a.blocker) - rank(b.blocker) || b.episodes.length - a.episodes.length)
+}
+
+/** Words compared as the model reads them: case, spacing and a final full stop do not matter. */
+const sameWords = (a: string, b: string) => {
+  const norm = (x: string) =>
+    x
+      .trim()
+      .replace(/\s+/g, ' ')
+      .replace(/[.!?]$/, '')
+      .toLowerCase()
+  return norm(a) === norm(b)
+}
+
+/** The words the model was asked for a result: stamped on it, else those of the report's spec. */
+export function askedWords(report: SampleReport, result: SampleCriticResult): string {
+  if (result.question != null) return result.question
+  const ran = (report.spec?.soft_critics as { indicators?: { id?: string; description?: string }[] } | undefined)?.indicators
+  return String(ran?.find((i) => `vlm.${i.id}` === result.id)?.description ?? '')
+}
+
+/**
+ * A success criterion is tested on an episode only when the model answered
+ * it in the words the form has now. A criterion reworded or added since is
+ * "not tested yet" there: it neither stops the episode nor counts, until a
+ * test asks the model the new words.
+ */
+export function answered(report: SampleReport, episode: SampleEpisode, indicator: { id: string; description: string }) {
+  const result = episode.soft.find((r) => r.id === `vlm.${indicator.id}`)
+  return result && sameWords(askedWords(report, result), indicator.description) ? result : null
 }
 
 /** What the vision-language model said for one success criterion over the sample. */
@@ -618,7 +655,8 @@ export function resultRows(report: SampleReport, form: SpecForm, episode: number
     }
     const id = s.id.replace(/^vlm\./, '')
     const ind = form.soft.indicators.find((i) => i.id === id)
-    const stopBelow = ind?.gate ? ind.gateBelow : null
+    // reworded since: the answer belongs to the old words and stops nothing
+    const stopBelow = ind?.gate && answered(report, e, ind) ? ind.gateBelow : null
     rows.push({
       kind: 'criterion',
       id,
@@ -651,6 +689,60 @@ export function resultRows(report: SampleReport, form: SpecForm, episode: number
       evidence: h.evidence.join(' · '),
       metrics: h.metrics ?? {},
       error: h.error,
+    })
+  }
+  return rows
+}
+
+/**
+ * The questions to the model on one episode, in the order of the form, each
+ * with its answer: `yes` (score 0.5 or more), `no`, `untested` (reworded or
+ * added since the model answered), `error`. The model's overall word on the
+ * task comes first when it answered.
+ */
+export interface QuestionRow {
+  kind: 'model' | 'criterion'
+  id: string
+  text: string
+  /** it has to hold: below its stop line it rejects the episode */
+  must: boolean
+  answer: 'yes' | 'no' | 'untested' | 'error'
+  score: number | null
+  /** it stops the episode as it stands */
+  stops: boolean
+  evidence: string
+}
+
+export function questionRows(report: SampleReport, form: SpecForm, episode: number): QuestionRow[] {
+  const e = report.episodes.find((x) => x.episode === episode)
+  if (!e || !form.soft.enabled) return []
+  const rows: QuestionRow[] = []
+  const summary = e.soft.find((s) => s.id === 'vlm.summary')
+  if (summary && (summary.score != null || summary.error)) {
+    rows.push({
+      kind: 'model',
+      id: 'summary',
+      text: '',
+      must: false,
+      answer: summary.error ? 'error' : summary.score === 0 ? 'no' : 'yes',
+      score: summary.score,
+      stops: false,
+      evidence: anomalyText(summary.metrics ?? {}),
+    })
+  }
+  for (const ind of form.soft.indicators) {
+    if (!ind.description.trim()) continue
+    const r = answered(report, e, ind)
+    const answer = !r ? 'untested' : r.error ? 'error' : r.score == null ? 'error' : r.score >= 0.5 ? 'yes' : 'no'
+    rows.push({
+      kind: 'criterion',
+      id: ind.id,
+      text: ind.description.trim(),
+      must: ind.gate,
+      answer,
+      score: r?.score ?? null,
+      stops: !!r && ind.gate && r.score != null && r.score < ind.gateBelow,
+      evidence: r ? (r.error ? r.error.split('\n')[0]! : (r.evidence[0] ?? '')) : '',
     })
   }
   return rows
