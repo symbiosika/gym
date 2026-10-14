@@ -826,8 +826,8 @@ export interface PublicEvaluationReport {
 // The spec wizard (backend/src/lib/gym/spec-drafts.ts)
 // ---------------------------------------------------------------------------
 
-export type SpecDraftStep = 'sample' | 'analysis' | 'task' | 'robot' | 'checks' | 'success' | 'scoring' | 'save'
-export const SPEC_DRAFT_STEPS: SpecDraftStep[] = ['sample', 'analysis', 'task', 'robot', 'checks', 'success', 'scoring', 'save']
+export type SpecDraftStep = 'sample' | 'analysis' | 'task' | 'robot' | 'workbench' | 'save'
+export const SPEC_DRAFT_STEPS: SpecDraftStep[] = ['sample', 'analysis', 'task', 'robot', 'workbench', 'save']
 export type SpecDraftRun = 'analysis' | 'test'
 export type SpecDraftRunStatus = 'none' | 'queued' | 'running' | 'done' | 'failed'
 
@@ -848,6 +848,12 @@ export interface SpecDraftView {
   analysisError: string | null
   analysisProgress: Progress
   analysisCounts: Record<string, number> | null
+  /** episodes the person picked by number, analysed on top of the sample */
+  extraEpisodes: number[]
+  /** the runs over those episodes until the next analysis takes them in */
+  extraRuns: { jobId: string; episodes: number[]; status: SpecDraftRunStatus; error?: string | null }[]
+  /** the person's own word per episode index: what the spec should decide */
+  judgments: Record<string, 'accept' | 'reject'>
   /** the spec as drafted so far, in the shape the critics take; null until the analysis seeded it */
   spec: Record<string, unknown> | null
   testJobId: string | null
@@ -895,6 +901,14 @@ export interface SampleEpisode {
 }
 
 /** The critics' report of a run over the sample (lerobot_critics.runner.DatasetReport), the part the wizard reads. */
+/** One camera video of an episode of the sample; the window is set when the file holds several episodes. */
+export interface SampleVideo {
+  camera: string
+  available: boolean
+  from_s: number | null
+  to_s: number | null
+}
+
 export interface SampleReport {
   dataset_name: string
   spec: Record<string, unknown>
@@ -907,5 +921,7 @@ export interface SampleReport {
   flag_counts: Record<string, number>
   dataset_flags: Record<string, string>
   metric_docs: Record<string, { what?: string; how?: string; unit?: string } | undefined>
+  /** what every flag of the run means, in the critics' words (absent from older services) */
+  flag_docs?: Record<string, string>
   episodes: SampleEpisode[]
 }

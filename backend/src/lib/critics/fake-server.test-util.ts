@@ -201,7 +201,29 @@ export function startFakeCritics(): FakeCritics {
           if (job.reads === 1) return json({ job_id: job.id, status: "running", dataset: job.dataset, progress: { hard: { done: 2, total: 4 } } });
           return json({ job_id: job.id, status: "done", dataset: job.dataset, progress: { hard: { done: 4, total: 4 } }, counts: current.report.counts, n_episodes: report.n_episodes });
         }
-        if (rest === "/report") return json({ ...current.report, dataset_name: job.dataset, spec_name: typeof job.spec === "string" ? job.spec : report.spec_name });
+        if (rest === "/report") {
+          // a run over episodes picked by number answers with those episodes (made from the fixture's)
+          const picked = (job.options as { episodes?: number[] } | null)?.episodes;
+          const episodes = picked
+            ? picked.map((n) => ({ ...structuredClone(current.report.episodes[n % current.report.episodes.length]), episode: n }))
+            : current.report.episodes;
+          return json({ ...current.report, episodes, dataset_episodes: 200, dataset_name: job.dataset, spec_name: typeof job.spec === "string" ? job.spec : report.spec_name });
+        }
+        const videos = /^\/episodes\/(\d+)\/videos$/.exec(rest);
+        if (videos) return json([{ camera: "observation.images.front", available: true, from_s: null, to_s: null }]);
+        if (/^\/episodes\/\d+\/video$/.test(rest)) {
+          // ten bytes of "video"; a range request gets its part, the way the real service answers
+          const body = new Uint8Array(Array.from({ length: 10 }, (_, i) => i));
+          const range = /bytes=(\d+)-(\d+)/.exec(req.headers.get("range") ?? "");
+          if (range) {
+            const [from, to] = [Number(range[1]), Number(range[2])];
+            return new Response(body.slice(from, to + 1), {
+              status: 206,
+              headers: { "content-type": "video/mp4", "content-range": `bytes ${from}-${to}/10`, "accept-ranges": "bytes" },
+            });
+          }
+          return new Response(body, { headers: { "content-type": "video/mp4", "accept-ranges": "bytes" } });
+        }
         if (rest === "/selection") return json(current.selection);
         if (rest === "/markdown") return new Response(`# lerobot-critics run ${job.id}\n\n2 accept · 0 review · 2 reject`, { headers: { "content-type": "text/markdown" } });
         if (rest === "/report.html") {

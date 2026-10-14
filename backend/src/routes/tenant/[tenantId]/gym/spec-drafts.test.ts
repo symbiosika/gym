@@ -138,9 +138,9 @@ describe("Spec wizard", () => {
 
     // the person works through the steps; every input is saved at once
     const spec = { ...done.jsonResponse.spec, task: { instruction: "put the cup on the tray", objects: [{ name: "cup", role: "target_object" }] } };
-    const saved = await testFetcher.put(app, `${drafts}/${draft.id}`, token, { step: "scoring", spec });
+    const saved = await testFetcher.put(app, `${drafts}/${draft.id}`, token, { step: "workbench", spec });
     expect(saved.status).toBe(200);
-    expect(saved.jsonResponse.step).toBe("scoring");
+    expect(saved.jsonResponse.step).toBe("workbench");
     expect(saved.jsonResponse.spec.task.instruction).toBe("put the cup on the tray");
 
     // the test run takes the drafted spec over the same episodes
@@ -188,6 +188,56 @@ describe("Spec wizard", () => {
 
     // X is bounded
     expect((await testFetcher.put(app, `${drafts}/${draft.id}`, token, { sampleSize: 500 })).status).toBe(400);
+  });
+
+  test("the workbench: an episode picked by number, its video, the person's word", async () => {
+    const draft = (await testFetcher.post(app, drafts, token, { sampleSize: 4 })).jsonResponse;
+    await uploadSample(draft.id);
+    await testFetcher.get(app, `${drafts}/${draft.id}`, token);
+    const analysisJob = critics.jobs.at(-1)!;
+
+    // an episode the person knows: a small run with the spec the analysis ran with
+    const added = await testFetcher.post(app, `${drafts}/${draft.id}/episodes`, token, { episode: 57 });
+    expect(added.status).toBe(200);
+    expect(added.jsonResponse.extraEpisodes).toEqual([57]);
+    const extraJob = critics.jobs.at(-1)!;
+    expect(extraJob.options).toEqual({ episodes: [57], contact_sheets: true, sheets_for_all: true });
+    expect((extraJob.spec as { task: { instruction: string } }).task.instruction).toBe("put the red block in the box");
+    // beyond the dataset is refused, one already there is no new run
+    expect((await testFetcher.post(app, `${drafts}/${draft.id}/episodes`, token, { episode: 500 })).status).toBe(400);
+    await testFetcher.post(app, `${drafts}/${draft.id}/episodes`, token, { episode: 2 });
+    expect(critics.jobs.at(-1)!.id).toBe(extraJob.id);
+
+    // done, it is part of the analysis report
+    const done = await testFetcher.get(app, `${drafts}/${draft.id}`, token);
+    expect(done.jsonResponse.extraRuns[0].status).toBe("done");
+    const report = (await testFetcher.get(app, `${drafts}/${draft.id}/report?run=analysis`, token)).jsonResponse;
+    expect(report.episodes.map((e: { episode: number }) => e.episode)).toEqual([0, 1, 2, 3, 57]);
+    expect(report.n_episodes).toBe(5);
+
+    // its video comes from its own run, and a player can seek in it
+    const auth = { Authorization: `Bearer ${token}` };
+    const cams = await testFetcher.get(app, `${drafts}/${draft.id}/episodes/57/videos`, token);
+    expect(cams.jsonResponse[0].camera).toBe("observation.images.front");
+    const video = await app.request(`${drafts}/${draft.id}/episodes/57/video?camera=observation.images.front`, { headers: { ...auth, Range: "bytes=2-5" } });
+    expect(video.status).toBe(206);
+    expect(video.headers.get("content-range")).toBe("bytes 2-5/10");
+    expect(new Uint8Array(await video.arrayBuffer())).toEqual(new Uint8Array([2, 3, 4, 5]));
+    const sheet = await app.request(`${drafts}/${draft.id}/files/sheets/episode_000057.jpg`, { headers: auth });
+    expect(sheet.status).toBe(200);
+
+    // the person's word on episodes is kept
+    const judged = await testFetcher.put(app, `${drafts}/${draft.id}`, token, { judgments: { "0": "accept", "57": "reject" } });
+    expect(judged.jsonResponse.judgments).toEqual({ "0": "accept", "57": "reject" });
+    expect((await testFetcher.put(app, `${drafts}/${draft.id}`, token, { judgments: { x: "accept" } })).status).toBe(400);
+
+    // a new analysis takes the picked episode in, and the test run too
+    await testFetcher.post(app, `${drafts}/${draft.id}/analyze`, token, {});
+    expect(critics.jobs.at(-1)!.options).toMatchObject({ max_episodes: 4, include_episodes: [57] });
+    expect(critics.deleted).toEqual(expect.arrayContaining([analysisJob.id, extraJob.id]));
+    expect((await testFetcher.get(app, `${drafts}/${draft.id}`, token)).jsonResponse.extraRuns).toEqual([]);
+
+    expect((await testFetcher.delete(app, `${drafts}/${draft.id}`, token)).status).toBe(204);
   });
 
   test("discarding a draft removes its sample; an abandoned one goes by itself", async () => {

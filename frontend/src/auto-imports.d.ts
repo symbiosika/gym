@@ -17,6 +17,9 @@ declare global {
   const THEME_KEY: typeof import('./stores/ui').THEME_KEY
   const activeStep: typeof import('./utils/plan').activeStep
   const addDays: typeof import('./utils/time').addDays
+  const agreement: typeof import('./utils/specSample').agreement
+  const blockerKey: typeof import('./utils/specSample').blockerKey
+  const blockerSummary: typeof import('./utils/specSample').blockerSummary
   const computed: typeof import('vue').computed
   const countVerdicts: typeof import('./utils/specSample').countVerdicts
   const createApp: typeof import('vue').createApp
@@ -27,6 +30,7 @@ declare global {
   const defaultIndicators: typeof import('./utils/spec').defaultIndicators
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
+  const disagrees: typeof import('./utils/specSample').disagrees
   const downloadBlob: typeof import('./utils/download').downloadBlob
   const duplicateStep: typeof import('./utils/plan').duplicateStep
   const durationRange: typeof import('./utils/specSample').durationRange
@@ -34,6 +38,7 @@ declare global {
   const emptySpec: typeof import('./utils/spec').emptySpec
   const fetcher: typeof import('./utils/fetcher').fetcher
   const fileNameFrom: typeof import('./utils/download').fileNameFrom
+  const flagEffect: typeof import('./utils/specSample').flagEffect
   const fmtBytes: typeof import('./utils/time').fmtBytes
   const fmtDate: typeof import('./utils/time').fmtDate
   const fmtDateLong: typeof import('./utils/time').fmtDateLong
@@ -51,6 +56,7 @@ declare global {
   const h: typeof import('vue').h
   const hasSession: typeof import('./utils/fetcher').hasSession
   const indicator: typeof import('./utils/spec').indicator
+  const indicatorEvidence: typeof import('./utils/specSample').indicatorEvidence
   const inject: typeof import('vue').inject
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
@@ -89,8 +95,12 @@ declare global {
   const rebalanceToTarget: typeof import('./utils/plan').rebalanceToTarget
   const ref: typeof import('vue').ref
   const resolveComponent: typeof import('vue').resolveComponent
+  const resultRows: typeof import('./utils/specSample').resultRows
   const runFlags: typeof import('./utils/specSample').runFlags
+  const sampleFlags: typeof import('./utils/specSample').sampleFlags
   const sampleTasks: typeof import('./utils/specSample').sampleTasks
+  const scoresOf: typeof import('./utils/specSample').scoresOf
+  const setFlagEffect: typeof import('./utils/specSample').setFlagEffect
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
@@ -159,6 +169,6 @@ declare global {
   export type { ObjectRole, PerEpisode, SpecObject, SpecIndicator, SpecHardCritic, SpecForm, SpecFormSection, PresetId } from './utils/spec'
   import('./utils/spec')
   // @ts-ignore
-  export type { Verdict, CriticEvidence, PreviewRow } from './utils/specSample'
+  export type { Verdict, CriticEvidence, Blocker, PreviewRow, BlockerGroup, IndicatorEvidence, FlagEffect, SampleFlag, Selection, ResultRow } from './utils/specSample'
   import('./utils/specSample')
 }

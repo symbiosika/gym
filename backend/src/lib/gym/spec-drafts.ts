@@ -5,11 +5,14 @@
  * the critics make of the data. The wizard turns that around. A sample
  * dataset is uploaded for the time of the wizard, the critics run in auto
  * mode over X of its episodes (spread over the session) and generate a spec,
- * and the person walks through that spec step by step: task, robot and
- * cameras, technical checks, success indicators, thresholds. Every step shows
- * what the sample measured next to the field it concerns. A test run with the
- * drafted spec over the same episodes shows what it would decide before it is
- * stored.
+ * and the person walks through that spec: task, robot and cameras, then the
+ * workbench, one live view of the sample with every episode's video and every
+ * result of the critics next to the settings of the spec. An episode the
+ * person knows by number is analysed on top of the sample (`addEpisode`), and
+ * the person's own word on an episode (good or bad, `judgments`) is kept so
+ * the workbench can show where the spec decides differently. A test run with
+ * the drafted spec over the same episodes shows what it would decide before
+ * it is stored.
  *
  * The draft row is the state of the wizard and every input is saved on it at
  * once. The sample is temporary: its chunks stay in the upload bucket as the
@@ -26,7 +29,17 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
 import log from "@framework/lib/log";
-import { datasetUploads, skills, SPEC_DRAFT_SAMPLE, SPEC_DRAFT_STEPS, specDrafts, type SpecDraftRunStatus, type SpecDraftSelect } from "../../db/schema";
+import {
+  datasetUploads,
+  skills,
+  SPEC_DRAFT_SAMPLE,
+  SPEC_DRAFT_STEPS,
+  specDrafts,
+  type SpecDraftExtraRun,
+  type SpecDraftRunStatus,
+  type SpecDraftSelect,
+  type SpecDraftStep,
+} from "../../db/schema";
 import { criticsClient, CriticsError, type CriticsJob, type DatasetReport } from "../critics/client";
 import { saveSpecObject, specExists, specNameOf } from "../critics/specs";
 import { removeFile } from "../storage";
@@ -73,7 +86,11 @@ export const updateSpecDraftSchema = v.object({
   sampleSize: v.optional(sampleSize),
   step: v.optional(v.picklist(SPEC_DRAFT_STEPS)),
   spec: v.optional(v.nullable(specObject)),
+  /** the person's word per episode index; the whole map is replaced */
+  judgments: v.optional(v.record(v.pipe(v.string(), v.regex(/^\d{1,7}$/)), v.picklist(["accept", "reject"] as const))),
 });
+
+export const addEpisodeSchema = v.object({ episode: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10_000_000)) });
 
 export const finishSpecDraftSchema = v.object({
   name: v.pipe(v.string(), v.trim(), v.minLength(1, "The spec needs a name"), v.maxLength(200)),
@@ -121,6 +138,7 @@ const toView = (
   const { analysisReport, testReport, ...rest } = utcRow(row);
   return {
     ...rest,
+    step: currentStep(rest.step),
     skillName,
     analysisProgress: progress.analysis ?? {},
     testProgress: progress.test ?? {},
@@ -128,6 +146,10 @@ const toView = (
     testCounts: testReport?.counts ?? null,
   };
 };
+
+/** Steps of earlier versions of the wizard (checks, success, scoring) are the workbench now. */
+const currentStep = (step: string): SpecDraftStep =>
+  (SPEC_DRAFT_STEPS as readonly string[]).includes(step) ? (step as SpecDraftStep) : "workbench";
 
 const touch = (id: string, set: Partial<SpecDraftSelect>) =>
   getDb()
@@ -170,6 +192,7 @@ export async function getSpecDraft(tenantId: string, id: string): Promise<SpecDr
     row = synced.row;
     progress[run] = synced.progress;
   }
+  row = await syncExtraRuns(row);
   const names = await skillNames(tenantId, [row.skillId]);
   return toView(row, row.skillId ? (names.get(row.skillId) ?? null) : null, progress);
 }
@@ -189,6 +212,7 @@ export async function updateSpecDraft(tenantId: string, id: string, input: unkno
     ...(data.sampleSize !== undefined ? { sampleSize: data.sampleSize } : {}),
     ...(data.step !== undefined ? { step: data.step } : {}),
     ...(data.spec !== undefined ? { spec: data.spec } : {}),
+    ...(data.judgments !== undefined ? { judgments: data.judgments } : {}),
   });
   return getSpecDraft(tenantId, id);
 }
@@ -207,7 +231,13 @@ export async function completeSampleUpload(tenantId: string, id: string, uploadI
   return startAnalysis(tenantId, id);
 }
 
-const jobOptions = (row: SpecDraftSelect) => ({ max_episodes: row.sampleSize, contact_sheets: true, sheets_for_all: true });
+/** The sample, the episodes picked by number, and a contact sheet of each. */
+const jobOptions = (row: SpecDraftSelect) => ({
+  max_episodes: row.sampleSize,
+  ...(row.extraEpisodes.length ? { include_episodes: row.extraEpisodes } : {}),
+  contact_sheets: true,
+  sheets_for_all: true,
+});
 
 /**
  * Let the critics look at X episodes of the sample in auto mode: they
@@ -221,8 +251,10 @@ export async function startAnalysis(tenantId: string, id: string): Promise<SpecD
   if (!row.storageParts.length) throw new ConflictError("Upload a sample dataset first");
   const links = await datasetLinks(tenantId, { storageRef: null, storageParts: row.storageParts });
   const job = await criticsClient.createJob(links, null, jobOptions(row), purposeOf(row.purpose), false);
-  await dropJobs([row.analysisJobId, row.testJobId]);
+  // the episodes picked by number are part of this run: their own runs are done with
+  await dropJobs([row.analysisJobId, row.testJobId, ...row.extraRuns.map((r) => r.jobId)]);
   await touch(row.id, {
+    extraRuns: [],
     analysisJobId: job.job_id,
     analysisStatus: "queued",
     analysisError: null,
@@ -340,6 +372,112 @@ async function syncRun(
   };
 }
 
+/**
+ * Analyse one more episode of the sample dataset, one the person knows by
+ * number: a small run with the spec the analysis ran with, merged into the
+ * analysis report when it is done. Its outlier flags are missing, as they
+ * compare an episode with the others of its run; the next full analysis
+ * (`startAnalysis`) takes the episode in like any other.
+ */
+export async function addEpisode(tenantId: string, id: string, input: unknown): Promise<SpecDraftView> {
+  const { episode } = v.parse(addEpisodeSchema, input);
+  const row = await getDraftRow(tenantId, id);
+  const report = row.analysisReport;
+  if (!report || !row.analysisJobId) throw new ConflictError("The analysis of the sample has to finish first");
+  const total = report.dataset_episodes ?? null;
+  if (total != null && episode >= total) throw new InvalidInputError(`The dataset holds episodes 0 to ${total - 1}`);
+  const known = report.episodes.some((e) => e.episode === episode) || row.extraRuns.some((r) => r.episodes.includes(episode) && r.status !== "failed");
+  if (known) return getSpecDraft(tenantId, id);
+  const links = await datasetLinks(tenantId, { storageRef: null, storageParts: row.storageParts });
+  const job = await criticsClient.createJob(
+    links,
+    { ...report.spec, name: report.spec_name || "draft" },
+    { episodes: [episode], contact_sheets: true, sheets_for_all: true },
+    purposeOf(row.purpose),
+  );
+  const run: SpecDraftExtraRun = { jobId: job.job_id, episodes: [episode], status: "queued" };
+  await touch(row.id, {
+    extraEpisodes: [...new Set([...row.extraEpisodes, episode])].sort((a, b) => a - b),
+    extraRuns: [...row.extraRuns.filter((r) => !r.episodes.includes(episode)), run],
+  });
+  return getSpecDraft(tenantId, id);
+}
+
+/**
+ * The episodes of `extra` taken into `base`: an episode of both is replaced,
+ * the rest sorted in, and the counts follow. What the critics wrote stays as
+ * they wrote it; only the lists over the episodes are counted again.
+ */
+export function mergeReports(base: DatasetReport, extra: DatasetReport): DatasetReport {
+  const byIndex = new Map(base.episodes.map((e) => [e.episode, e]));
+  for (const e of extra.episodes) byIndex.set(e.episode, e);
+  const episodes = [...byIndex.values()].sort((a, b) => a.episode - b.episode);
+  const by = (verdict: string) => episodes.filter((e) => e.score.verdict === verdict).map((e) => e.episode);
+  const flagCounts: Record<string, number> = {};
+  for (const e of episodes) for (const f of e.score.flags) flagCounts[f] = (flagCounts[f] ?? 0) + 1;
+  const include = by("accept");
+  const review = by("review");
+  const exclude = by("reject");
+  return {
+    ...base,
+    episodes,
+    n_episodes: episodes.length,
+    include,
+    review,
+    exclude,
+    counts: { accept: include.length, review: review.length, reject: exclude.length },
+    flag_counts: flagCounts,
+    flag_docs: { ...(base.flag_docs ?? {}), ...(extra.flag_docs ?? {}) },
+    metric_docs: { ...base.metric_docs, ...extra.metric_docs },
+  };
+}
+
+/** Bring the runs over picked episodes up to date; a finished one goes into the analysis report. */
+async function syncExtraRuns(row: SpecDraftSelect): Promise<SpecDraftSelect> {
+  if (!row.extraRuns.some((r) => OPEN.includes(r.status))) return row;
+  let report = row.analysisReport;
+  const runs: SpecDraftExtraRun[] = [];
+  for (const run of row.extraRuns) {
+    if (!OPEN.includes(run.status)) {
+      runs.push(run);
+      continue;
+    }
+    try {
+      const job = await criticsClient.job(run.jobId);
+      if (job.status === "failed") runs.push({ ...run, status: "failed", error: job.error ?? "The critics run failed" });
+      else if (job.status !== "done") runs.push({ ...run, status: job.status === "queued" ? "queued" : "running" });
+      else {
+        if (report) report = mergeReports(report, await criticsClient.report(run.jobId));
+        runs.push({ ...run, status: "done" });
+      }
+    } catch (error) {
+      if (error instanceof CriticsError && error.status === 404) runs.push({ ...run, status: "failed", error: "The critics job disappeared" });
+      else runs.push(run);
+    }
+  }
+  return touch(row.id, { extraRuns: runs, analysisReport: report });
+}
+
+/** The job that holds an episode of the analysis: a run over picked episodes, else the analysis itself. */
+function jobOfEpisode(row: SpecDraftSelect, episode: number): string {
+  const extra = row.extraRuns.find((r) => r.status === "done" && r.episodes.includes(episode));
+  const jobId = extra?.jobId ?? row.analysisJobId;
+  if (!jobId) throw new NotFoundError("Critics run");
+  return jobId;
+}
+
+/** The camera videos of one episode of the sample, from the critics job that holds it. */
+export async function episodeVideos(tenantId: string, id: string, episode: number) {
+  const row = await getDraftRow(tenantId, id);
+  return criticsClient.episodeVideos(jobOfEpisode(row, episode), episode);
+}
+
+/** One camera video of an episode of the sample, streamed; `range` lets the player seek. */
+export async function episodeVideo(tenantId: string, id: string, episode: number, camera: string, range?: string | null): Promise<Response> {
+  const row = await getDraftRow(tenantId, id);
+  return criticsClient.episodeVideo(jobOfEpisode(row, episode), episode, camera, range);
+}
+
 /** The report of a run of the draft (the analysis or the test), as the critics wrote it. */
 export async function getSpecDraftReport(tenantId: string, id: string, run: SpecDraftRun): Promise<DatasetReport> {
   const row = await getDraftRow(tenantId, id);
@@ -348,9 +486,14 @@ export async function getSpecDraftReport(tenantId: string, id: string, run: Spec
   return report;
 }
 
-/** The job of a run, for its artifacts (the contact sheets of the sample). */
-export async function specDraftJob(tenantId: string, id: string, run: SpecDraftRun): Promise<string> {
+/**
+ * The job of a run, for its artifacts (the contact sheets of the sample). With
+ * `episode`, the analysis job that holds that episode (one picked by number
+ * has a run of its own).
+ */
+export async function specDraftJob(tenantId: string, id: string, run: SpecDraftRun, episode?: number): Promise<string> {
   const row = await getDraftRow(tenantId, id);
+  if (run === "analysis" && episode != null) return jobOfEpisode(row, episode);
   const jobId = run === "analysis" ? row.analysisJobId : row.testJobId;
   if (!jobId) throw new NotFoundError("Critics run");
   return jobId;
@@ -411,7 +554,7 @@ async function removeDraft(row: SpecDraftSelect): Promise<void> {
   for (const ref of row.storageParts) await removeFile(row.tenantId, UPLOAD_CHUNK_BUCKET, ref).catch(() => undefined);
   const uploads = await getDb().select({ id: datasetUploads.id }).from(datasetUploads).where(eq(datasetUploads.specDraftId, row.id));
   await dropChunkFiles(uploads.map((u) => u.id));
-  await dropJobs([row.analysisJobId, row.testJobId]);
+  await dropJobs([row.analysisJobId, row.testJobId, ...row.extraRuns.map((r) => r.jobId)]);
   await getDb().delete(specDrafts).where(eq(specDrafts.id, row.id));
 }
 

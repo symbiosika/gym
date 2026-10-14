@@ -632,6 +632,55 @@ def job_episode_markdown(job_id: str, episode: int) -> Response:
         raise HTTPException(404, "episode not in report") from e
 
 
+def _job_dataset(job_id: str) -> Any:
+    """The working copy of a job's dataset, while the job holds it (it goes with the job)."""
+    from ..dataset.loader import open_dataset
+
+    st = store.read(job_id)
+    if st is None:
+        raise HTTPException(404, "job not found")
+    path = st.get("dataset_path")
+    if not path or not Path(path).is_dir():
+        raise HTTPException(409, "the job holds no dataset (not prepared yet, or already removed)")
+    return open_dataset(path)
+
+
+@app.get("/jobs/{job_id}/episodes/{episode}/videos")
+def job_episode_videos(job_id: str, episode: int) -> list[dict[str, Any]]:
+    """
+    The camera videos of one episode of a job's dataset: one entry per camera with the
+    window of the episode inside the file (`from_s`, `to_s`; null when the file holds the
+    episode alone, the v2 layout). Play them with GET .../video?camera=.
+    """
+    ds = _job_dataset(job_id)
+    if episode not in ds.episodes:
+        raise HTTPException(404, "episode not in dataset")
+    out = []
+    for cam in ds.camera_keys:
+        window = ds.video_window(episode, cam)
+        out.append(
+            {
+                "camera": cam,
+                "available": ds.video_path(episode, cam).is_file(),
+                "from_s": window[0] if window else None,
+                "to_s": window[1] if window else None,
+            }
+        )
+    return out
+
+
+@app.get("/jobs/{job_id}/episodes/{episode}/video")
+def job_episode_video(job_id: str, episode: int, camera: str) -> FileResponse:
+    """One camera video of an episode, streamed with range requests so a player can seek."""
+    ds = _job_dataset(job_id)
+    if episode not in ds.episodes or camera not in ds.camera_keys:
+        raise HTTPException(404, "episode or camera not in dataset")
+    path = ds.video_path(episode, camera)
+    if not path.is_file():
+        raise HTTPException(404, "video file missing")
+    return FileResponse(path, media_type="video/mp4")
+
+
 @app.get("/jobs/{job_id}/files/{path:path}")
 def job_file(job_id: str, path: str) -> FileResponse:
     base = store.out_dir(job_id).resolve()

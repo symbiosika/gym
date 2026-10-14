@@ -125,17 +125,31 @@ export type HumanVerdict = (typeof HUMAN_VERDICTS)[number];
  *              generated spec and what they measured are the starting point
  *   task       the instruction, the scene, the objects, the repetitions
  *   robot      robot type, active arms, the camera the judge looks at
- *   checks     the technical checks, next to what the sample measured
- *   success    the success indicators the vision-language model judges
- *   scoring    the thresholds, with how the sample would come out
+ *   workbench  one live view of the sample: an episode with its video and
+ *              every result of the critics, the settings of the spec next to
+ *              it, and the verdicts following every change
  *   save       a test run with the drafted spec, then name, store, assign
  */
-export const SPEC_DRAFT_STEPS = ["sample", "analysis", "task", "robot", "checks", "success", "scoring", "save"] as const;
+export const SPEC_DRAFT_STEPS = ["sample", "analysis", "task", "robot", "workbench", "save"] as const;
 export type SpecDraftStep = (typeof SPEC_DRAFT_STEPS)[number];
 
 /** Where one critics run of a spec draft stands; `none` before it is started. */
 export const SPEC_DRAFT_RUN_STATUSES = ["none", "queued", "running", "done", "failed"] as const;
 export type SpecDraftRunStatus = (typeof SPEC_DRAFT_RUN_STATUSES)[number];
+
+/**
+ * One critics run over episodes a person picked by number, on top of the
+ * sample: its episodes are merged into the analysis report when it is done.
+ */
+export interface SpecDraftExtraRun {
+  jobId: string;
+  episodes: number[];
+  status: SpecDraftRunStatus;
+  error?: string | null;
+}
+
+/** What a person says an episode of the sample is: good (accept) or bad (reject). */
+export type SpecDraftJudgment = "accept" | "reject";
 
 /** The sample dataset of a spec draft and the number of episodes looked at, within these bounds. */
 export const SPEC_DRAFT_SAMPLE = { min: 1, max: 50, default: 10 } as const;
@@ -530,6 +544,12 @@ export const specDrafts = pgBaseTable(
     analysisStatus: text("analysis_status").$type<SpecDraftRunStatus>().notNull().default("none"),
     analysisError: text("analysis_error"),
     analysisReport: jsonb("analysis_report").$type<DatasetReport | null>(),
+    /** episodes a person picked by number, analysed in addition to the sample */
+    extraEpisodes: jsonb("extra_episodes").$type<number[]>().notNull().default([]),
+    /** the runs over those episodes until the next analysis takes them in */
+    extraRuns: jsonb("extra_runs").$type<SpecDraftExtraRun[]>().notNull().default([]),
+    /** the person's own word on episodes of the sample, by episode index: what the spec should decide */
+    judgments: jsonb("judgments").$type<Record<string, SpecDraftJudgment>>().notNull().default({}),
     /** the spec as drafted so far, in the shape the critics take (CriticSpec); null until the analysis seeds it */
     spec: jsonb("spec").$type<Record<string, unknown> | null>(),
     /** the test run with the drafted spec over the same sample */

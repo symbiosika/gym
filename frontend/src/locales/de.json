@@ -1212,16 +1212,11 @@
       "analysis": "Auto-Analyse",
       "task": "Aufgabe",
       "robot": "Roboter & Kameras",
-      "checks": "Technische Checks",
-      "success": "Erfolg",
-      "scoring": "Bewertung",
+      "workbench": "Werkbank",
       "save": "Testen & Speichern"
     },
     "lead_task": "Was soll der Roboter tun, mit welchen Objekten? Rechts steht, was im Dataset aufgezeichnet ist.",
     "lead_robot": "Welcher Arm arbeitet, und auf welche Kamera schaut das Sprachmodell zuerst?",
-    "lead_checks": "Die Prüfungen der Signale und Videos. Neben jeder Prüfung steht, was sie in der Stichprobe gefunden hat.",
-    "lead_success": "Woran das Sprachmodell erkennt, dass eine Episode gelungen ist. Jedes Kriterium ein Satz, den man im Video sehen kann.",
-    "lead_scoring": "Ab wann eine Episode akzeptiert wird. Die Stichprobe rechts bewegt sich mit, während du die Werte änderst.",
     "lead_save": "Prüfe den Spec an denselben Episoden und speichere ihn.",
     "purpose": {
       "recording": "Aufnahme (Trainingsdaten)",
@@ -1302,23 +1297,24 @@
       "lookHint": "Zeile 1 oben, darunter die weiteren Kameras"
     },
     "checks": {
-      "sample": "Stichprobe ({n})",
-      "flagged": "{n} von {of} markiert",
-      "clean": "keine Auffälligkeit",
-      "stopped": "{n} gestoppt",
-      "notRun": "lief nicht",
-      "duration": "Die Episoden der Stichprobe dauern {min} bis {max} s (Median {median} s). Vorschlag für die Dauerprüfung: {lo} bis {hi} s.",
       "useDuration": "Grenzen übernehmen"
     },
     "success": {
       "vlmFailed": "Das Sprachmodell hat die Stichprobe nicht beurteilt. Die Kriterien werden trotzdem gespeichert und wirken, sobald es verfügbar ist.",
-      "vlmOff": "Für die Stichprobe lief kein Sprachmodell. Die Kriterien wirken bei den nächsten Analysen."
+      "vlmOff": "Für die Stichprobe lief kein Sprachmodell. Die Kriterien wirken bei den nächsten Analysen.",
+      "sample": "Stichprobe:",
+      "reworded": "Das Modell hat den alten Wortlaut beurteilt: „{old}“. Die Scores gelten dafür, der Testlauf zeigt den neuen.",
+      "notJudged": "Neues Kriterium: das Modell hat es noch nicht beurteilt, der Testlauf zeigt es."
     },
     "scoring": {
-      "preview": "Die Stichprobe mit diesen Werten",
-      "changed": "{n} Episoden ändern ihr Urteil",
-      "gate": "Stopp: {id}",
-      "previewHint": "Vorschau aus den Ergebnissen der Auto-Analyse. Geänderte Parameter und neue Erfolgskriterien zeigt erst der Testlauf im letzten Schritt. Grüne Linie: akzeptieren ab, gelbe Linie: prüfen ab."
+      "live": "live",
+      "liveHint": "Jede Änderung links und jeder Knopf unten wirkt sofort auf die Episoden.",
+      "modelSaw": "Was das Modell gesehen hat",
+      "noEvidence": "keine Begründung",
+      "tag": {
+        "score": "Score {total} unter {limit}",
+        "error": "Critic fehlgeschlagen"
+      }
     },
     "save": {
       "testTitle": "Testlauf",
@@ -1346,6 +1342,93 @@
       "existsTitle": "Es gibt schon einen Spec „{name}“",
       "existsText": "Überschreiben ersetzt ihn für alle Skills, die ihn verwenden.",
       "overwrite": "Überschreiben"
-    }
+    },
+    "flags": {
+      "title": "Markierungen",
+      "hint": "Was das Modell und die Prüfungen in der Stichprobe gefunden haben, und was jede Markierung bewirkt",
+      "none": "Die Stichprobe hat keine Markierungen.",
+      "fromModel": "Vom Sprachmodell",
+      "fromChecks": "Von den technischen Prüfungen",
+      "model": "Sprachmodell",
+      "inEpisodes": "in {n} von {of} Episoden ({list})",
+      "criterion": "Das Modell bewertet das Erfolgskriterium „{text}“ unter 0,5.",
+      "noMeaning": "Für diese Markierung haben die Critics keine Beschreibung geliefert.",
+      "choice": {
+        "out": "Lehnt ab",
+        "review": "Prüfen",
+        "info": "Nur Hinweis",
+        "ignore": "Aus"
+      },
+      "choiceHint": {
+        "out": "Eine Episode mit dieser Markierung wird abgelehnt.",
+        "review": "Eine Episode mit dieser Markierung wird höchstens auf „prüfen“ gesetzt, ein Mensch schaut sie an.",
+        "info": "Die Markierung wird an der Episode angezeigt, ändert aber nichts am Urteil.",
+        "ignore": "Die Markierung wird abgeschaltet: nicht angezeigt, nicht gezählt."
+      },
+      "effect": {
+        "stop": "stoppt die Episode über die Prüfung „{check}“",
+        "reject": "lehnt die Episode ab",
+        "review": "hält die Episode auf „prüfen“",
+        "info": "wird nur angezeigt",
+        "ignore": "abgeschaltet"
+      }
+    },
+    "bench": {
+      "open": "Episode öffnen",
+      "openPlaceholder": "Episode 0 bis {max}",
+      "agree": "Spec entscheidet {n} von {of} wie du",
+      "judgeHint": "Sag bei Episoden, ob sie gut oder schlecht sind: dann siehst du, wo der Spec anders entscheidet.",
+      "filter": {
+        "all": "Alle",
+        "differ": "Abweichend",
+        "out": "Nicht akzeptiert",
+        "judged": "Von dir bewertet"
+      },
+      "differs": "Der Spec entscheidet anders als du",
+      "analysing": "wird analysiert",
+      "noneShown": "Keine Episode in dieser Auswahl.",
+      "addFailed": "Episode {list} konnte nicht analysiert werden.",
+      "noEpisode": "Keine Episode in der Stichprobe.",
+      "noVideo": "Kein Video, Kontaktbogen statt dessen",
+      "wasVerdict": "im Lauf: {v}",
+      "yourWord": "Deine Einschätzung:",
+      "good": "Gut",
+      "bad": "Schlecht",
+      "because": "Weil:",
+      "stoppedBy": "Stopp durch {name}",
+      "task": "Aufgabe: {task}",
+      "groupModel": "Sprachmodell",
+      "groupChecks": "Technische Prüfungen",
+      "modelOverall": "Gesamturteil des Modells",
+      "stops": "stoppt diese Episode",
+      "taskDone": "Aufgabe gelungen",
+      "taskFailed": "Aufgabe nicht gelungen",
+      "moreDetail": "Messwerte",
+      "lessDetail": "Messwerte zu",
+      "evidence": "Befund",
+      "tab": {
+        "selected": "Auswahl",
+        "scoring": "Gesamt",
+        "criteria": "Kriterien",
+        "flags": "Markierungen"
+      },
+      "checkOn": "Prüfung aktiv",
+      "stopBelow": "Stoppt unterhalb der Linie",
+      "stopLine": "Stopp-Linie",
+      "cut": "stoppt {n} von {of} Episoden",
+      "itsFlags": "Markierungen dieser Prüfung",
+      "itsTag": "Markierung dieses Kriteriums",
+      "durations": "Die Stichprobe dauert {min} bis {max} s.",
+      "paramsNote": "Parameter ändern, was die Prüfung misst. Das zeigt erst der Testlauf, die Live-Ansicht rechnet mit den gemessenen Werten.",
+      "criterionText": "Erfolgskriterium (Wortlaut für das Modell)",
+      "stopVsTag": "Der Stopp hängt am Score des Modells. Die Markierung darunter ist nur ein Etikett, das bei einem Score unter 0,5 gesetzt wird.",
+      "removeCriterion": "Kriterium entfernen",
+      "criterionGone": "Dieses Kriterium ist nicht mehr im Spec. Es zählt nicht mehr.",
+      "modelHint": "Ob das Modell die Aufgabe insgesamt gelungen sieht, und was es Auffälliges bemerkt hat. Zählt nur über die Markierungen.",
+      "totalsHint": "Die Punkte sind die Gesamtscores der Episoden. Links der Linie: nicht akzeptiert. Ein Stopp lehnt ab, egal wo der Punkt liegt.",
+      "previewNote": "Live aus den Ergebnissen der Analyse. Umformulierte Kriterien und geänderte Parameter zeigt der Testlauf.",
+      "flagStops": "Außerdem stoppt die Markierung {flag} {n} von {of} Episoden, egal wo die Linie liegt. Das änderst du unten bei der Markierung."
+    },
+    "lead_workbench": "Die ganze Stichprobe in einer Ansicht: links die Episoden, in der Mitte Video und alle Ergebnisse der geöffneten Episode, rechts die Einstellungen. Jede Änderung wirkt sofort auf alle Urteile."
   }
 }

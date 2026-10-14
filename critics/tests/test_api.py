@@ -562,3 +562,55 @@ def test_a_sample_with_a_generated_spec_that_is_not_stored(client, synthetic_dat
     for e in report["episodes"]:
         sheet = client.get(f"/jobs/{r.json()['job_id']}/files/sheets/episode_{e['episode']:06d}.jpg")
         assert sheet.status_code == 200, e["score"]["verdict"]
+
+
+def test_the_report_says_what_every_flag_means(client, synthetic_dataset):
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(synthetic_dataset),
+            "spec": None,
+            "store_auto_spec": False,
+            "options": {"workers": 1, "contact_sheets": False, "run_soft": False},
+        },
+    )
+    st = _wait(client, r.json()["job_id"])
+    assert st["status"] == "done", st.get("error")
+    report = client.get(f"/jobs/{r.json()['job_id']}/report").json()
+    raised = {f for e in report["episodes"] for c in e["hard"] for f in c["flags"]}
+    assert raised, "the synthetic dataset raises flags"
+    assert raised <= set(report["flag_docs"])
+    assert all(text and text != "(no description)" for text in report["flag_docs"].values())
+
+
+def test_episode_videos_of_a_job_play_with_range_requests(client, synthetic_dataset):
+    """A person looks at an episode while drafting a spec: its camera videos come from the job's copy."""
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(synthetic_dataset),
+            "spec": None,
+            "store_auto_spec": False,
+            "options": {
+                "workers": 1,
+                "contact_sheets": False,
+                "run_soft": False,
+                "max_episodes": 1,
+                "include_episodes": [2],
+            },
+        },
+    )
+    job = r.json()["job_id"]
+    st = _wait(client, job)
+    assert st["status"] == "done", st.get("error")
+    # the sample plus the episode picked by number
+    assert [e["episode"] for e in client.get(f"/jobs/{job}/report").json()["episodes"]] == [0, 2]
+
+    videos = client.get(f"/jobs/{job}/episodes/2/videos").json()
+    assert videos and all(v["available"] and v["from_s"] is None for v in videos)
+    cam = videos[0]["camera"]
+    full = client.get(f"/jobs/{job}/episodes/2/video", params={"camera": cam})
+    assert full.status_code == 200 and full.headers["content-type"] == "video/mp4"
+    part = client.get(f"/jobs/{job}/episodes/2/video", params={"camera": cam}, headers={"Range": "bytes=0-9"})
+    assert part.status_code == 206 and len(part.content) == 10
+    assert client.get(f"/jobs/{job}/episodes/2/video", params={"camera": "nope"}).status_code == 404

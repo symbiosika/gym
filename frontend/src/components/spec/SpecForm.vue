@@ -15,7 +15,7 @@ import {
   type SpecIndicator,
 } from '@/utils/spec'
 import { NONE } from '@/utils/select'
-import type { CriticEvidence } from '@/utils/specSample'
+import type { IndicatorEvidence } from '@/utils/specSample'
 import NumField from '@/components/spec/NumField.vue'
 import TokenField from '@/components/spec/TokenField.vue'
 import IconAdd from '~icons/carbon/add'
@@ -36,10 +36,8 @@ import IconChevron from '~icons/carbon/chevron-down'
 const props = defineProps<{
   critics: CriticsHardCriticInfo[]
   sections?: SpecFormSection[]
-  /** what each technical check found in the sample of the spec wizard: shown as a column of its own */
-  sample?: Record<string, CriticEvidence>
-  /** the episodes of that sample */
-  sampleEpisodes?: number
+  /** what the vision-language model said for each success criterion in that sample, by indicator id */
+  softSample?: Record<string, IndicatorEvidence>
 }>()
 const show = (section: SpecFormSection) => !props.sections || props.sections.includes(section)
 const numbered = computed(() => !props.sections)
@@ -135,13 +133,14 @@ const boolOptions = (dflt: unknown) => [
 ]
 const overrides = (c: SpecHardCritic) => Object.keys(c.params).length
 
-/** the score of a check over the sample, coloured like the verdicts */
-const sampleTone = (score: number | null) =>
-  score == null ? 'bg-surface-300' : score >= 0.75 ? 'bg-ok' : score >= 0.55 ? 'bg-warn' : 'bg-bad'
-const topFlags = (ev: CriticEvidence) =>
-  Object.entries(ev.flags)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
+/** the criterion was reworded after the model judged the sample: its scores belong to the old words */
+const reworded = (row: SpecIndicator) => {
+  const judged = props.softSample?.[row.id]?.judgedText?.trim()
+  return !!judged && judged !== row.description.trim()
+}
+/** a score of the model against the stop line of the criterion */
+const scoreTone = (row: SpecIndicator, score: number | null) =>
+  score == null ? 'neutral' : row.gate && score < row.gateBelow ? 'bad' : score < 0.5 ? 'warn' : 'ok'
 </script>
 
 <template>
@@ -296,6 +295,38 @@ const topFlags = (ev: CriticEvidence) =>
                     <InputText v-model="row.id" size="small" class="w-44! font-mono! text-xs!" />
                   </label>
                 </div>
+                <div v-if="softSample && softSample[row.id]" class="rounded-md bg-surface-50 p-2 dark:bg-surface-800/40">
+                  <div class="flex flex-wrap items-center gap-1">
+                    <span class="me-1 text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.success.sample') }}</span>
+                    <Pill
+                      v-for="ep in softSample[row.id]!.episodes"
+                      :key="ep.episode"
+                      :tone="scoreTone(row, ep.score)"
+                      :title="ep.evidence"
+                      >{{ t('specWizard.episodeShort', { n: ep.episode }) }} ·
+                      {{ ep.score == null ? '?' : ep.score.toFixed(2) }}</Pill
+                    >
+                  </div>
+                  <p v-if="reworded(row)" class="text-warn mt-1.5 text-xs">
+                    {{ t('specWizard.success.reworded', { old: softSample[row.id]!.judgedText }) }}
+                  </p>
+                  <details class="group mt-1.5">
+                    <summary class="cursor-pointer text-xs text-surface-600 select-none dark:text-surface-300">
+                      {{ t('specWizard.scoring.modelSaw') }}
+                    </summary>
+                    <ul class="mt-1 flex flex-col gap-1">
+                      <li v-for="ep in softSample[row.id]!.episodes" :key="ep.episode" class="text-xs">
+                        <span class="font-mono">{{ t('specWizard.episodeShort', { n: ep.episode }) }}</span>
+                        <span class="text-surface-600 dark:text-surface-300">
+                          {{ ep.evidence || t('specWizard.scoring.noEvidence') }}</span
+                        >
+                      </li>
+                    </ul>
+                  </details>
+                </div>
+                <p v-else-if="softSample" class="text-xs text-surface-500 dark:text-surface-400">
+                  {{ t('specWizard.success.notJudged') }}
+                </p>
                 <details class="group">
                   <summary
                     class="flex cursor-pointer items-center gap-1 text-xs text-surface-500 select-none dark:text-surface-400"
@@ -358,7 +389,6 @@ const topFlags = (ev: CriticEvidence) =>
             <tr>
               <th class="w-8"></th>
               <th>{{ t('spec.check') }}</th>
-              <th v-if="sample" class="min-w-44">{{ t('specWizard.checks.sample', { n: sampleEpisodes ?? 0 }) }}</th>
               <th class="w-28">{{ t('spec.weight') }}</th>
               <th>{{ t('spec.gate') }}</th>
               <th class="w-32">{{ t('spec.params') }}</th>
@@ -371,36 +401,6 @@ const topFlags = (ev: CriticEvidence) =>
                 <td class="min-w-56">
                   <span class="block text-sm font-medium">{{ criticLabel(c.id) }}</span>
                   <span class="block text-xs text-surface-500 dark:text-surface-400">{{ criticDesc(c.id) }}</span>
-                </td>
-                <td v-if="sample">
-                  <template v-if="sample[c.id]">
-                    <div class="flex items-center gap-2">
-                      <div class="h-1.5 w-16 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-800">
-                        <div
-                          class="h-full"
-                          :class="sampleTone(sample[c.id]!.meanScore)"
-                          :style="{ width: `${Math.round((sample[c.id]!.meanScore ?? 0) * 100)}%` }"
-                        />
-                      </div>
-                      <span class="font-mono text-xs tabular-nums">{{
-                        sample[c.id]!.meanScore == null ? '?' : sample[c.id]!.meanScore!.toFixed(2)
-                      }}</span>
-                    </div>
-                    <div class="mt-1 text-xs text-surface-500 dark:text-surface-400">
-                      {{
-                        sample[c.id]!.flagged
-                          ? t('specWizard.checks.flagged', { n: sample[c.id]!.flagged, of: sampleEpisodes ?? 0 })
-                          : t('specWizard.checks.clean')
-                      }}
-                      <template v-if="sample[c.id]!.gateFailed">
-                        · <span class="text-bad">{{ t('specWizard.checks.stopped', { n: sample[c.id]!.gateFailed }) }}</span>
-                      </template>
-                    </div>
-                    <div v-if="topFlags(sample[c.id]!).length" class="mt-1 flex flex-wrap gap-1">
-                      <Pill v-for="[f, n] in topFlags(sample[c.id]!)" :key="f" tone="warn">{{ f }} · {{ n }}</Pill>
-                    </div>
-                  </template>
-                  <span v-else class="text-xs text-surface-500 dark:text-surface-400">{{ t('specWizard.checks.notRun') }}</span>
                 </td>
                 <td><NumField v-model="c.weight" :min="0" :step="0.5" :fallback="1" narrow :disabled="!c.enabled" /></td>
                 <td class="min-w-56">
@@ -429,7 +429,7 @@ const topFlags = (ev: CriticEvidence) =>
               </tr>
               <tr v-if="openParams === c.id">
                 <td></td>
-                <td :colspan="sample ? 5 : 4" class="bg-surface-50 dark:bg-surface-800/40">
+                <td colspan="4" class="bg-surface-50 dark:bg-surface-800/40">
                   <div v-if="!paramKeys(c).length" class="text-xs text-surface-500 dark:text-surface-400">
                     {{ t('spec.noParams') }}
                   </div>

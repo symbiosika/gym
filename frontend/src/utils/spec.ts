@@ -69,6 +69,10 @@ export interface SpecForm {
     hardWeight: number
     softWeight: number
     ignoreFlags: string[]
+    /** flags that cap an episode at review; null keeps the critics' default list for the purpose */
+    reviewFlags: string[] | null
+    /** flags that reject an episode on their own; null keeps the critics' default (none) */
+    rejectFlags: string[] | null
   }
   /** the keys the form has no field for, kept as they were */
   rest: Record<string, unknown>
@@ -121,7 +125,7 @@ export function emptySpec(): SpecForm {
     robot: { type: '', activeArms: [], primaryCamera: '' },
     soft: { enabled: true, weight: 1, indicators: [] },
     hardCritics: DEFAULT_HARD_CRITICS.map((c) => ({ ...c, gateFlags: [...c.gateFlags], params: {} })),
-    scoring: { ...DEFAULT_SCORING, ignoreFlags: [] },
+    scoring: { ...DEFAULT_SCORING, ignoreFlags: [], reviewFlags: null, rejectFlags: null },
     rest: {},
   }
 }
@@ -246,7 +250,15 @@ export function fromSpec(source: unknown): SpecForm {
   const taskRest = omit(task, ['instruction', 'scene', 'notes', 'expected_cycles', 'per_episode', 'objects'])
   const robotRest = omit(robot, ['type', 'active_arms', 'primary_camera'])
   const softRest = omit(soft, ['enabled', 'weight', 'indicators'])
-  const scoringRest = omit(scoring, ['accept_threshold', 'review_threshold', 'hard_weight', 'soft_weight', 'ignore_flags'])
+  const scoringRest = omit(scoring, [
+    'accept_threshold',
+    'review_threshold',
+    'hard_weight',
+    'soft_weight',
+    'ignore_flags',
+    'review_flags',
+    'reject_flags',
+  ])
   if (Object.keys(taskRest).length) rest.task = taskRest
   if (Object.keys(robotRest).length) rest.robot = robotRest
   if (Object.keys(softRest).length) rest.soft_critics = softRest
@@ -270,6 +282,8 @@ export function fromSpec(source: unknown): SpecForm {
       hardWeight: num(scoring.hard_weight, 1),
       softWeight: num(scoring.soft_weight, 1),
       ignoreFlags: strList(scoring.ignore_flags),
+      reviewFlags: Array.isArray(scoring.review_flags) ? strList(scoring.review_flags) : null,
+      rejectFlags: Array.isArray(scoring.reject_flags) ? strList(scoring.reject_flags) : null,
     },
     rest,
   }
@@ -341,6 +355,8 @@ export function toSpec(form: SpecForm, name: string): Obj {
   if (form.scoring.hardWeight !== 1) scoring.hard_weight = form.scoring.hardWeight
   if (form.scoring.softWeight !== 1) scoring.soft_weight = form.scoring.softWeight
   if (form.scoring.ignoreFlags.length) scoring.ignore_flags = form.scoring.ignoreFlags
+  if (form.scoring.reviewFlags) scoring.review_flags = form.scoring.reviewFlags
+  if (form.scoring.rejectFlags) scoring.reject_flags = form.scoring.rejectFlags
 
   const out: Obj = { name, ...omit(form.rest, ['task', 'robot', 'soft_critics', 'scoring']), task }
   if (Object.keys(robot).length) out.robot = robot
