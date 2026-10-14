@@ -47,7 +47,9 @@ tests are green, types check, and anything still red is said so explicitly.
 `develop` is the only base branch. Work on it or on a `claude/<topic>` branch
 based on fresh `origin/develop`; push with `git push -u origin <branch>`. Never
 change `backend/framework/**` from this repo; it is a submodule of a separate
-repository. Only create a PR when asked.
+repository. Only create a PR when asked. Once the PR of a branch is merged,
+follow-up work goes in a new PR: restart the branch from fresh `origin/develop`
+(same name), push, and open a new PR; never reuse or stack on the merged one.
 
 ## 4. Layout
 
