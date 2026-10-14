@@ -382,7 +382,7 @@ export const gymApi = {
 
   // the spec wizard: a spec worked out from a sample dataset
   specDrafts: (t: string) => fetcher.get<SpecDraftView[]>(`${base(t)}/spec-drafts`),
-  createSpecDraft: (t: string, body: { name?: string; skillId?: string | null; purpose?: BlockKind; sampleSize?: number }) =>
+  createSpecDraft: (t: string, body: { name?: string; skillId?: string | null; purpose?: BlockKind; episodes?: string }) =>
     fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts`, body),
   specDraft: (t: string, id: string) => fetcher.get<SpecDraftView>(`${base(t)}/spec-drafts/${id}`),
   /** Save what was entered in the wizard; only the named fields change. */
@@ -393,15 +393,15 @@ export const gymApi = {
       name?: string
       skillId?: string | null
       purpose?: BlockKind
-      sampleSize?: number
+      episodes?: string
       step?: SpecDraftStep
       spec?: Record<string, unknown> | null
       judgments?: Record<string, 'accept' | 'reject'>
     },
   ) => fetcher.put<SpecDraftView>(`${base(t)}/spec-drafts/${id}`, body),
-  /** Analyse one more episode of the sample, one the person knows by number. */
-  addSpecEpisode: (t: string, id: string, episode: number) =>
-    fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts/${id}/episodes`, { episode }),
+  /** Analyse more episodes of the sample, picked like "57" or "40-42". */
+  addSpecEpisodes: (t: string, id: string, episodes: string) =>
+    fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts/${id}/episodes`, { episodes }),
   specEpisodeVideos: (t: string, id: string, episode: number) =>
     fetcher.get<SampleVideo[]>(`${base(t)}/spec-drafts/${id}/episodes/${episode}/videos`),
   /** The address a <video> plays; a window inside a packed file is added as a media fragment. */
@@ -413,8 +413,12 @@ export const gymApi = {
   uploadSpecSample: (t: string, id: string, file: File, onProgress: (percent: number) => void, handle: UploadHandle = {}) =>
     uploadInChunks<SpecDraftView>(`${base(t)}/spec-drafts/${id}/uploads`, file, {}, onProgress, handle),
   analyzeSpecDraft: (t: string, id: string) => fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts/${id}/analyze`, {}),
-  testSpecDraft: (t: string, id: string, spec?: Record<string, unknown>) =>
-    fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts/${id}/test`, spec ? { spec } : {}),
+  /** Test the drafted spec, over the analysed episodes or the picked ones ("3" for one episode). */
+  testSpecDraft: (t: string, id: string, spec?: Record<string, unknown>, episodes?: string) =>
+    fetcher.post<SpecDraftView>(`${base(t)}/spec-drafts/${id}/test`, {
+      ...(spec ? { spec } : {}),
+      ...(episodes ? { episodes } : {}),
+    }),
   finishSpecDraft: (t: string, id: string, body: { name: string; assignToSkill?: boolean; overwrite?: boolean }) =>
     fetcher.post<{ name: string; skillId: string | null; assigned: boolean }>(`${base(t)}/spec-drafts/${id}/finish`, body),
   specDraftReport: (t: string, id: string, run: SpecDraftRun) =>

@@ -5,13 +5,15 @@ import { gymApi, type UploadHandle } from '@/api/gym'
 import { useGym } from '@/stores/gym'
 import type { BlockKind, SkillListItem, SpecDraftView } from '@/types/gym'
 import { fmtBytes } from '@/utils/time'
-import NumField from '@/components/spec/NumField.vue'
+import { formatEpisodes, parseEpisodes } from '@/utils/episodes'
+import EpisodePickField from './EpisodePickField.vue'
 import IconUpload from '~icons/carbon/cloud-upload'
 import IconCheck from '~icons/carbon/checkmark-filled'
 
 /**
  * Step 1 of the spec wizard: what the spec is for and the sample it is worked
- * out from. The skill, the purpose and X are saved at once; the zip goes up in
+ * out from. The skill, the purpose and the episodes to analyse (a pick like "0-9") are
+ * saved at once; the zip goes up in
  * chunks like any dataset and stays only for the time of the wizard. The
  * analysis starts by itself once the upload is complete.
  */
@@ -19,9 +21,6 @@ const props = defineProps<{ draft: SpecDraftView; tenantId: string; skills: Skil
 const emit = defineEmits<{ update: [draft: SpecDraftView]; error: [message: string] }>()
 const { t } = useI18n()
 const gym = useGym()
-
-const SAMPLE_MIN = 1
-const SAMPLE_MAX = 50
 
 const skillOptions = computed(() => [
   { label: t('specWizard.noSkill'), value: null as string | null },
@@ -43,19 +42,20 @@ async function save(body: Parameters<typeof gymApi.updateSpecDraft>[2]) {
   }
 }
 
-const sampleSize = ref(props.draft.sampleSize)
-// saved shortly after the last change, so dragging the slider is one request
-let sizeTimer: ReturnType<typeof setTimeout> | undefined
-watch(sampleSize, () => {
-  clearTimeout(sizeTimer)
-  sizeTimer = setTimeout(commitSampleSize, 600)
+const pick = ref(props.draft.episodeSelection)
+// saved shortly after the last keystroke, and only a pick that names episodes
+let pickTimer: ReturnType<typeof setTimeout> | undefined
+watch(pick, () => {
+  clearTimeout(pickTimer)
+  pickTimer = setTimeout(commitPick, 700)
 })
-onBeforeUnmount(() => clearTimeout(sizeTimer))
-function commitSampleSize() {
-  clearTimeout(sizeTimer)
-  const n = Math.round(Math.min(SAMPLE_MAX, Math.max(SAMPLE_MIN, Number(sampleSize.value) || SAMPLE_MIN)))
-  sampleSize.value = n
-  if (n !== props.draft.sampleSize) void save({ sampleSize: n })
+onBeforeUnmount(() => clearTimeout(pickTimer))
+function commitPick() {
+  clearTimeout(pickTimer)
+  const parsed = parseEpisodes(pick.value)
+  if (!parsed.ok || !parsed.episodes.length) return
+  const text = formatEpisodes(parsed.episodes)
+  if (text !== props.draft.episodeSelection) void save({ episodes: text })
 }
 
 // ------------------------------------------------------------------ upload
@@ -91,7 +91,7 @@ function onPick(e: Event) {
 
 async function upload() {
   if (!file.value || uploading.value) return
-  commitSampleSize()
+  commitPick()
   uploading.value = true
   failed.value = ''
   try {
@@ -131,18 +131,8 @@ const hasSample = computed(() => props.draft.storageParts.length > 0)
         />
       </FormField>
 
-      <FormField :label="t('specWizard.sample.size')" :hint="t('specWizard.sample.sizeHint', { max: SAMPLE_MAX })">
-        <div class="flex items-center gap-3">
-          <NumField v-model="sampleSize" :min="SAMPLE_MIN" :max="SAMPLE_MAX" :step="1" :fallback="10" narrow />
-          <input
-            v-model.number="sampleSize"
-            type="range"
-            :min="SAMPLE_MIN"
-            :max="SAMPLE_MAX"
-            class="accent-primary grow"
-            :aria-label="t('specWizard.sample.size')"
-          />
-        </div>
+      <FormField :label="t('specWizard.sample.size')" :hint="t('specWizard.sample.sizeHint')">
+        <EpisodePickField v-model="pick" @submit="commitPick" />
       </FormField>
 
       <div class="lg:col-span-2">

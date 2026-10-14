@@ -3,16 +3,16 @@
  * (lib/gym/spec-drafts.ts).
  *
  *   GET    /tenant/:tenantId/gym/spec-drafts                     the open drafts
- *   POST   /tenant/:tenantId/gym/spec-drafts                     { name?, skillId?, purpose?, sampleSize? } start one
+ *   POST   /tenant/:tenantId/gym/spec-drafts                     { name?, skillId?, purpose?, episodes? } start one; episodes like "0-9" or "1-3,6,8"
  *   GET    /tenant/:tenantId/gym/spec-drafts/:id                 the draft, brought up to date with its runs
- *   PUT    /tenant/:tenantId/gym/spec-drafts/:id                 { name?, skillId?, purpose?, sampleSize?, step?, spec? } save what was entered
+ *   PUT    /tenant/:tenantId/gym/spec-drafts/:id                 { name?, skillId?, purpose?, episodes?, step?, spec?, judgments? } save what was entered
  *   DELETE /tenant/:tenantId/gym/spec-drafts/:id                 discard: the sample and the runs go, nothing is stored
- *   POST   /tenant/:tenantId/gym/spec-drafts/:id/analyze         run the auto mode over the sample again (after X changed)
- *   POST   /tenant/:tenantId/gym/spec-drafts/:id/test            { spec? } test run with the drafted spec over the same episodes
+ *   POST   /tenant/:tenantId/gym/spec-drafts/:id/analyze         run the auto mode over the sample again (after the pick of episodes changed)
+ *   POST   /tenant/:tenantId/gym/spec-drafts/:id/test            { spec?, episodes? } test run with the drafted spec, over the analysed episodes or the picked ones
  *   POST   /tenant/:tenantId/gym/spec-drafts/:id/finish          { name, assignToSkill?, overwrite? } store the spec, name it on the skill
  *   GET    /tenant/:tenantId/gym/spec-drafts/:id/report?run      the report of the analysis or the test run
  *   GET    /tenant/:tenantId/gym/spec-drafts/:id/files/*?run     contact sheets of the sample (proxied)
- *   POST   /tenant/:tenantId/gym/spec-drafts/:id/episodes        { episode } analyse one more episode, picked by number
+ *   POST   /tenant/:tenantId/gym/spec-drafts/:id/episodes        { episodes } analyse more episodes, picked like "57" or "40-42"
  *   GET    /tenant/:tenantId/gym/spec-drafts/:id/episodes/:episode/videos          the camera videos of an episode
  *   GET    /tenant/:tenantId/gym/spec-drafts/:id/episodes/:episode/video?camera    one of them, streamed (range requests)
  *
@@ -195,7 +195,7 @@ export default function defineSpecDraftRoutes(app: SymbiosikaFrameworkHonoApp, A
     });
 
   app.post(`${base}/:id/episodes`, ...guard,
-    describeRoute({ tags: ["gym"], summary: "Analyse one more episode of the sample, picked by number", responses: ok }),
+    describeRoute({ tags: ["gym"], summary: "Analyse more episodes of the sample, picked by number", responses: ok }),
     validator("param", tenantIdParam), isTenantMember,
     async (c) => {
       try {

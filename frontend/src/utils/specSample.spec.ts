@@ -254,6 +254,38 @@ describe('how a verdict comes about, and the way to accept', () => {
     }
   })
 
+  it('gives the calculation: the sums of each side, what is left out, the rule that decided', () => {
+    const r = report()
+    const form = fromSpec(r.spec)
+    form.hardCritics.find((c) => c.id === 'duration')!.weight = 0
+    form.hardCritics.find((c) => c.id === 'grasp_cycles')!.enabled = false
+    for (const row of previewVerdicts(r, form, runFlags(r))) {
+      // hard = Σ w·s / Σ w over the parts shown
+      const sumW = row.hardParts.reduce((a, p) => a + p.weight, 0)
+      const sumWS = row.hardParts.reduce((a, p) => a + p.weight * p.score, 0)
+      expect(row.hard).toBeCloseTo(sumWS / sumW, 9)
+      expect(row.skipped).toEqual(
+        expect.arrayContaining([
+          { source: 'hard', id: 'duration', reason: 'weight0' },
+          { source: 'hard', id: 'grasp_cycles', reason: 'off' },
+        ]),
+      )
+      expect(row.sideWeights.soft).toBe(row.soft == null ? 0 : form.scoring.softWeight)
+      const expected = row.gates.length
+        ? 'stop'
+        : row.rejects.length
+          ? 'rejectFlag'
+          : row.total! >= form.scoring.acceptThreshold
+            ? row.caps.length
+              ? 'cap'
+              : 'accept'
+            : row.total! >= form.scoring.reviewThreshold
+              ? 'review'
+              : 'belowReview'
+      expect(row.decidedBy).toBe(expected)
+    }
+  })
+
   it('finds the change that lets a stopped episode through, and what else it moves', () => {
     const r = report()
     const form = fromSpec(r.spec)

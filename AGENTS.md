@@ -47,13 +47,15 @@ tests are green, types check, and anything still red is said so explicitly.
 `develop` is the only base branch. Work on it or on a `claude/<topic>` branch
 based on fresh `origin/develop`; push with `git push -u origin <branch>`. Never
 change `backend/framework/**` from this repo; it is a submodule of a separate
-repository. Only create a PR when asked.
+repository. Only create a PR when asked. Once the PR of a branch is merged,
+follow-up work goes in a new PR: restart the branch from fresh `origin/develop`
+(same name), push, and open a new PR; never reuse or stack on the merged one.
 
 ## 4. Layout
 
 - `backend/` Bun + Hono API. Framework alias `@framework/*` → `backend/framework/src/*`.
   - `src/db/schema.ts` gym tables (prefix `gym_`) and the JSON documents on them; `drizzle-sql/` migrations
-  - `src/lib/gym/` skills (and policies), day protocols, blocks (the wizard), datasets, exports, kpis, audit, cells, collections, errors; `evaluations.ts` the rollouts of an evaluation block, their human review, the effective verdict, the Wilson interval and the aggregation of the figures; `evaluation-reports.ts` the reports over blocks; `spec-drafts.ts` the spec wizard: a sample dataset, the critics in auto mode over X episodes, the spec drafted step by step, a test run, then stored
+  - `src/lib/gym/` skills (and policies), day protocols, blocks (the wizard), datasets, exports, kpis, audit, cells, collections, errors; `evaluations.ts` the rollouts of an evaluation block, their human review, the effective verdict, the Wilson interval and the aggregation of the figures; `evaluation-reports.ts` the reports over blocks; `spec-drafts.ts` the spec wizard: a sample dataset, the critics in auto mode over picked episodes ("0-9", "1-3,6,8", `episode-selection.ts`), the spec drafted step by step, test runs over all or single episodes (each episode keeps the fingerprint of the spec it was tested with), then stored
   - `src/lib/critics/` client for the critics service (`critics/`), job sync, summary; tests use `fake-server.test-util.ts` with fixtures of a real run. The summary is stored on the dataset and carries `SUMMARY_VERSION`; bump it when its shape changes, and stale summaries are rebuilt from the stored report on read (`upgradeStaleSummaries`)
   - `src/lib/ai/` model selection (Gemini or framework provider), plan and follow-up proposals with fallbacks
   - `src/lib/storage/` the one gate to stored bytes: `putFile`, `readFile`, `removeFile`. A wrapper, not a storage: the framework always does the storing, this picks which of its backends from `GYM_STORAGE_DRIVER` (`db` the default, `s3` for an object store, `local` for development) and keeps the reference `"<driver>:<name>"` a row carries, so changing the driver keeps what was written before readable. GYM implements no backend of its own; one it needs is added to the framework
@@ -70,7 +72,7 @@ repository. Only create a PR when asked.
     `npx volt-vue add <Name>`; never restyle PrimeVue from the outside
   - `src/components/` own components, also auto-imported (`Pill`, `KpiTile`,
     `FormField`, `PageTitle`, `SectionHeader`, `TabBar`, `Modal`, …);
-    `RolloutReview` the human review of a block's rollouts, `EvaluationReportBody` the report; `specwizard/` the steps of the spec wizard (`SpecWizardView`), `specwizard/workbench/` its live view (episodes, video and results, settings), whose evidence, verdict preview and flag switches live in `utils/specSample.ts`
+    `RolloutReview` the human review of a block's rollouts, `EvaluationReportBody` the report; `specwizard/` the steps of the spec wizard (`SpecWizardView`), `specwizard/workbench/` its live view (episodes, video and results, settings, `ScoreFormula` the calculation of a verdict with its numbers), whose evidence, verdict preview and flag switches live in `utils/specSample.ts`
   - `src/views/` also `EvaluationReportView` (the report, editable) and `EvaluationReportSharedView` (public, printable)
   - icons are components: `import IconUpload from '~icons/carbon/upload'`
     (unplugin-icons). Never an icon font, never a PrimeVue icon class

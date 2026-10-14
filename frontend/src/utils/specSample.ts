@@ -168,6 +168,27 @@ export interface PreviewRow {
   /** flags on the episode that cap it at review, and that reject it */
   caps: string[]
   rejects: string[]
+  /** results of the episode that do not go into the total, and why */
+  skipped: SkippedPart[]
+  /** the weights the two sides go into the total with; a side without a score has none */
+  sideWeights: { hard: number; soft: number }
+  /** the rule that decided the verdict, in the order the critics apply them */
+  decidedBy: Decision
+}
+
+/**
+ * The rules of `lerobot_critics.scoring.aggregate` in their order; the first
+ * that holds decides: a stop or a rejecting flag rejects, no score at all is
+ * review, then the total against the thresholds, and an accept with a
+ * capping flag becomes review. A failed run of the episode is review.
+ */
+export type Decision = 'stop' | 'rejectFlag' | 'noScore' | 'accept' | 'review' | 'belowReview' | 'cap' | 'error'
+
+/** A result that is left out of the total: switched off, weight 0, no score, or one that counts by its flags only. */
+export interface SkippedPart {
+  source: 'hard' | 'soft'
+  id: string
+  reason: 'off' | 'weight0' | 'noScore' | 'flagsOnly' | 'notInSpec'
 }
 
 /** One result in the total score: its score, its weight, and what it costs the total (from 1). */
@@ -210,9 +231,13 @@ export function previewVerdicts(
     const gates: Blocker[] = []
     const flags = new Set<string>()
     const hardRows: { id: string; score: number | null; weight: number }[] = []
+    const skipped: SkippedPart[] = []
     for (const h of e.hard) {
       const c = form.hardCritics.find((x) => x.id === h.id)
-      if (c && !c.enabled) continue
+      if (c && !c.enabled) {
+        skipped.push({ source: 'hard', id: h.id, reason: 'off' })
+        continue
+      }
       const own = h.flags.filter((f) => !muted.has(f))
       own.forEach((f) => flags.add(f))
       const weight = c ? c.weight : h.weight
@@ -233,11 +258,15 @@ export function previewVerdicts(
         // the model's overall word (task failed, a person in the workspace) counts by its flags only
         if (s.id === 'vlm.summary') {
           s.flags.filter((f) => !muted.has(f)).forEach((f) => flags.add(f))
+          skipped.push({ source: 'soft', id: 'summary', reason: 'flagsOnly' })
           continue
         }
         if (!s.id.startsWith('vlm.')) continue
         const ind = indicators.get(s.id.slice(4))
-        if (!ind) continue
+        if (!ind) {
+          skipped.push({ source: 'soft', id: s.id.slice(4), reason: 'notInSpec' })
+          continue
+        }
         softRows.push({ id: ind.id, score: s.score, weight: ind.weight })
         s.flags.filter((f) => !muted.has(f)).forEach((f) => flags.add(f))
         if (ind.gate && s.score != null && s.score < ind.gateBelow) {
@@ -250,6 +279,15 @@ export function previewVerdicts(
             evidence: s.evidence[0] || undefined,
           })
         }
+      }
+    }
+    for (const [source, rows] of [
+      ['hard', hardRows],
+      ['soft', softRows],
+    ] as const) {
+      for (const r of rows) {
+        if (r.score == null) skipped.push({ source, id: r.id, reason: 'noScore' })
+        else if (r.weight <= 0) skipped.push({ source, id: r.id, reason: 'weight0' })
       }
     }
     const hard = weightedMean(hardRows)
@@ -286,17 +324,21 @@ export function previewVerdicts(
     if (total == null || total < form.scoring.acceptThreshold)
       blockers.push({ kind: 'score', total, limit: form.scoring.acceptThreshold })
     let verdict: Verdict
-    if (gates.length || rejecting.length) verdict = 'reject'
-    else if (total == null) verdict = 'review'
-    else if (total >= form.scoring.acceptThreshold) verdict = 'accept'
-    else if (total >= form.scoring.reviewThreshold) verdict = 'review'
-    else verdict = 'reject'
+    let decidedBy: Decision
+    if (gates.length) [verdict, decidedBy] = ['reject', 'stop']
+    else if (rejecting.length) [verdict, decidedBy] = ['reject', 'rejectFlag']
+    else if (total == null) [verdict, decidedBy] = ['review', 'noScore']
+    else if (total >= form.scoring.acceptThreshold) [verdict, decidedBy] = ['accept', 'accept']
+    else if (total >= form.scoring.reviewThreshold) [verdict, decidedBy] = ['review', 'review']
+    else [verdict, decidedBy] = ['reject', 'belowReview']
     if (verdict === 'accept' && capping.length) {
       verdict = 'review'
+      decidedBy = 'cap'
       blockers.push(...capping.map((flag) => ({ kind: 'reviewFlag' as const, flag })))
     }
     if (e.error) {
       verdict = 'review'
+      decidedBy = 'error'
       blockers.push({ kind: 'error' })
     }
     return {
@@ -314,6 +356,12 @@ export function previewVerdicts(
       scoreVerdict,
       caps: capping,
       rejects: rejecting,
+      skipped,
+      sideWeights: {
+        hard: hard != null ? form.scoring.hardWeight : 0,
+        soft: soft != null ? form.scoring.softWeight : 0,
+      },
+      decidedBy,
     }
   })
 }

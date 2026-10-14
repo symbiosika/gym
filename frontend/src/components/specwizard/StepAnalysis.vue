@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { gymApi } from '@/api/gym'
 import type { SampleReport, SpecDraftView } from '@/types/gym'
 import { cycleCounts, sampleTasks } from '@/utils/specSample'
+import { formatEpisodes, parseEpisodes } from '@/utils/episodes'
 import SampleSheet from '@/components/specwizard/SampleSheet.vue'
+import EpisodePickField from './EpisodePickField.vue'
 import IconRestart from '~icons/carbon/restart'
 
 /**
- * Step 2 of the spec wizard: the critics in auto mode over X episodes of the
- * sample. While they run the step shows how far they are; afterwards what they
+ * Step 2 of the spec wizard: the critics in auto mode over the picked episodes
+ * of the sample ("0-9", "1-3,6,8"); a new pick runs it again. While they run the step shows how far they are; afterwards what they
  * read from the data (task, robot, cameras, repetitions), how they judged the
  * sample with the spec they generated, and a contact sheet of every episode.
  * Everything here is the critics' word; the next steps turn it into the spec.
  */
 const props = defineProps<{ draft: SpecDraftView; report: SampleReport | null; tenantId: string }>()
-const emit = defineEmits<{ rerun: [] }>()
+const emit = defineEmits<{ rerun: [pick?: string] }>()
 const { t } = useI18n()
 
 const running = computed(() => props.draft.analysisStatus === 'queued' || props.draft.analysisStatus === 'running')
@@ -38,13 +40,26 @@ const topFlags = computed(() =>
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8),
 )
-/** X changed after the run: the sample shown is not the one asked for */
-const stale = computed(
-  () =>
-    !!props.report &&
-    props.report.n_episodes !== props.draft.sampleSize &&
-    (props.report.dataset_episodes ?? props.report.n_episodes) > Math.min(props.report.n_episodes, props.draft.sampleSize),
+/** the episodes the analysis ran over */
+const analysed = computed(() => formatEpisodes(props.report?.episodes.map((e) => e.episode) ?? []))
+/** the pick names episodes the run did not cover: the sample shown is not the one asked for */
+const stale = computed(() => {
+  if (!props.report) return false
+  const parsed = parseEpisodes(props.draft.episodeSelection)
+  const total = props.report.dataset_episodes ?? Infinity
+  const ran = new Set(props.report.episodes.map((e) => e.episode))
+  return parsed.ok && parsed.episodes.some((e) => e < total && !ran.has(e))
+})
+const pick = ref(props.draft.episodeSelection)
+watch(
+  () => props.draft.episodeSelection,
+  (next) => (pick.value = next),
 )
+const pickField = ref<InstanceType<typeof EpisodePickField> | null>(null)
+function repick() {
+  const parsed = parseEpisodes(pick.value)
+  if (parsed.ok && parsed.episodes.length) emit('rerun', formatEpisodes(parsed.episodes))
+}
 const verdictTone = (v: string) => (v === 'accept' ? 'ok' : v === 'review' ? 'warn' : 'bad')
 const sheet = (episode: number) => gymApi.specDraftSheetUrl(props.tenantId, props.draft.id, episode)
 </script>
@@ -53,7 +68,7 @@ const sheet = (episode: number) => gymApi.specDraftSheetUrl(props.tenantId, prop
   <div class="gym-stepbox">
     <h2 class="font-display text-xl font-semibold tracking-tight">{{ t('specWizard.analysis.title') }}</h2>
     <p class="mt-1 mb-5 text-surface-600 dark:text-surface-300">
-      {{ t('specWizard.analysis.lead', { n: draft.sampleSize }) }}
+      {{ t('specWizard.analysis.lead', { pick: draft.episodeSelection }) }}
     </p>
 
     <!-- the run is going -->
@@ -87,8 +102,25 @@ const sheet = (episode: number) => gymApi.specDraftSheetUrl(props.tenantId, prop
     <!-- what the critics read from the data -->
     <template v-else-if="report">
       <div v-if="stale" class="gym-note border-s-warn mb-4 flex flex-wrap items-center gap-3">
-        <span class="grow">{{ t('specWizard.analysis.stale', { ran: report.n_episodes, want: draft.sampleSize }) }}</span>
+        <span class="grow">{{ t('specWizard.analysis.stale', { ran: analysed, want: draft.episodeSelection }) }}</span>
         <SecondaryButton size="small" :label="t('specWizard.analysis.rerun')" @click="emit('rerun')">
+          <template #icon><IconRestart class="size-4" /></template>
+        </SecondaryButton>
+      </div>
+
+      <!-- other episodes: a new pick, the analysis runs again -->
+      <div class="mb-4 flex flex-wrap items-start gap-3">
+        <div class="min-w-56 grow sm:max-w-sm">
+          <span class="gym-field">{{ t('specWizard.analysis.pick') }}</span>
+          <EpisodePickField ref="pickField" v-model="pick" :dataset-episodes="report.dataset_episodes ?? null" @submit="repick" />
+        </div>
+        <SecondaryButton
+          class="mt-6"
+          size="small"
+          :label="t('specWizard.analysis.rerunPick')"
+          :disabled="!pickField?.valid"
+          @click="repick"
+        >
           <template #icon><IconRestart class="size-4" /></template>
         </SecondaryButton>
       </div>

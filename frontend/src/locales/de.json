@@ -1231,8 +1231,8 @@
       "lead": "Ein typisches Dataset dieser Aufgabe, so wie es aus der Aufnahme kommt. Es wird nur für den Assistenten gespeichert und danach gelöscht.",
       "skill": "Für welchen Skill?",
       "skillHint": "Am Ende kann der Spec dem Skill direkt zugeordnet werden.",
-      "size": "Episoden zum Analysieren (X)",
-      "sizeHint": "Gleichmäßig über das Dataset verteilt, höchstens {max}. Mehr Episoden zeigen mehr, dauern aber länger.",
+      "size": "Episoden zum Analysieren",
+      "sizeHint": "Wie beim Drucken: 0-9 oder 1-3,6,8. Mehr Episoden zeigen mehr, dauern aber länger.",
       "purpose": "Wofür ist der Spec?",
       "file": "Dataset (ZIP)",
       "drop": "ZIP hierher ziehen oder auswählen",
@@ -1243,7 +1243,7 @@
     },
     "analysis": {
       "title": "Auto-Analyse",
-      "lead": "Die Critics sehen sich {n} Episoden an, erzeugen daraus einen Spec-Vorschlag und beurteilen die Stichprobe damit.",
+      "lead": "Die Critics sehen sich die Episoden {pick} an, erzeugen daraus einen Spec-Vorschlag und beurteilen die Stichprobe damit.",
       "stage": {
         "preparing": "Dataset wird geholt und vorbereitet",
         "hard": "Technische Checks",
@@ -1254,7 +1254,7 @@
       "retry": "Erneut analysieren",
       "rerun": "Neu analysieren",
       "noSample": "Noch kein Muster-Dataset.",
-      "stale": "Analysiert wurden {ran} Episoden, eingestellt sind jetzt {want}.",
+      "stale": "Analysiert wurden die Episoden {ran}, eingestellt sind jetzt {want}.",
       "episodes": "Episoden analysiert",
       "ofTotal": "von {n} im Dataset",
       "robot": "Roboter",
@@ -1269,7 +1269,9 @@
       "verdicts": "Urteil mit dem Vorschlag",
       "verdictsHint": "So beurteilen die Critics die Stichprobe mit dem automatisch erzeugten Spec. Das ist der Ausgangspunkt, den du in den nächsten Schritten schärfst.",
       "sheets": "Die Episoden der Stichprobe",
-      "sheetsHint": "Ein Kontaktbogen je Episode: jede Zeile eine Kamera, von links nach rechts die Zeit. Ein Klick zeigt ihn groß."
+      "sheetsHint": "Ein Kontaktbogen je Episode: jede Zeile eine Kamera, von links nach rechts die Zeit. Ein Klick zeigt ihn groß.",
+      "pick": "Episoden",
+      "rerunPick": "Mit diesen Episoden neu analysieren"
     },
     "task": {
       "fromData": "Aufgabe im Dataset",
@@ -1318,7 +1320,7 @@
     },
     "save": {
       "testTitle": "Testlauf",
-      "testHint": "Dein Spec an denselben Episoden der Stichprobe",
+      "testHint": "Dein Spec an den Episoden der Stichprobe oder an einer Auswahl",
       "testRun": "Testlauf starten",
       "testAgain": "Erneut testen",
       "testRunning": "Die Critics prüfen die Stichprobe mit deinem Spec.",
@@ -1341,7 +1343,10 @@
       "doneAssigned": "Spec „{name}“ gespeichert und „{skill}“ zugeordnet.",
       "existsTitle": "Es gibt schon einen Spec „{name}“",
       "existsText": "Überschreiben ersetzt ihn für alle Skills, die ihn verwenden.",
-      "overwrite": "Überschreiben"
+      "overwrite": "Überschreiben",
+      "testEpisodes": "Episoden für den Testlauf",
+      "older": "älterer Stand",
+      "olderHint": "Diese Episode wurde zuletzt mit einem älteren Stand des Specs getestet."
     },
     "flags": {
       "title": "Markierungen",
@@ -1475,6 +1480,67 @@
       "forAll": "Jede Änderung gilt für den ganzen Spec, also für alle Episoden. Daneben steht, welche anderen Episoden sie mit verschiebt.",
       "misfit": "Das Modell gibt „{name}“ in {n} von {of} Episoden fast nichts. Dass alle misslungen sind, ist selten. Meist passt der Wortlaut nicht zur Aufgabe, zum Beispiel ein Ablageort, den die Aufgabe gar nicht hat. Dann das Kriterium umformulieren oder entfernen und den Testlauf machen.",
       "misfitOpen": "Kriterium öffnen"
+    },
+    "pick": {
+      "placeholder": "z. B. 0-9 oder 1-3,6,8",
+      "hint": "Wie beim Drucken: einzelne Episoden mit Komma, Bereiche mit Bindestrich, zum Beispiel 1-3,6,8.",
+      "count": "{n} Episoden:",
+      "syntax": "„{part}“ ist keine Episode und kein Bereich wie 1-3.",
+      "backwards": "„{part}“ läuft rückwärts. Bereiche von klein nach groß, zum Beispiel 2-5.",
+      "tooMany": "Höchstens {max} Episoden auf einmal.",
+      "beyond": "Das Dataset hat die Episoden 0 bis {last}."
+    },
+    "test": {
+      "short": "Test",
+      "running": "wird gerade getestet",
+      "current": "Ergebnisse aus einem Test mit dem Spec, wie er jetzt ist",
+      "older": "Ergebnisse aus einem Test mit einem älteren Stand des Specs",
+      "one": "E{n} testen",
+      "oneHint": "Nur diese Episode mit dem Spec, wie er jetzt ist: die Critics laufen neu, das Sprachmodell eingeschlossen. Ausreißer-Markierungen fehlen dabei, sie vergleichen eine Episode mit den anderen ihres Laufs.",
+      "runningOne": "E{n} wird mit dem aktuellen Spec getestet …",
+      "fromCurrent": "Ergebnisse aus dem Test mit diesem Spec.",
+      "fromOlder": "Ergebnisse aus einem Test mit einem älteren Stand. Umformulierte Kriterien und geänderte Parameter zeigt erst ein neuer Test.",
+      "fromAnalysis": "Ergebnisse aus der Auto-Analyse. Umformulierte Kriterien und geänderte Parameter zeigt ein Test.",
+      "failed": "Der Test ist fehlgeschlagen:"
+    },
+    "formula": {
+      "mode": {
+        "formula": "Rechenweg",
+        "short": "Kurz erklärt"
+      },
+      "hard": "Technische Prüfungen",
+      "soft": "Erfolgskriterien (Sprachmodell)",
+      "sum": "Summe",
+      "noSide": {
+        "hard": "Keine Prüfung mit Score und Gewicht, diese Seite fällt aus dem Gesamtscore.",
+        "soft": "Kein Kriterium mit Score und Gewicht (Sprachmodell aus, fehlgeschlagen oder ohne Kriterien), diese Seite fällt aus dem Gesamtscore."
+      },
+      "notCounted": "Nicht in der Summe:",
+      "skip": {
+        "off": "abgeschaltet",
+        "weight0": "Gewicht 0",
+        "noScore": "kein Score",
+        "flagsOnly": "zählt nur über seine Markierungen",
+        "notInSpec": "nicht mehr im Spec"
+      },
+      "total": "Gesamtscore",
+      "noTotal": "Kein Gesamtscore: keine Seite hat einen Score.",
+      "sideWeights": "W_h = {h} und W_s = {s} stellst du unter „Gesamt“ rechts ein. Eine Seite ohne Score fällt aus Zähler und Nenner.",
+      "decision": "Entscheidung",
+      "rule": {
+        "stop": "Stoppt eine Prüfung oder ein Kriterium? ({which})",
+        "rejectFlag": "Eine Markierung, die ablehnt? ({flags})",
+        "noScore": "Kein Gesamtscore?",
+        "accept": "total {total} ≥ „akzeptieren ab“ {accept}?",
+        "review": "total {total} ≥ „prüfen ab“ {review}?",
+        "else": "sonst",
+        "cap": "Danach: ein Akzeptiert mit einer Markierung, die auf „prüfen“ deckelt ({flags})?"
+      },
+      "yes": "ja",
+      "no": "nein",
+      "none": "keine",
+      "firstWins": "Die Regeln gelten von oben nach unten, die erste zutreffende entscheidet. Die Deckelung wirkt nur auf ein Akzeptiert.",
+      "error": "Der Lauf dieser Episode hatte einen Fehler, deshalb steht sie auf „prüfen“, egal wie die Regeln ausgehen."
     }
   }
 }

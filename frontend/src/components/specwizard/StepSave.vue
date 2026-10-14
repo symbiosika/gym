@@ -3,13 +3,15 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SampleReport, SpecDraftView } from '@/types/gym'
 import { toYaml, validateSpec, type SpecForm } from '@/utils/spec'
+import { formatEpisodes, parseEpisodes } from '@/utils/episodes'
+import EpisodePickField from './EpisodePickField.vue'
 import IconPlay from '~icons/carbon/play'
 import IconSave from '~icons/carbon/save'
 import IconArrow from '~icons/carbon/arrow-right'
 
 /**
  * The last step of the spec wizard: a test run of the drafted spec over the
- * same episodes of the sample, compared with what the auto mode decided, and
+ * analysed episodes of the sample or a pick of them ("1-3,6,8"), compared with what the auto mode decided, and
  * then the name the spec is stored under and whether the skill uses it from
  * now on. Storing ends the wizard and lets the sample go.
  */
@@ -19,11 +21,13 @@ const props = defineProps<{
   name: string
   analysis: SampleReport | null
   test: SampleReport | null
+  /** the fingerprint of the spec on screen, to tell a test of it from one of an earlier state */
+  specHash: string
   busy: boolean
 }>()
 const emit = defineEmits<{
   'update:name': [name: string]
-  test: []
+  test: [episodes: string]
   finish: [body: { name: string; assignToSkill: boolean }]
 }>()
 const { t } = useI18n()
@@ -49,6 +53,19 @@ const compare = computed(() => {
     flags: e.score.flags,
   }))
 })
+/** the episodes to test, by default those of the analysis */
+const analysed = computed(() => formatEpisodes(props.analysis?.episodes.map((e) => e.episode) ?? []))
+const pick = ref(analysed.value)
+const pickField = ref<InstanceType<typeof EpisodePickField> | null>(null)
+function startTest() {
+  const parsed = parseEpisodes(pick.value)
+  if (parsed.ok && parsed.episodes.length) emit('test', formatEpisodes(parsed.episodes))
+}
+/** an episode whose latest test ran with another state of the spec */
+const older = (episode: number) => {
+  const hash = props.draft.testSpecs[String(episode)]
+  return !!hash && hash !== props.specHash
+}
 const tone = (v: string | null) => (v === 'accept' ? 'ok' : v === 'review' ? 'warn' : 'bad')
 const yaml = computed(() => toYaml(props.form, props.name || 'spec'))
 </script>
@@ -56,16 +73,27 @@ const yaml = computed(() => toYaml(props.form, props.name || 'spec'))
 <template>
   <div class="flex flex-col gap-6">
     <section>
-      <SectionHeader :title="t('specWizard.save.testTitle')" :hint="t('specWizard.save.testHint')">
+      <SectionHeader :title="t('specWizard.save.testTitle')" :hint="t('specWizard.save.testHint')"> </SectionHeader>
+      <div class="mb-3 flex flex-wrap items-start gap-3">
+        <div class="min-w-56 grow sm:max-w-sm">
+          <span class="gym-field">{{ t('specWizard.save.testEpisodes') }}</span>
+          <EpisodePickField
+            ref="pickField"
+            v-model="pick"
+            :dataset-episodes="analysis?.dataset_episodes ?? null"
+            @submit="startTest"
+          />
+        </div>
         <SecondaryButton
+          class="mt-6"
           :label="draft.testStatus === 'none' ? t('specWizard.save.testRun') : t('specWizard.save.testAgain')"
           :loading="testing"
-          :disabled="testing || !!errors.length"
-          @click="emit('test')"
+          :disabled="testing || !!errors.length || !pickField?.valid"
+          @click="startTest"
         >
           <template #icon><IconPlay class="size-4" /></template>
         </SecondaryButton>
-      </SectionHeader>
+      </div>
       <div v-if="testing" class="gym-note">{{ t('specWizard.save.testRunning') }} {{ testProgress }}</div>
       <div v-else-if="draft.testStatus === 'failed'" class="gym-note border-s-bad">
         {{ t('specWizard.save.testFailed') }}
@@ -92,6 +120,9 @@ const yaml = computed(() => toYaml(props.form, props.name || 'spec'))
               <td><IconArrow class="size-3.5 text-surface-400" /></td>
               <td>
                 <Pill :tone="tone(row.after)">{{ t(`verdict.${row.after}`) }}</Pill>
+                <Pill v-if="older(row.episode)" class="ms-1" :title="t('specWizard.save.olderHint')">{{
+                  t('specWizard.save.older')
+                }}</Pill>
               </td>
               <td class="font-mono text-xs tabular-nums">{{ row.total == null ? '?' : row.total.toFixed(2) }}</td>
               <td>

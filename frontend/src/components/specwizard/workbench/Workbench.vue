@@ -21,14 +21,52 @@ import IconLive from '~icons/carbon/dot-mark'
  *
  * Every change on the right moves the verdicts on the left and in the middle
  * at once (`previewVerdicts`, from the results of the run). What a changed
- * parameter or a reworded criterion would measure only the test run shows.
+ * parameter or a reworded criterion would measure only a test run shows: one
+ * episode can be tested from the list or the middle, and an episode tested
+ * is worked on with the results of its latest test from then on.
  */
 const form = defineModel<SpecForm>({ required: true })
-const props = defineProps<{ draft: SpecDraftView; report: SampleReport; critics: CriticsHardCriticInfo[]; tenantId: string }>()
-const emit = defineEmits<{ judge: [judgments: Record<string, 'accept' | 'reject'>]; add: [episode: number] }>()
+const props = defineProps<{
+  draft: SpecDraftView
+  report: SampleReport
+  /** the merged results of all test runs, the latest per episode */
+  test: SampleReport | null
+  /** the fingerprint of the spec on screen */
+  specHash: string
+  critics: CriticsHardCriticInfo[]
+  tenantId: string
+}>()
+const emit = defineEmits<{
+  judge: [judgments: Record<string, 'accept' | 'reject'>]
+  add: [pick: string]
+  test: [episodes: string]
+}>()
 const { t } = useI18n()
 
-const rows = computed(() => previewVerdicts(props.report, form.value, runFlags(props.report)))
+/** the analysis, with each tested episode's results taken from its latest test */
+const effective = computed<SampleReport>(() => {
+  const tested = new Map((props.test?.episodes ?? []).map((e) => [e.episode, e]))
+  if (!tested.size) return props.report
+  return { ...props.report, episodes: props.report.episodes.map((e) => tested.get(e.episode) ?? e) }
+})
+/** per episode: whether its results are from a test, and of the spec on screen or an earlier state */
+const testState = computed<Record<number, 'current' | 'older'>>(() => {
+  const out: Record<number, 'current' | 'older'> = {}
+  for (const e of props.test?.episodes ?? []) {
+    const hash = props.draft.testSpecs[String(e.episode)]
+    if (hash) out[e.episode] = hash === props.specHash ? 'current' : 'older'
+  }
+  return out
+})
+const testing = computed(() =>
+  props.draft.testRuns.filter((r) => r.status === 'queued' || r.status === 'running').flatMap((r) => r.episodes),
+)
+const failedTest = computed(() => {
+  const last = props.draft.testRuns.at(-1)
+  return last?.status === 'failed' ? last : null
+})
+
+const rows = computed(() => previewVerdicts(effective.value, form.value, runFlags(effective.value)))
 const counts = computed(() => countVerdicts(rows.value))
 const stats = computed(() => agreement(rows.value, props.draft.judgments))
 const episode = ref<number | null>(props.report.episodes[0]?.episode ?? null)
@@ -49,9 +87,9 @@ watch(
     }
   },
 )
-function add(n: number) {
-  waitingFor.value = n
-  emit('add', n)
+function add(pick: string, first: number) {
+  waitingFor.value = first
+  emit('add', pick)
 }
 function judge(value: 'accept' | 'reject' | null) {
   if (episode.value == null) return
@@ -87,8 +125,11 @@ function judge(value: 'accept' | 'reject' | null) {
           :rows="rows"
           :selected="episode"
           :dataset-episodes="report.dataset_episodes ?? null"
+          :tested="testState"
+          :testing="testing"
           @select="episode = $event"
           @add="add"
+          @test="emit('test', String($event))"
         />
       </aside>
 
@@ -96,14 +137,18 @@ function judge(value: 'accept' | 'reject' | null) {
         <EpisodeView
           v-if="episode != null"
           :draft="draft"
-          :report="report"
+          :report="effective"
           :form="form"
           :episode="episode"
           :row="row"
+          :tested="testState[episode] ?? null"
+          :testing="testing.includes(episode)"
+          :test-failed="failedTest?.episodes.includes(episode) ? (failedTest.error ?? '') : null"
           :selection="selection"
           :tenant-id="tenantId"
           @select="selection = $event"
           @judge="judge"
+          @test="emit('test', String(episode))"
         />
         <div v-else class="gym-empty">{{ t('specWizard.bench.noEpisode') }}</div>
       </main>
@@ -111,7 +156,7 @@ function judge(value: 'accept' | 'reject' | null) {
       <aside class="gym-panel p-3 xl:sticky xl:top-4 xl:flex xl:max-h-[calc(100vh-6rem)] xl:flex-col">
         <SettingsPanel
           v-model="form"
-          :report="report"
+          :report="effective"
           :critics="critics"
           :rows="rows"
           :selection="selection"

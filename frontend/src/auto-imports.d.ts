@@ -10,6 +10,7 @@ declare global {
   const EffectScope: typeof import('vue').EffectScope
   const FetcherError: typeof import('./utils/fetcher').FetcherError
   const HARD_CRITIC_IDS: typeof import('./utils/spec').HARD_CRITIC_IDS
+  const MAX_PICKED_EPISODES: typeof import('./utils/episodes').MAX_PICKED_EPISODES
   const NONE: typeof import('./utils/select').NONE
   const OBJECT_ROLES: typeof import('./utils/spec').OBJECT_ROLES
   const PER_EPISODE: typeof import('./utils/spec').PER_EPISODE
@@ -52,6 +53,7 @@ declare global {
   const fmtPercent: typeof import('./utils/time').fmtPercent
   const fmtSecs: typeof import('./utils/time').fmtSecs
   const fmtTime: typeof import('./utils/time').fmtTime
+  const formatEpisodes: typeof import('./utils/episodes').formatEpisodes
   const fromSpec: typeof import('./utils/spec').fromSpec
   const fromYaml: typeof import('./utils/spec').fromYaml
   const getCurrentInstance: typeof import('vue').getCurrentInstance
@@ -86,6 +88,7 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const parseEpisodes: typeof import('./utils/episodes').parseEpisodes
   const percentDone: typeof import('./utils/plan').percentDone
   const planTotal: typeof import('./utils/plan').planTotal
   const planVariations: typeof import('./utils/plan').planVariations
@@ -111,6 +114,7 @@ declare global {
   const slugOf: typeof import('./utils/spec').slugOf
   const softError: typeof import('./utils/specSample').softError
   const softState: typeof import('./utils/specSample').softState
+  const specFingerprint: typeof import('./utils/episodes').specFingerprint
   const stepDone: typeof import('./utils/plan').stepDone
   const toRaw: typeof import('vue').toRaw
   const toRef: typeof import('vue').toRef
@@ -164,6 +168,9 @@ declare global {
   export type { ThemePref } from './stores/ui'
   import('./stores/ui')
   // @ts-ignore
+  export type { EpisodePick } from './utils/episodes'
+  import('./utils/episodes')
+  // @ts-ignore
   export type { FetcherError } from './utils/fetcher'
   import('./utils/fetcher')
   // @ts-ignore
@@ -173,6 +180,6 @@ declare global {
   export type { ObjectRole, PerEpisode, SpecObject, SpecIndicator, SpecHardCritic, SpecForm, SpecFormSection, PresetId } from './utils/spec'
   import('./utils/spec')
   // @ts-ignore
-  export type { Verdict, CriticEvidence, Blocker, PreviewRow, ScorePart, BlockerGroup, IndicatorEvidence, FlagEffect, SampleFlag, Selection, ResultRow, Fix } from './utils/specSample'
+  export type { Verdict, CriticEvidence, Blocker, PreviewRow, Decision, SkippedPart, ScorePart, BlockerGroup, IndicatorEvidence, FlagEffect, SampleFlag, Selection, ResultRow, Fix } from './utils/specSample'
   import('./utils/specSample')
 }

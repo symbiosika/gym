@@ -831,6 +831,17 @@ export const SPEC_DRAFT_STEPS: SpecDraftStep[] = ['sample', 'analysis', 'task', 
 export type SpecDraftRun = 'analysis' | 'test'
 export type SpecDraftRunStatus = 'none' | 'queued' | 'running' | 'done' | 'failed'
 
+/** One critics run over picked episodes of the sample: an added episode or a test. */
+export interface SpecDraftExtraRun {
+  jobId: string
+  episodes: number[]
+  status: SpecDraftRunStatus
+  error?: string | null
+  /** for a test run: the fingerprint of the spec it ran with */
+  specHash?: string
+  startedAt?: string
+}
+
 /** The state of the spec wizard: the sample, the two critics runs and the spec drafted so far. */
 export interface SpecDraftView {
   id: string
@@ -839,7 +850,8 @@ export interface SpecDraftView {
   name: string
   purpose: BlockKind
   step: SpecDraftStep
-  sampleSize: number
+  /** the episodes the analysis runs over, written like a print range: "0-9" or "1-3,6,8" */
+  episodeSelection: string
   fileName: string
   bytes: number
   storageParts: string[]
@@ -851,12 +863,16 @@ export interface SpecDraftView {
   /** episodes the person picked by number, analysed on top of the sample */
   extraEpisodes: number[]
   /** the runs over those episodes until the next analysis takes them in */
-  extraRuns: { jobId: string; episodes: number[]; status: SpecDraftRunStatus; error?: string | null }[]
+  extraRuns: SpecDraftExtraRun[]
   /** the person's own word per episode index: what the spec should decide */
   judgments: Record<string, 'accept' | 'reject'>
   /** the spec as drafted so far, in the shape the critics take; null until the analysis seeded it */
   spec: Record<string, unknown> | null
-  testJobId: string | null
+  /** every test run, the latest last; a run may cover the analysed episodes or a single one */
+  testRuns: SpecDraftExtraRun[]
+  /** per episode, the fingerprint of the spec its latest test ran with (utils/episodes.ts specFingerprint) */
+  testSpecs: Record<string, string>
+  /** the open test run's status, else the latest's */
   testStatus: SpecDraftRunStatus
   testError: string | null
   testProgress: Progress
