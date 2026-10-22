@@ -1,7 +1,61 @@
 # GYM
 
-The web app of the robotics gym: it organises the daily work of the operators
-at the training cells and keeps the record for analysts.
+**From teleoperation to a trained, evaluated robot policy, with a record of every step.**
+
+GYM is the open-source web app for a robotics gym. It walks operators at the
+training cells through each block of work (scene, AI plan, recording, upload,
+analysis, episode selection, export), has every episode judged by the built-in
+data critics, and turns policy evaluations into reports you can share. Analysts
+get the figures, the day protocols and the audit log, in the browser or through MCP.
+
+![Block analysis: the critics' verdicts on a fresh recording, with what to do next time](docs/screenshots/block-analysis.png)
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/evaluation-report.png" alt="Evaluation report comparing three policies with Wilson intervals and per-variation success"></td>
+    <td><img src="docs/screenshots/analysis-dashboard.png" alt="Analysis: episodes, accept rate, teleop time, downtime and evaluation success across cells and days"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Evaluation report: policies side by side, per variation, with intervals</sub></td>
+    <td align="center"><sub>Analysis: volumes, quality and time across cells and skills</sub></td>
+  </tr>
+</table>
+
+<sub>Screenshots show fictional demo data.</sub>
+
+## Highlights
+
+- **A step guide for the operator.** Every block runs as a stateful wizard:
+  nothing is lost on a browser restart, and the day protocol of the cell is
+  created on the fly.
+- **Phone in the loop.** A QR code opens the phone view for the scene photo and
+  a spoken or typed description; a second one opens the run view that counts
+  episodes at the cell.
+- **AI recording plans.** Gemini reads photo and text and proposes scene setups,
+  domain randomizations and episode counts (or, for an evaluation, the settings
+  to test). Without a model the plan falls back to a deterministic one, so the
+  wizard never blocks.
+- **Every episode judged.** Uploaded LeRobot datasets go to the data critics
+  (`critics/`): hard critics on kinematics and video, soft critics with a
+  vision-language model. Each episode gets accept, review or reject, with the
+  flags that decided it and advice for the next session.
+- **One merged dataset for training.** Select episodes across all days and cells
+  of a skill and download them as one renumbered LeRobot dataset, plus a manifest
+  with `--episodes` ranges.
+- **Policy evaluation that holds up.** Evaluation blocks record rollouts, a person
+  reviews them with failure codes, and success rates come with Wilson 95 %
+  intervals. Evaluation reports compare blocks per variation and failure mode and
+  can be shared as a public, printable link.
+- **Key figures and accountability.** Episodes, accept rate, teleop time,
+  episodes per hour and downtime per day, cell and skill; printable day
+  protocols; an audit log per skill and day protocol.
+- **Built for analysts and agents.** A read-only MCP server and an OpenAPI-documented
+  REST API expose skills, blocks, datasets, reports and KPIs.
+- **Self-hostable.** Docker images for app and critics, a Traefik stack with
+  Let's Encrypt, Postgres or embedded PGlite for development, German and English
+  UI, light and dark mode. Apache-2.0.
+
+## Documentation
 
 - [docs/PRODUCT.md](docs/PRODUCT.md): what the app is for, in one page
 - [docs/GLOSSARY.md](docs/GLOSSARY.md): the binding vocabulary
