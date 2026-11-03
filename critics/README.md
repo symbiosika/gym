@@ -156,6 +156,16 @@ The purpose is a fact of the run rather than of the task, so a job may set it:
 with the task's spec, the stored spec untouched (`lerobot-critics init-spec --purpose
 evaluation` writes a starter spec for rollouts).
 
+Spec overrides are run facts of the same kind: `POST /jobs {"spec": "cup_tray",
+"spec_overrides": {"robot": {"active_arms": ["right"]}}}` lays the active arm (or a task
+variant, `task.instruction` and `task.objects`) of this one dataset over the spec for this
+run. Only `robot.active_arms`, `task.instruction` and `task.objects` are allowed, never the
+judgement (scoring, critics, thresholds) or the robot's tuning; any other key, top level or
+nested, answers 422, also with `spec: null`. The stored spec is untouched, the job keeps the
+merged spec (`GET /jobs/{id}/spec`) and the overrides (`GET /jobs/{id}`, `spec_overrides`).
+With `spec: null` the generated spec takes the arms from the override; without one it leaves
+`active_arms` empty and the run defaults them from motion (`ACTIVE_ARMS_UNSET`).
+
 **The pre-roll.** An evaluation stack records from the start, but the policy takes over a few
 seconds in: until then the action topic carries zeros while the state is the resting robot.
 Read naively those frames are dropouts, a tracking error of a metre, a frozen command stream

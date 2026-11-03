@@ -18,7 +18,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
 import { blocks, datasets, dayProtocols, episodes, skills, type BlockSelect, type DatasetSelect, type EpisodeSelect } from "../../db/schema";
-import { criticsClient, CriticsError, type CriticsPurpose } from "../critics/client";
+import { criticsClient, CriticsError, type CriticsPurpose, type SpecOverrides } from "../critics/client";
 import { refreshDataset, syncDataset, upgradeStaleSummaries } from "../critics/sync";
 import { putFile, removeFile, shareFile, storageDriver } from "../storage";
 import { recordAudit, type Actor } from "./audit";
@@ -100,6 +100,8 @@ export type DatasetSource = {
   displayName?: string;
   /** the content type of the upload, when there was one */
   contentType?: string;
+  /** the run facts of this dataset, laid over the skill's spec by the critics (the active arm) */
+  specOverrides?: SpecOverrides | null;
 } & ({ blob: Blob } | { parts: string[] });
 
 /**
@@ -120,8 +122,15 @@ export function assertDatasetZip(fileName: string, bytes: number, contentType?: 
  * out) and the wizard moves to "review"; the result arrives asynchronously
  * (see lib/critics/sync.ts).
  */
-export const uploadDataset = (tenantId: string, actor: Actor, blockId: string, file: File, nameOverride?: string): Promise<DatasetView> =>
-  createDataset(tenantId, actor, blockId, { fileName: file.name, bytes: file.size, blob: file, displayName: nameOverride, contentType: file.type });
+export const uploadDataset = (
+  tenantId: string,
+  actor: Actor,
+  blockId: string,
+  file: File,
+  nameOverride?: string,
+  specOverrides?: SpecOverrides | null,
+): Promise<DatasetView> =>
+  createDataset(tenantId, actor, blockId, { fileName: file.name, bytes: file.size, blob: file, displayName: nameOverride, contentType: file.type, specOverrides });
 
 /** How the critics judge a block's datasets: an evaluation block's episodes are rollouts. */
 export const purposeOf = (kind: BlockSelect["kind"]): CriticsPurpose => (kind === "evaluation" ? "evaluation" : "recording");
@@ -155,7 +164,7 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
     const links = await datasetLinks(tenantId, stored);
     // the skill's spec says what the task is; the kind of the block says what the
     // episodes are: demonstrations for training or rollouts of a policy
-    ({ job_id: jobId } = await criticsClient.createJob(links, skill.criticSpecName ?? null, { run_hard: true, run_soft: true, contact_sheets: true }, purposeOf(block.kind)));
+    ({ job_id: jobId } = await criticsClient.createJob(links, skill.criticSpecName ?? null, { run_hard: true, run_soft: true, contact_sheets: true }, purposeOf(block.kind), true, source.specOverrides ?? null));
   } catch (error) {
     // nothing points at a zip stored here yet, so it would be orphaned for ever
     if (stored.storageRef) await removeFile(tenantId, DATASET_BUCKET, stored.storageRef).catch(() => undefined);
@@ -177,6 +186,7 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
       episodeCount: 0,
       storageRef: stored.storageRef,
       storageParts: stored.storageParts,
+      specOverrides: source.specOverrides ?? null,
       criticsDatasetName: criticsName,
       criticsJobId: jobId,
       criticSpecName: skill.criticSpecName ?? null,
@@ -200,6 +210,7 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
     parts: stored.storageParts?.length ?? 0,
     spec: skill.criticSpecName ?? "auto",
     purpose: purposeOf(block.kind),
+    specOverrides: source.specOverrides ?? null,
   });
   return toView(await syncDataset(ds!), []);
 }

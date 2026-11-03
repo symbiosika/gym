@@ -49,6 +49,7 @@ import { HTTPException } from "hono/http-exception";
 import { describeRoute, validator } from "hono-openapi";
 import * as v from "valibot";
 import { BLOCK_KINDS } from "../../../../db/schema";
+import { OBJECT_ROLES } from "../../../../lib/critics/client";
 import {
   abortUpload,
   beginUpload,
@@ -107,11 +108,38 @@ const variationParam = v.object({
   index: v.pipe(v.string(), v.transform(Number), v.number(), v.integer(), v.minValue(0), v.maxValue(1000)),
 });
 
+/**
+ * Run facts of one dataset: the active arms (`robot.active_arms`) and the task variant
+ * (`task.instruction`, `task.objects`), never the judgement or the robot's tuning. The
+ * critics allow the same keys and refuse any other, top level or nested, with a 422.
+ */
+const specOverridesSchema = v.strictObject({
+  robot: v.optional(v.strictObject({ active_arms: v.optional(v.pipe(v.array(v.picklist(["left", "right"])), v.maxLength(2))) })),
+  task: v.optional(
+    v.strictObject({
+      instruction: v.optional(v.pipe(v.string(), v.maxLength(500))),
+      objects: v.optional(
+        v.pipe(
+          v.array(
+            v.strictObject({
+              name: v.pipe(v.string(), v.minLength(1), v.maxLength(100)),
+              description: v.optional(v.pipe(v.string(), v.maxLength(300))),
+              role: v.optional(v.picklist(OBJECT_ROLES)),
+            }),
+          ),
+          v.maxLength(20),
+        ),
+      ),
+    }),
+  ),
+});
+
 /** The file a chunked upload will carry, announced before anything is transferred. */
 const beginUploadSchema = v.object({
   fileName: v.pipe(v.string(), v.minLength(1), v.maxLength(300)),
   bytes: v.pipe(v.number(), v.integer(), v.minValue(1)),
   name: v.optional(v.pipe(v.string(), v.maxLength(300))),
+  specOverrides: v.optional(specOverridesSchema),
 });
 
 const uploadParam = v.object({
@@ -399,7 +427,16 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
         const file = body["file"] ?? body["files[]"] ?? body["files"];
         if (!(file instanceof File)) throw new HTTPException(400, { message: "Multipart field 'file' (a zip archive) is required" });
         const name = typeof body["name"] === "string" ? body["name"] : undefined;
-        return c.json(await uploadDataset(tenantId, await actorOf(c), id, file, name), 201);
+        // a multipart field is text: the overrides arrive as a JSON string
+        let specOverrides;
+        if (typeof body["specOverrides"] === "string" && body["specOverrides"]) {
+          try {
+            specOverrides = v.parse(specOverridesSchema, JSON.parse(body["specOverrides"]));
+          } catch {
+            throw new HTTPException(400, { message: "Field 'specOverrides' must be a JSON object of robot.active_arms, task.instruction and task.objects only" });
+          }
+        }
+        return c.json(await uploadDataset(tenantId, await actorOf(c), id, file, name, specOverrides), 201);
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -419,8 +456,8 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
     async (c) => {
       try {
         const { tenantId, id } = c.req.valid("param");
-        const { fileName, bytes, name } = v.parse(beginUploadSchema, await c.req.json());
-        return c.json(await beginUpload(tenantId, await actorOf(c), { blockId: id }, { fileName, bytes, displayName: name }), 201);
+        const { fileName, bytes, name, specOverrides } = v.parse(beginUploadSchema, await c.req.json());
+        return c.json(await beginUpload(tenantId, await actorOf(c), { blockId: id }, { fileName, bytes, displayName: name, specOverrides }), 201);
       } catch (e) { throw toHttpError(e); }
     });
 

@@ -309,7 +309,21 @@
     "specAuto": "automatic from the dataset",
     "specChange": "Change",
     "toReview": "To the analysis",
-    "nothingYet": "Drop zip files first."
+    "nothingYet": "Drop zip files first.",
+    "activeArm": "Active arm",
+    "activeArmHint": "Normally nothing to do: the critics detect the working arm. Set it only when both arms work or the detection was wrong.",
+    "arm": {
+      "auto": "auto",
+      "left": "left",
+      "right": "right",
+      "both": "both"
+    },
+    "armSuggested": "suggested from the file name",
+    "adjust": "Adjust for this dataset",
+    "adjustHint": "Applies to this run only, the skill's spec stays as it is. Leave empty to take the spec.",
+    "adjustInstruction": "Task (instruction)",
+    "adjustObjects": "Objects, one per line",
+    "adjustObjectsHint": "The first object is the target, all others are distractors."
   },
   "review": {
     "title": "Analysis",
@@ -367,7 +381,8 @@
     "verdictManyRejected": "Many episodes were rejected. The hints at the dataset say why.",
     "tipsTitle": "For next time",
     "detailsShow": "All details of the critics",
-    "detailsHide": "Hide the details of the critics"
+    "detailsHide": "Hide the details of the critics",
+    "activeArm": "Active arm: {arm} (override)"
   },
   "selection": {
     "title": "Select episodes and download",

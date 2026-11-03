@@ -4,10 +4,12 @@ import { useI18n } from 'vue-i18n'
 import { gymApi, type UploadHandle } from '@/api/gym'
 import { useGym } from '@/stores/gym'
 import { useDialog } from '@/stores/dialog'
-import type { BlockView, DatasetSummary } from '@/types/gym'
+import type { ArmChoice, BlockView, DatasetSummary } from '@/types/gym'
+import { armFromFileName, armOverrides, instructionOverrides, overridesEditable } from '@/utils/datasetArm'
 import { fmtBytes, fmtDateTime } from '@/utils/time'
 import IconUpload from '~icons/carbon/cloud-upload'
 import IconClose from '~icons/carbon/close'
+import IconChevron from '~icons/carbon/chevron-down'
 import IconTrash from '~icons/carbon/trash-can'
 import SpecPicker from '@/components/SpecPicker.vue'
 
@@ -41,7 +43,18 @@ interface Pending {
   error: string
   /** the chunked upload of this zip; kept across attempts so a retry resumes it */
   handle: UploadHandle
+  /** the active arm: pre-filled from the file name, otherwise left to the critics */
+  arm: ArmChoice
+  /** the arm was read from the file name, not chosen */
+  suggested: boolean
+  /** the task variant of this dataset, optional (the folded "Adjust" section) */
+  instruction: string
+  objects: string
 }
+
+const armOptions = computed(() =>
+  (['auto', 'left', 'right', 'both'] as const).map((value) => ({ value, label: t(`upload.arm.${value}`) })),
+)
 
 const queue = ref<Pending[]>([])
 const hot = ref(false)
@@ -60,6 +73,7 @@ function take(list: FileList | null) {
   const zips = files.filter(isZip)
   if (zips.length < files.length) emit('error', t('upload.onlyZip'))
   for (const file of zips) {
+    const fromName = armFromFileName(file.name)
     queue.value.push({
       key: seq++,
       file,
@@ -68,6 +82,10 @@ function take(list: FileList | null) {
       state: 'waiting',
       error: '',
       handle: {},
+      arm: fromName ?? 'auto',
+      suggested: !!fromName,
+      instruction: '',
+      objects: '',
     })
   }
 }
@@ -127,6 +145,7 @@ async function upload() {
           item.name.trim() || undefined,
           (p) => (item.percent = p),
           item.handle,
+          instructionOverrides(armOverrides(item.arm), item.instruction, item.objects),
         )
         item.state = 'done'
         uploaded++
@@ -261,6 +280,51 @@ async function back() {
             >
               <IconClose class="size-4" />
             </button>
+          </div>
+          <div v-if="item.state === 'waiting' || item.state === 'failed'" class="sm:col-span-3">
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span class="gym-field mb-0">{{ t('upload.activeArm') }}</span>
+              <Select
+                v-model="item.arm"
+                size="small"
+                :options="armOptions"
+                option-label="label"
+                option-value="value"
+                :disabled="!overridesEditable(item.state, item.handle.uploadId)"
+                :aria-label="`${t('upload.activeArm')}: ${item.file.name}`"
+                @update:model-value="item.suggested = false"
+              />
+              <span v-if="item.suggested" class="text-xs text-surface-500 dark:text-surface-400">{{
+                t('upload.armSuggested')
+              }}</span>
+            </div>
+            <details class="group mt-2">
+              <summary class="flex cursor-pointer items-center gap-1 text-sm text-surface-600 select-none dark:text-surface-300">
+                <IconChevron class="size-4 transition-transform group-open:rotate-180" />
+                {{ t('upload.adjust') }}
+              </summary>
+              <div class="mt-2 grid gap-3 sm:grid-cols-2">
+                <p class="text-xs text-surface-500 sm:col-span-2 dark:text-surface-400">
+                  {{ t('upload.activeArmHint') }} {{ t('upload.adjustHint') }}
+                </p>
+                <FormField :label="t('upload.adjustInstruction')">
+                  <InputText
+                    v-model="item.instruction"
+                    fluid
+                    maxlength="500"
+                    :disabled="!overridesEditable(item.state, item.handle.uploadId)"
+                  />
+                </FormField>
+                <FormField :label="t('upload.adjustObjects')" :hint="t('upload.adjustObjectsHint')">
+                  <Textarea
+                    v-model="item.objects"
+                    fluid
+                    rows="3"
+                    :disabled="!overridesEditable(item.state, item.handle.uploadId)"
+                  />
+                </FormField>
+              </div>
+            </details>
           </div>
           <div
             v-if="item.state === 'uploading'"

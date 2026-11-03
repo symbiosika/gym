@@ -38,6 +38,7 @@ import log from "@framework/lib/log";
 import { datasetUploadChunks, datasetUploads, type DatasetUploadSelect } from "../../db/schema";
 import { putFile, removeFile } from "../storage";
 import { UPLOAD_CHUNK_BUCKET } from "./buckets";
+import type { SpecOverrides } from "../critics/client";
 import { assertDatasetZip, createDataset, type DatasetView } from "./datasets";
 import { type Actor } from "./audit";
 import { getBlockRow } from "./blocks";
@@ -148,7 +149,7 @@ export async function beginUpload(
   tenantId: string,
   actor: Actor,
   owner: UploadOwner,
-  file: { fileName: string; bytes: number; displayName?: string },
+  file: { fileName: string; bytes: number; displayName?: string; specOverrides?: SpecOverrides | null },
 ): Promise<DatasetUploadView> {
   const ownerColumns = "blockId" in owner ? { blockId: (await getBlockRow(tenantId, owner.blockId)).id } : { specDraftId: owner.specDraftId };
   assertDatasetZip(file.fileName, file.bytes);
@@ -165,6 +166,7 @@ export async function beginUpload(
       bytes: file.bytes,
       chunkSize: chunkSize(),
       chunkCount: Math.ceil(file.bytes / chunkSize()),
+      specOverrides: file.specOverrides ?? null,
       createdBy: actor.userId,
     })
     .returning();
@@ -289,6 +291,8 @@ export async function completeUpload(tenantId: string, actor: Actor, blockId: st
     parts,
     displayName: row.displayName || undefined,
     contentType: "application/zip",
+    // from the row, not from the client: an upload resumed after a reload keeps what was chosen at its start
+    specOverrides: row.specOverrides,
   });
   await releaseUpload(uploadId);
   return dataset;

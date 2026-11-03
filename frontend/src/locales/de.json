@@ -309,7 +309,21 @@
     "specAuto": "automatisch aus dem Dataset",
     "specChange": "Ändern",
     "toReview": "Zur Analyse",
-    "nothingYet": "Zuerst Zip-Dateien ablegen."
+    "nothingYet": "Zuerst Zip-Dateien ablegen.",
+    "activeArm": "Aktiver Arm",
+    "activeArmHint": "Normalerweise nichts zu tun: die Critics erkennen den arbeitenden Arm. Nur setzen, wenn beide Arme arbeiten oder die Erkennung falsch lag.",
+    "arm": {
+      "auto": "automatisch",
+      "left": "links",
+      "right": "rechts",
+      "both": "beide"
+    },
+    "armSuggested": "aus dem Dateinamen vorgeschlagen",
+    "adjust": "Für dieses Dataset anpassen",
+    "adjustHint": "Gilt nur für diesen Lauf, die Spec des Skills bleibt unverändert. Leer lassen übernimmt die Spec.",
+    "adjustInstruction": "Aufgabe (Anweisung)",
+    "adjustObjects": "Objekte, eines pro Zeile",
+    "adjustObjectsHint": "Das erste Objekt ist das Ziel, alle weiteren sind Störobjekte."
   },
   "review": {
     "title": "Analyse",
@@ -367,7 +381,8 @@
     "verdictManyRejected": "Viele Episoden wurden abgelehnt. Die Hinweise beim Dataset sagen, woran es lag.",
     "tipsTitle": "Fürs nächste Mal",
     "detailsShow": "Alle Details der Critics",
-    "detailsHide": "Details der Critics ausblenden"
+    "detailsHide": "Details der Critics ausblenden",
+    "activeArm": "Aktiver Arm: {arm} (überschrieben)"
   },
   "selection": {
     "title": "Episoden auswählen und herunterladen",
