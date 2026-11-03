@@ -123,6 +123,17 @@ describe('spec form model', () => {
     expect(defaultIndicators([])[0]!.description).toContain('the target object')
   })
 
+  it('round-trips task.ends_in_hand', () => {
+    const form = fromSpec({ task: { instruction: 'pick', ends_in_hand: true } })
+    expect(form.task.endsInHand).toBe(true)
+    expect((toSpec(form, 'x').task as { ends_in_hand?: boolean }).ends_in_hand).toBe(true)
+    expect(
+      (toSpec(fromSpec({ task: { instruction: 'pick' } }), 'x').task as { ends_in_hand?: boolean }).ends_in_hand,
+    ).toBeUndefined()
+    expect(presetSpec('pick_only').task.endsInHand).toBe(true)
+    expect(presetSpec('pick_only').soft.indicators.map((i) => i.id)).not.toContain('object_in_target')
+  })
+
   it('has a valid spec behind every preset', () => {
     for (const id of PRESET_IDS) {
       const form = presetSpec(id)

@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from .critics.base import CriticResult, _jsonable
 from .critics.registry import build_hard_critics
+from .dataset.features import resolve_active_arms
 from .dataset.loader import LeRobotDataset, open_dataset
 from .metrics_doc import docs_for_metrics
 from .scoring import EpisodeScore, aggregate
@@ -101,6 +102,8 @@ class DatasetReport(BaseModel):
     dataset_name: str
     spec_name: str
     spec: dict[str, Any]
+    # the arms that were scored (empty: all); what the spec names, or what moves in the data
+    active_arms: list[str] = Field(default_factory=list)
     created_at: str
     robot_type: str = ""
     fps: float = 0.0
@@ -210,6 +213,9 @@ def run(
     eps = sample_episodes(eps, options.max_episodes)
     if options.include_episodes:
         eps = sorted(set(eps) | {e for e in options.include_episodes if e in ds.episodes})
+    # the arms the critics score: what the spec names, checked against what moves in the data
+    spec = spec.model_copy(deep=True)
+    spec.robot.active_arms, spec_flags = resolve_active_arms(ds, spec)
     spec_dict = json.loads(spec.model_dump_json())
     soft_on = options.run_soft and spec.soft_critics.enabled and spec.soft_critics.vlm.provider != "none"
     composite = (
@@ -317,6 +323,7 @@ def run(
                     ignored = set(spec.scoring.ignore_flags)
                     dataset_flags.update({str(k): str(v) for k, v in fl.items() if str(k) not in ignored})
                 summaries[critic.id] = _jsonable(summ)
+    dataset_flags.update({k: v for k, v in spec_flags.items() if k not in set(spec.scoring.ignore_flags)})
     for rep in reports:
         rep.score = aggregate(rep.episode, rep.hard, rep.soft, spec.scoring)
         if rep.error:
@@ -334,6 +341,7 @@ def run(
         dataset_name=ds.root.name,
         spec_name=spec.name,
         spec=spec_dict,
+        active_arms=list(spec.robot.active_arms),
         created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         robot_type=ds.robot_type,
         fps=ds.fps,

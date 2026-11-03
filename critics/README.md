@@ -278,7 +278,7 @@ from a run:
 
 1. **Check a dataset** (left): pick a dataset found under the data directory or upload a
    zipped LeRobot dataset, choose *what to check* — **Auto** generates a spec from the dataset
-   (task text, robot, active arm, repetitions per episode) and **saves it as
+   (task text, robot, repetitions per episode; the active arm is left to the run) and **saves it as
    `<dataset>-auto`** so it can be refined after the run — or a stored spec (YAML editor
    behind *Edit*), optionally restrict the episodes or switch the VLM judge off, press
    *Check dataset*. Runs are listed with status, progress and verdict counts.

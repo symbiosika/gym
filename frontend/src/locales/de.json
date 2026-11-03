@@ -754,6 +754,10 @@
         "title": "Greifen und Ablegen",
         "desc": "Ein Objekt an einen Zielort bringen: Tasse auf Tablett, Teil in Kiste."
       },
+      "pick_only": {
+        "title": "Greifen und halten",
+        "desc": "Der Roboter greift ein Objekt und hält es am Ende; nichts wird abgelegt. Eine geschlossene Hand am Ende ist hier richtig."
+      },
       "repeated": {
         "title": "Wiederholte Zyklen",
         "desc": "Mehrere gleiche Greifzyklen pro Episode, z. B. drei Würfel umsetzen. Dauer und Zyklenzahl werden je Zyklus geprüft."
@@ -805,6 +809,8 @@
     "moreTask": "Weitere Angaben zur Aufgabe",
     "expectedCycles": "Greifzyklen pro Episode",
     "expectedCyclesHint": "Leer = einer oder unbekannt. Gesetzt prüfen die Critics die Anzahl.",
+    "endsInHand": "Die Aufgabe endet mit dem Objekt in der Hand",
+    "endsInHandHint": "An: Es wird kein Loslassen erwartet, und eine am Ende geschlossene Hand gilt nicht als unfertiger Griff.",
     "perEpisodeLabel": "Aufgabentext je Episode",
     "perEpisodeHint": "Ob das Modell gegen den im Dataset gespeicherten Text der Episode statt gegen diesen Satz urteilt.",
     "perEpisode": {

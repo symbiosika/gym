@@ -284,6 +284,24 @@ def build_session_profile(report: DatasetReport) -> dict[str, Any]:
             if peak_med is not None
             else f"robot state {trem['state_value']:.0f} %"
         )
+    amp_state = _series(report, "tremor", "hf_pos_rms_state_mm")
+    amp = b.add(
+        "tremor_amp_cmd",
+        "teleop",
+        "Tremor amplitude in the command (> 5 Hz)",
+        "mm",
+        critic="tremor",
+        key="hf_pos_rms_cmd_mm",
+        better="lower",
+        good=float(tr.get("amp_good_mm", 2.0)),
+        bad=float(tr.get("amp_bad_mm", 5.0)),
+        digits=1,
+        what="How far the commanded wrist position shakes above 5 Hz, in millimetres (RMS).",
+        so_what="A share of tremor power only matters when the motion is big enough to teach the policy a shake; a millimetre is below what a gripper notices.",
+        action="support the operator's arm, lower the input sensitivity, or filter the command on the teleop side",
+    )
+    if amp is not None and amp_state:
+        amp["display_extra"] = f"robot state {float(np.median(list(amp_state.values()))):.1f} mm"
     b.add(
         "hold_rms_cmd",
         "teleop",

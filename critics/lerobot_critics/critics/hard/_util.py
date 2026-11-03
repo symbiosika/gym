@@ -245,3 +245,28 @@ def dropout_rows(ep, rf) -> np.ndarray:
                 mask |= np.abs(arr[:, :3]).sum(1) == 0
     ep.cache[key] = mask
     return mask
+
+
+def highpass_rms(x: np.ndarray, fs: float, cutoff_hz: float) -> float | None:
+    """RMS over all axes of ``x`` (N, D) after an FFT high-pass at ``cutoff_hz``.
+
+    The motion above the cutoff, in the unit of ``x`` (metres for a position): how far the
+    signal shakes, where a spectral share only says how much of its power does. ``None``
+    when the signal is shorter than two periods of the cutoff.
+
+    The line through the first and last sample is taken off each axis first: the FFT treats
+    the signal as periodic, so a net displacement (a one-way move) would otherwise read as a
+    jump from the end back to the start, which is broadband and not a shake.
+    """
+    x = np.asarray(x, dtype=float)
+    if x.ndim == 1:
+        x = x[:, None]
+    n = len(x)
+    if n < max(2, 2 * fs / cutoff_hz):
+        return None
+    ramp = (np.arange(n, dtype=float) / (n - 1))[:, None]
+    x = x - (x[0] + (x[-1] - x[0]) * ramp)
+    spec = np.fft.rfft(x, axis=0)
+    spec[np.fft.rfftfreq(len(x), d=1.0 / fs) < cutoff_hz] = 0.0
+    hp = np.fft.irfft(spec, n=n, axis=0)
+    return float(np.sqrt(np.mean(np.linalg.norm(hp, axis=1) ** 2)))

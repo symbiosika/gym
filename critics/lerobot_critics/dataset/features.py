@@ -142,6 +142,27 @@ def detect_features(ds: LeRobotDataset, spec: CriticSpec, ep: EpisodeContext | N
     return rf
 
 
+def _cartesian_pairs(rf: RobotFeatures, only_active: bool) -> list[FeaturePair]:
+    src = rf.active_pairs if only_active else rf.pairs
+    return [p for p in src if p.kind == "cartesian" and "elbow" not in p.state.lower()]
+
+
+def gripper_arm_pair(rf: RobotFeatures) -> FeaturePair | None:
+    """The wrist pose that belongs to the hand or gripper that grasps.
+
+    The grasp keyframes come from one hand; sampling another arm's wrist at them reads a
+    parked arm. Falls back to the first active, then the first, cartesian non-elbow pair.
+    """
+    if rf.gripper is not None:
+        arm = _arm_of(rf.gripper.feature)
+        if arm:
+            for p in _cartesian_pairs(rf, False):
+                if p.arm == arm:
+                    return p
+    pairs = _cartesian_pairs(rf, True) or _cartesian_pairs(rf, False)
+    return pairs[0] if pairs else None
+
+
 def _auto_gripper(
     ds: LeRobotDataset, rf: RobotFeatures, active_arms: list[str], ep: EpisodeContext | None
 ) -> GripperSignal | None:
@@ -174,3 +195,89 @@ def _auto_gripper(
             # LeRobot SO-100 style: larger value = more open -> closed_is_high False
             return GripperSignal(p.state, idx, False, p.action)
     return None
+
+
+def _arm_names(rf: RobotFeatures) -> set[str]:
+    return {p.arm for p in rf.pairs if p.arm}
+
+
+def arm_motion(ds: LeRobotDataset, spec: CriticSpec, n_episodes: int = 5) -> dict[str, float]:
+    """Metres of state path per arm over the first ``n_episodes`` episodes.
+
+    Every cartesian non-elbow pair counts, whether the spec names its arm or not: this is
+    what the data says about which arm does the work. The path is taken over a short moving
+    average and without all-zero rows, so sensor noise on a parked arm does not add up to
+    motion. Arms are keyed by the side in the feature name; pairs with no side are skipped.
+    """
+    from ..critics.hard._util import dropout_rows, smooth
+
+    out: dict[str, float] = {}
+    rf = detect_features(ds, spec)
+    pairs = [p for p in rf.pairs if p.kind == "cartesian" and p.arm and "elbow" not in p.state.lower()]
+    for arm in sorted({p.arm for p in pairs if p.arm}):
+        out[arm] = 0.0
+    for idx in ds.episode_indices()[: max(1, n_episodes)]:
+        ep = ds.episode(idx)
+        drop = dropout_rows(ep, rf)
+        for p in pairs:
+            if not ep.has(p.state):
+                continue
+            xyz = ep.array(p.state)[:, :3].astype(float)[~drop]
+            if len(xyz) < 3:
+                continue
+            sm = np.stack([smooth(xyz[:, k], 5) for k in range(3)], 1)
+            out[p.arm] += float(np.linalg.norm(np.diff(sm, axis=0), axis=1).sum())  # type: ignore[index]
+    return out
+
+
+def resolve_active_arms(
+    ds: LeRobotDataset, spec: CriticSpec, n_episodes: int = 5, ratio: float = 5.0
+) -> tuple[list[str], dict[str, str]]:
+    """The arms the critics score, checked against the data, and what was found.
+
+    Unset on a robot with two or more arms: the arm that moves at least ``ratio`` times as
+    much as the quietest one is the active one (``ACTIVE_ARMS_UNSET``). Set and an inactive
+    arm moves clearly more than the named ones: kept, but ``ACTIVE_ARMS_SUSPECT``. Set to a
+    name no feature carries: all arms are scored (``ACTIVE_ARMS_UNKNOWN``).
+    """
+    named = [a.lower() for a in spec.robot.active_arms]
+    rf = detect_features(ds, spec)
+    known = _arm_names(rf)
+    if named:
+        missing = [a for a in named if a not in known]
+        if missing:
+            return [], {
+                "ACTIVE_ARMS_UNKNOWN": (
+                    f"robot.active_arms names {', '.join(missing)}, but the features only carry "
+                    f"{', '.join(sorted(known)) or 'no left or right arm'}: all arms are scored"
+                )
+            }
+    motion = arm_motion(ds, spec, n_episodes)
+    if not named:
+        if len(motion) < 2:
+            return [], {}
+        top = max(motion, key=lambda a: motion[a])
+        low = min(motion.values())
+        if motion[top] > 0 and motion[top] >= ratio * low:
+            return [top], {
+                "ACTIVE_ARMS_UNSET": (
+                    f"robot.active_arms is not set: the {top} arm moves {_times(motion[top], low)} as much "
+                    f"as the other, so only it is scored"
+                )
+            }
+        return [], {}
+    active_max = max((motion.get(a, 0.0) for a in named), default=0.0)
+    idle = {a: m for a, m in motion.items() if a not in named}
+    worst = max(idle, key=lambda a: idle[a], default=None)
+    if worst is not None and idle[worst] > ratio * active_max and idle[worst] > 0:
+        return named, {
+            "ACTIVE_ARMS_SUSPECT": (
+                f"robot.active_arms is {', '.join(named)}, but the {worst} arm moves "
+                f"{_times(idle[worst], active_max)} as much: is the spec naming the right arm?"
+            )
+        }
+    return named, {}
+
+
+def _times(a: float, b: float) -> str:
+    return f"{a / b:.0f} times" if b > 1e-9 else "far more than"

@@ -83,6 +83,8 @@ def scene_block(
         else "The episode may contain one or several repetitions of the task."
     )
     who = "policy" if spec.is_evaluation else "operator"
+    if t.ends_in_hand:
+        cyc += " The task ends with the object held in the hand; no release or placement is expected."
     return (
         f'Task instruction given to the {who}: "{instruction}"\n'
         f"Scene: {t.scene or '(not specified)'}\n"

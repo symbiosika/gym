@@ -223,6 +223,13 @@ def render_markdown(report: DatasetReport) -> str:
     L.append(
         f"- Spec: **{report.spec_name}** · robot `{report.robot_type}` · {report.fps:g} fps · {len(report.cameras)} cameras  "
     )
+    if "ACTIVE_ARMS_UNSET" in report.dataset_flags:
+        how = "defaulted from motion"
+    elif not report.active_arms:
+        how = "all"
+    else:
+        how = "from spec"
+    L.append(f"- Active arms: **{', '.join(report.active_arms) or 'all'}** ({how})  ")
     L.append(
         f"- Created: {report.created_at} · runtime {report.timing_s.get('total_s', 0):.0f}s "
         f"(hard {report.timing_s.get('hard_s', 0):.0f}s, VLM {report.timing_s.get('soft_s', 0):.0f}s)"

@@ -46,6 +46,11 @@ class TaskSpec(BaseModel):
         None, description="Expected pick-and-place repetitions per episode (None = unknown / single)"
     )
     notes: str = Field("", description="Extra hints for the VLM judge (recording protocol, what is normal)")
+    ends_in_hand: bool = Field(
+        False,
+        description="The task ends with the object held; no release is expected (a pick-only task). "
+        "Switches the UNFINISHED_GRASP check off and tells the VLM judge not to expect a placement.",
+    )
 
     @field_validator("per_episode", mode="before")
     @classmethod

@@ -99,6 +99,14 @@ describe("Spec wizard", () => {
     expect(seeded.soft_critics).toBeUndefined();
   });
 
+  test("the seeded spec leaves the active arms to the engine", () => {
+    // the report's spec carries the arms the run defaulted from motion; a draft must not pin them
+    const report = structuredClone(fixtureReport());
+    report.spec = { ...report.spec, robot: { ...(report.spec?.robot ?? {}), type: "test_bot", active_arms: ["right"] } };
+    const seeded = seedSpec(report, "cup_tray");
+    expect(seeded.robot).toEqual({ type: "test_bot" });
+  });
+
   test("each answer of the model keeps the words it was asked, also once runs are merged", () => {
     const run = (episode: number, words: string) => {
       const r = structuredClone(fixtureReport());

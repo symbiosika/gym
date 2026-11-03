@@ -225,6 +225,9 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
             <FormField :label="t('spec.expectedCycles')" :hint="t('spec.expectedCyclesHint')">
               <NumberInput v-model="form.task.expectedCycles" :min="1" class="w-28!" />
             </FormField>
+            <FormField class="sm:col-span-2" :label="t('spec.endsInHand')" :hint="t('spec.endsInHandHint')">
+              <Checkbox v-model="form.task.endsInHand" binary />
+            </FormField>
             <FormField :label="t('spec.perEpisodeLabel')" :hint="t('spec.perEpisodeHint')">
               <Select
                 v-model="form.task.perEpisode"

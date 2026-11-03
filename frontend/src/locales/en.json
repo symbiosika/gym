@@ -754,6 +754,10 @@
         "title": "Pick and place",
         "desc": "Bring one object to a target: cup on tray, part into box."
       },
+      "pick_only": {
+        "title": "Pick only",
+        "desc": "The robot grasps an object and holds it at the end; nothing is placed. A closed hand at the end is correct here."
+      },
       "repeated": {
         "title": "Repeated cycles",
         "desc": "Several identical grasp cycles per episode, e.g. moving three cubes. Duration and cycle count are checked per cycle."
@@ -805,6 +809,8 @@
     "moreTask": "More about the task",
     "expectedCycles": "Grasp cycles per episode",
     "expectedCyclesHint": "Empty = one or unknown. Set, the critics check the count.",
+    "endsInHand": "The task ends with the object in hand",
+    "endsInHandHint": "On: no release is expected, and a hand still closed at the end is not an unfinished grasp.",
     "perEpisodeLabel": "Task text per episode",
     "perEpisodeHint": "Whether the model judges against the episode's text stored in the dataset instead of this sentence.",
     "perEpisode": {

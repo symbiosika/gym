@@ -20,6 +20,7 @@ from ..registry import register
 from ._util import (
     band_share,
     detrended_std,
+    highpass_rms,
     orientation_error_deg,
     runs,
     spectral_peak,
@@ -44,7 +45,8 @@ class TremorCritic(HardCritic):
         "share of command vs state velocity power above 5 Hz (Welch PSD) and the dominant tremor frequency "
         "(8-12 Hz = human hand tremor), where the tremor originates, and how much the command still moves "
         "inside hold phases (command speed < 5 cm/s for >= 1 s): detrended position jitter and RMS speed, "
-        "plus commanded vs measured rotation speed and finger command speed."
+        "plus commanded vs measured rotation speed and finger command speed. The flag needs a share AND an "
+        "amplitude: the RMS of the command position above 5 Hz in millimetres."
     )
     default_params = {
         "hf_cutoff_hz": 5.0,  # tremor band starts here (human tremor 8-12 Hz; 2.5 Hz is the smoothness cutoff)
@@ -53,8 +55,11 @@ class TremorCritic(HardCritic):
         "hf_good": 0.05,  # command share above the cutoff: full score (clean teleop < 5 %)
         "hf_bad": 0.35,  # zero score
         "flag_share": 0.20,  # TREMOR when the command share exceeds this AND the peak lies in peak_band_hz
+        "flag_amp_mm": 3.0,  # ... AND the command shakes by more than this (RMS of the > 5 Hz motion, mm)
+        "amp_good_mm": 2.0,  # amplitude ramp: full score
+        "amp_bad_mm": 5.0,  # zero score
         "peak_band_hz": [6.0, 14.0],
-        "source_ratio": 2.0,  # cmd share / state share above this = the input device is the source
+        "source_ratio": 2.0,  # cmd amplitude / state amplitude above this = the input device is the source
         "hold_speed_mps": 0.05,
         "hold_min_s": 1.0,
         "hold_rms_good_mms": 5.0,  # RMS command speed while 'still'
@@ -82,6 +87,8 @@ class TremorCritic(HardCritic):
         m: dict = {}
         hf_cmd: list[float] = []
         hf_state: list[float] = []
+        amp_cmd: list[float] = []
+        amp_state: list[float] = []
         peaks: list[float] = []
         hold_jit_c: list[float] = []
         hold_jit_s: list[float] = []
@@ -99,6 +106,13 @@ class TremorCritic(HardCritic):
             a, s = a[ok], s[ok]
             if len(a) < 32:
                 continue
+            ac, as_ = highpass_rms(a[:, :3], fps, cutoff), highpass_rms(s[:, :3], fps, cutoff)
+            if ac is not None:
+                amp_cmd.append(ac * 1000.0)
+                m[f"hf_pos_rms_cmd_mm.{p.action}"] = ac * 1000.0
+            if as_ is not None:
+                amp_state.append(as_ * 1000.0)
+                m[f"hf_pos_rms_state_mm.{p.action}"] = as_ * 1000.0
             va = np.diff(a[:, :3], axis=0) * fps
             vs = np.diff(s[:, :3], axis=0) * fps
             fa, pa = welch_psd(va, fps, nperseg)
@@ -141,14 +155,22 @@ class TremorCritic(HardCritic):
         hf_s = max(hf_state) if hf_state else None
         m["hf5_share_cmd"] = hf_c
         m["hf5_share_state"] = hf_s
+        amp_c = max(amp_cmd) if amp_cmd else None
+        amp_s = max(amp_state) if amp_state else None
+        m["hf_pos_rms_cmd_mm"] = amp_c
+        m["hf_pos_rms_state_mm"] = amp_s
         m["tremor_peak_hz_cmd"] = (
             peaks[int(np.argmax(hf_cmd))] if peaks and hf_cmd else (peaks[0] if peaks else None)
         )
         source = "none"
         if hf_c is not None and hf_c > float(self.p("hf_good")):
-            if hf_s is None or hf_s <= 0 or hf_c / max(hf_s, 1e-9) >= float(self.p("source_ratio")):
+            if amp_c is not None and amp_s is not None:
+                c_val, s_val = amp_c, amp_s
+            else:
+                c_val, s_val = hf_c, hf_s
+            if s_val is None or s_val <= 0 or c_val / max(s_val, 1e-9) >= float(self.p("source_ratio")):
                 source = "input_device"
-            elif hf_s >= hf_c:
+            elif s_val >= c_val:
                 source = "robot"
             else:
                 source = "mixed"
@@ -171,6 +193,8 @@ class TremorCritic(HardCritic):
         parts: list[float] = []
         if hf_c is not None:
             parts.append(ramp(hf_c, float(self.p("hf_good")), float(self.p("hf_bad"))))
+        if amp_c is not None:
+            parts.append(ramp(amp_c, float(self.p("amp_good_mm")), float(self.p("amp_bad_mm"))))
         if m["hold_rms_speed_cmd_mms"] is not None:
             parts.append(
                 ramp(
@@ -187,13 +211,16 @@ class TremorCritic(HardCritic):
         if (
             hf_c is not None
             and hf_c > float(self.p("flag_share"))
+            and amp_c is not None
+            and amp_c > float(self.p("flag_amp_mm"))
             and pk is not None
             and lo_hz <= pk <= hi_hz
         ):
             flags.append("TREMOR")
             ev.append(
-                f"{hf_c * 100:.0f}% of the command velocity power above {cutoff:g} Hz, peak at {pk:.1f} Hz "
-                f"(robot state {100 * (hf_s or 0):.0f}%) -> source: {source}"
+                f"the command shakes by {amp_c:.1f} mm RMS above {cutoff:g} Hz ({hf_c * 100:.0f}% of its velocity "
+                f"power), peak at {pk:.1f} Hz (robot state {amp_s or 0:.1f} mm, {100 * (hf_s or 0):.0f}%) "
+                f"-> source: {source}"
             )
         elif hf_c is not None and hf_c > float(self.p("hf_good")) and source == "input_device":
             ev.append(

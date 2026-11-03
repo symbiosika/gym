@@ -49,6 +49,8 @@ export interface SpecForm {
     scene: string
     notes: string
     expectedCycles: number | null
+    /** The task ends with the object held; no release is expected (a pick-only task). */
+    endsInHand: boolean
     perEpisode: PerEpisode
     objects: SpecObject[]
   }
@@ -121,7 +123,7 @@ const DEFAULT_SCORING = { acceptThreshold: 0.75, reviewThreshold: 0.55, hardWeig
 /** A spec with nothing but the defaults: the form for "start from scratch". */
 export function emptySpec(): SpecForm {
   return {
-    task: { instruction: '', scene: '', notes: '', expectedCycles: null, perEpisode: 'auto', objects: [] },
+    task: { instruction: '', scene: '', notes: '', expectedCycles: null, endsInHand: false, perEpisode: 'auto', objects: [] },
     robot: { type: '', activeArms: [], primaryCamera: '' },
     soft: { enabled: true, weight: 1, indicators: [] },
     hardCritics: DEFAULT_HARD_CRITICS.map((c) => ({ ...c, gateFlags: [...c.gateFlags], params: {} })),
@@ -247,7 +249,7 @@ export function fromSpec(source: unknown): SpecForm {
     : emptySpec().hardCritics
 
   const rest: Obj = omit(spec, ['name', 'task', 'robot', 'soft_critics', 'hard_critics', 'scoring'])
-  const taskRest = omit(task, ['instruction', 'scene', 'notes', 'expected_cycles', 'per_episode', 'objects'])
+  const taskRest = omit(task, ['instruction', 'scene', 'notes', 'expected_cycles', 'ends_in_hand', 'per_episode', 'objects'])
   const robotRest = omit(robot, ['type', 'active_arms', 'primary_camera'])
   const softRest = omit(soft, ['enabled', 'weight', 'indicators'])
   const scoringRest = omit(scoring, [
@@ -270,6 +272,7 @@ export function fromSpec(source: unknown): SpecForm {
       scene: str(task.scene),
       notes: str(task.notes),
       expectedCycles: typeof task.expected_cycles === 'number' ? task.expected_cycles : null,
+      endsInHand: bool(task.ends_in_hand, false),
       perEpisode,
       objects,
     },
@@ -318,6 +321,7 @@ export function toSpec(form: SpecForm, name: string): Obj {
       .map((o) => ({ name: o.name.trim(), ...(o.description.trim() ? { description: o.description.trim() } : {}), role: o.role }))
   }
   if (form.task.expectedCycles != null) task.expected_cycles = form.task.expectedCycles
+  if (form.task.endsInHand) task.ends_in_hand = true
   if (form.task.notes.trim()) task.notes = form.task.notes.trim()
 
   const robot: Obj = { ...obj(form.rest.robot) }
@@ -398,7 +402,16 @@ export function validateSpec(form: SpecForm): string[] {
 // presets: the patterns a new spec starts from
 // ---------------------------------------------------------------------------
 
-export const PRESET_IDS = ['pick_place', 'repeated', 'sorting', 'insertion', 'bimanual', 'evaluation', 'blank'] as const
+export const PRESET_IDS = [
+  'pick_place',
+  'pick_only',
+  'repeated',
+  'sorting',
+  'insertion',
+  'bimanual',
+  'evaluation',
+  'blank',
+] as const
 export type PresetId = (typeof PRESET_IDS)[number]
 
 const objects = (...rows: [string, ObjectRole, string?][]): SpecObject[] =>
@@ -418,6 +431,16 @@ export function presetSpec(id: PresetId): SpecForm {
       form.task.scene = 'A table with a red cup and an empty tray in front of the robot.'
       form.task.objects = objects(['red cup', 'target_object'], ['tray', 'target_zone'])
       form.soft.indicators = defaultIndicators(form.task.objects)
+      break
+    }
+    case 'pick_only': {
+      form.task.instruction = 'pick the bottle from the shelf'
+      form.task.scene = 'A shelf with a bottle in front of the robot. The robot takes it and holds it; nothing is placed.'
+      form.task.objects = objects(['bottle', 'target_object'])
+      form.task.endsInHand = true
+      form.soft.indicators = defaultIndicators(form.task.objects)
+        .filter((i) => ['correct_object', 'grasp_centered', 'no_disturbance'].includes(i.id))
+        .map((i) => (i.id === 'grasp_centered' ? { ...i, weight: 2, gate: true, gateBelow: 0.3 } : i))
       break
     }
     case 'repeated': {
