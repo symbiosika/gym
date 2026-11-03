@@ -234,6 +234,8 @@ def render_markdown(report: DatasetReport) -> str:
         f"- Created: {report.created_at} · runtime {report.timing_s.get('total_s', 0):.0f}s "
         f"(hard {report.timing_s.get('hard_s', 0):.0f}s, VLM {report.timing_s.get('soft_s', 0):.0f}s)"
     )
+    if "VLM_INCOMPLETE" in report.dataset_flags:
+        L.append(f"- **Incomplete soft stage:** {report.dataset_flags['VLM_INCOMPLETE']}  ")
     L.append("")
     c = report.counts
     L.append(

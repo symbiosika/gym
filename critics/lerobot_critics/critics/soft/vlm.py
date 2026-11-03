@@ -16,8 +16,23 @@ from ...scoring import mute_flags
 from ...spec.models import CriticSpec
 from ...video_composite import CompositeWriter
 from ..base import CriticResult, _jsonable, clamp01
-from .prompts import build_prompt, response_schema
+from .prompts import build_prompt, response_schema, short_camera
 from .providers import VLMResponse, make_provider
+
+CAMERA_ANOMALIES = ("camera_freeze", "camera_problem", "video_discontinuity")
+
+
+def _camera_confirmed(hard: list[CriticResult] | None) -> bool:
+    """The duplication critic saw a stalled camera: a CAMSTALL, or a camera with over 30% repeated frames."""
+    for r in hard or []:
+        if r.id != "duplication":
+            continue
+        if "CAMSTALL" in r.flags:
+            return True
+        for k, v in r.metrics.items():
+            if k.startswith("video_dup_rate.") and isinstance(v, (int, float)) and v > 0.3:
+                return True
+    return False
 
 
 def _file_hash(p: Path) -> str:
@@ -28,12 +43,19 @@ def _file_hash(p: Path) -> str:
     return h.hexdigest()[:16]
 
 
-def _layout_text(cameras: list[str], primary: str | None) -> str:
+def _layout_text(cameras: list[str], primary: str | None, mode: str = "agentic") -> str:
+    """The layout the model is told about. Frames mode draws the camera name on each tile; the
+    composite video of the other modes labels the tiles itself."""
     others = [c for c in cameras if c != primary]
-
-    def short(c: str) -> str:
-        return c.split(".")[-2] if c.endswith(".color") and "." in c else c.split(".")[-1]
-
+    short = short_camera
+    if mode == "frames":
+        if not others:
+            return f"single camera '{short(primary or cameras[0])}'"
+        return (
+            f"one image per time stamp, the cameras side by side left to right: '{short(primary or cameras[0])}', "
+            + ", ".join(f"'{short(c)}'" for c in others)
+            + ". The camera name is written on each tile; the top-left text shows the time in seconds."
+        )
     if not others:
         return f"single camera '{short(primary or cameras[0])}'"
     return (
@@ -74,12 +96,16 @@ def sample_frames(ep: EpisodeContext, spec: CriticSpec, n: int) -> list[tuple[fl
     out = []
     prim = rf.primary_camera or ep.cameras[0]
     for i in wanted:
-        tiles = [per_cam[prim].get(i)] + [per_cam[c].get(i) for c in ep.cameras if c != prim]
-        tiles = [t for t in tiles if t is not None]
-        if not tiles:
+        named = [(prim, per_cam[prim].get(i))] + [(c, per_cam[c].get(i)) for c in ep.cameras if c != prim]
+        named = [(c, t) for c, t in named if t is not None]
+        if not named:
             continue
-        h = min(t.shape[0] for t in tiles)
-        tiles = [cv2.resize(t, (int(t.shape[1] * h / t.shape[0]), h)) for t in tiles]
+        h = min(t.shape[0] for _, t in named)
+        tiles = []
+        for c, t in named:
+            t = cv2.resize(t, (int(t.shape[1] * h / t.shape[0]), h))
+            cv2.putText(t, short_camera(c), (6, 36), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 2)
+            tiles.append(t)
         img = np.concatenate(tiles, axis=1)
         cv2.putText(img, f"t={i / ep.fps:.1f}s", (6, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 2)
         out.append((i / ep.fps, img))
@@ -115,10 +141,15 @@ class VLMJudge:
         )
         return hashlib.sha256(payload.encode()).hexdigest()[:24]
 
-    def judge(self, ep: EpisodeContext) -> tuple[dict[str, Any], list[CriticResult]]:
+    def judge(
+        self, ep: EpisodeContext, hard: list[CriticResult] | None = None
+    ) -> tuple[dict[str, Any], list[CriticResult]]:
         rf = ep.cache.get("features") or detect_features(ep.ds, self.spec, ep)
         ep.cache["features"] = rf
-        layout = _layout_text(ep.cameras, rf.primary_camera)
+        mode = self.cfg.mode
+        if self.cfg.provider != "gemini" and mode != "frames":
+            mode = "frames"
+        layout = _layout_text(ep.cameras, rf.primary_camera, mode)
         prompt = build_prompt(
             self.spec,
             ep.cameras,
@@ -128,10 +159,9 @@ class VLMJudge:
             episode_task=ep.task,
             task_varies=ep.ds.has_varying_tasks,
             preroll_s=signal_start(ep, self.spec, rf) / ep.fps,
+            active_arms=self.spec.robot.active_arms,
+            camera_arms=rf.camera_arms,
         )
-        mode = self.cfg.mode
-        if self.cfg.provider != "gemini" and mode != "frames":
-            mode = "frames"
         media_path: Path | None = None
         frames: list[tuple[float, np.ndarray]] = []
         if mode in ("agentic", "static"):
@@ -168,9 +198,11 @@ class VLMJudge:
             if self.cfg.cache:
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
                 cache_file.write_text(json.dumps(payload, indent=1))
-        return payload, self.to_results(payload)
+        return payload, self.to_results(payload, hard)
 
-    def to_results(self, payload: dict[str, Any]) -> list[CriticResult]:
+    def to_results(
+        self, payload: dict[str, Any], hard: list[CriticResult] | None = None
+    ) -> list[CriticResult]:
         data = payload.get("data", {})
         inds = data.get("indicators", {}) or {}
         results = []
@@ -202,16 +234,24 @@ class VLMJudge:
                 )
             )
         # summary pseudo-result (weight 0: informational, carries anomalies / attempts / task_success)
-        anomalies = data.get("anomalies") or []
+        anomalies = [dict(a) if isinstance(a, dict) else a for a in (data.get("anomalies") or [])]
+        camera_confirmed = _camera_confirmed(hard)
+        for a in anomalies:
+            if not isinstance(a, dict):
+                continue
+            if a.get("type") in CAMERA_ANOMALIES and not camera_confirmed:
+                # the picture's own freeze or jump is the duplication critic's to confirm
+                a["severity"] = "minor" if a.get("severity") in ("major", "minor") else a.get("severity")
+                a["unverified"] = True
+            elif a.get("type") == "object_drop":
+                # the hand state cannot confirm a drop: a person looks
+                a["verified"] = False
         major = [a for a in anomalies if isinstance(a, dict) and a.get("severity") == "major"]
         flags = ["VLM_TASK_FAILED"] if data.get("task_success") is False else []
         if major:
             flags.append("VLM_MAJOR_ANOMALY")
         if any(
-            isinstance(a, dict)
-            and "human" in (a.get("type", "") + a.get("description", "")).lower()
-            and a.get("type") != "scene_reset"
-            and a.get("severity") != "info"
+            isinstance(a, dict) and a.get("type") == "human_in_workspace" and a.get("severity") != "info"
             for a in anomalies
         ):
             flags.append("HUMAN_IN_WORKSPACE")

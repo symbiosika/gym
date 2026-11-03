@@ -130,3 +130,81 @@ def test_prompt_falls_back_to_spec_instruction_without_episode_task(spec):
         prompt = build_prompt(spec, ["cam_a"], "cam_a", "cam_a", 10.0, episode_task=ep_task, task_varies=True)
         assert "put the red block in the box" in prompt
         assert "not this episode" not in prompt
+
+
+def test_prompt_carries_the_robot_block(spec):
+    spec.robot.type = "mipa_3_7"
+    spec.robot.appearance = "white arms with black five-fingered hands"
+    prompt = build_prompt(
+        spec,
+        ["front", "wrist_left", "wrist_right"],
+        "front",
+        "layout",
+        10.0,
+        active_arms=["right"],
+        camera_arms={"front": None, "wrist_left": "left", "wrist_right": "right"},
+    )
+    assert "The right arm does the task" in prompt
+    assert "'wrist_right' is mounted on the right wrist" in prompt
+    assert "not a person" in prompt and "black five-fingered hands" in prompt
+
+
+def _payload(anomalies):
+    return {"data": {"indicators": {}, "anomalies": anomalies, "task_success": True}}
+
+
+def test_human_flag_needs_the_typed_anomaly(spec, tmp_path):
+    judge = VLMJudge(spec, tmp_path)
+    r = judge.to_results(
+        _payload(
+            [
+                {
+                    "type": "other",
+                    "time_s": 1,
+                    "severity": "major",
+                    "description": "the robot hand, not a human",
+                }
+            ]
+        )
+    )
+    assert "HUMAN_IN_WORKSPACE" not in r[-1].flags
+    r = judge.to_results(
+        _payload(
+            [{"type": "human_in_workspace", "time_s": 1, "severity": "minor", "description": "a person"}]
+        )
+    )
+    assert "HUMAN_IN_WORKSPACE" in r[-1].flags
+
+
+def test_camera_claims_need_the_duplication_critic(spec, tmp_path):
+    from lerobot_critics.critics.base import CriticResult
+
+    judge = VLMJudge(spec, tmp_path)
+    claim = [{"type": "camera_freeze", "time_s": 2, "severity": "major", "description": "frozen"}]
+    quiet = [
+        CriticResult(
+            id="duplication", kind="hard", weight=1, score=1.0, metrics={"video_dup_rate.cam_a": 0.05}
+        )
+    ]
+    r = judge.to_results(_payload(claim), hard=quiet)
+    assert "VLM_MAJOR_ANOMALY" not in r[-1].flags
+    assert r[-1].metrics["anomalies"][0]["unverified"] is True
+    stalled = [
+        CriticResult(id="duplication", kind="hard", weight=1, score=0.2, flags=["CAMSTALL"], metrics={})
+    ]
+    assert "VLM_MAJOR_ANOMALY" in judge.to_results(_payload(claim), hard=stalled)[-1].flags
+
+
+def test_object_drop_keeps_severity_and_is_unverified(spec, tmp_path):
+    judge = VLMJudge(spec, tmp_path)
+    r = judge.to_results(
+        _payload([{"type": "object_drop", "time_s": 2, "severity": "major", "description": "dropped"}])
+    )
+    a = r[-1].metrics["anomalies"][0]
+    assert a["severity"] == "major" and a["verified"] is False
+    assert "VLM_MAJOR_ANOMALY" in r[-1].flags
+
+
+def test_schema_types_anomalies(spec):
+    enum = response_schema(spec)["properties"]["anomalies"]["items"]["properties"]["type"]["enum"]
+    assert "human_in_workspace" in enum

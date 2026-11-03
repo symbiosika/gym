@@ -74,6 +74,11 @@ class GripperSpec(BaseModel):
 
 class RobotSpec(BaseModel):
     type: str | None = None
+    appearance: str = Field(
+        "",
+        description='What the robot looks like, told to the VLM, e.g. "white arms with black five-fingered '
+        'hands", so its own hand is not taken for a person',
+    )
     active_arms: list[str] = Field(default_factory=list, description='Arm names e.g. ["left"]; empty = all')
     action_state_pairs: dict[str, str] | None = Field(
         None, description="Explicit action->state feature mapping; auto-detected when None"
@@ -151,6 +156,11 @@ class SoftCriticsConfig(BaseModel):
     indicators: list[SoftIndicator] = Field(default_factory=list)
     extra_questions: list[str] = Field(
         default_factory=list, description="Additional free-form things the VLM should report in 'anomalies'"
+    )
+    only_hard_passed: bool = Field(
+        False,
+        description="Judge only the episodes the hard critics did not reject; saves the model's cost on "
+        "episodes that are out anyway",
     )
 
 

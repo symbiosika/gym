@@ -56,12 +56,16 @@ export interface SpecForm {
   }
   robot: {
     type: string
+    /** What the robot looks like, told to the model so its own hand is not taken for a person. */
+    appearance: string
     activeArms: string[]
     primaryCamera: string
   }
   soft: {
     enabled: boolean
     weight: number
+    /** judge only the episodes the hard critics did not reject (saves the model's cost) */
+    onlyHardPassed: boolean
     indicators: SpecIndicator[]
   }
   hardCritics: SpecHardCritic[]
@@ -124,8 +128,8 @@ const DEFAULT_SCORING = { acceptThreshold: 0.75, reviewThreshold: 0.55, hardWeig
 export function emptySpec(): SpecForm {
   return {
     task: { instruction: '', scene: '', notes: '', expectedCycles: null, endsInHand: false, perEpisode: 'auto', objects: [] },
-    robot: { type: '', activeArms: [], primaryCamera: '' },
-    soft: { enabled: true, weight: 1, indicators: [] },
+    robot: { type: '', appearance: '', activeArms: [], primaryCamera: '' },
+    soft: { enabled: true, weight: 1, onlyHardPassed: false, indicators: [] },
     hardCritics: DEFAULT_HARD_CRITICS.map((c) => ({ ...c, gateFlags: [...c.gateFlags], params: {} })),
     scoring: { ...DEFAULT_SCORING, ignoreFlags: [], reviewFlags: null, rejectFlags: null },
     rest: {},
@@ -250,8 +254,8 @@ export function fromSpec(source: unknown): SpecForm {
 
   const rest: Obj = omit(spec, ['name', 'task', 'robot', 'soft_critics', 'hard_critics', 'scoring'])
   const taskRest = omit(task, ['instruction', 'scene', 'notes', 'expected_cycles', 'ends_in_hand', 'per_episode', 'objects'])
-  const robotRest = omit(robot, ['type', 'active_arms', 'primary_camera'])
-  const softRest = omit(soft, ['enabled', 'weight', 'indicators'])
+  const robotRest = omit(robot, ['type', 'appearance', 'active_arms', 'primary_camera'])
+  const softRest = omit(soft, ['enabled', 'weight', 'only_hard_passed', 'indicators'])
   const scoringRest = omit(scoring, [
     'accept_threshold',
     'review_threshold',
@@ -276,8 +280,18 @@ export function fromSpec(source: unknown): SpecForm {
       perEpisode,
       objects,
     },
-    robot: { type: str(robot.type), activeArms: strList(robot.active_arms), primaryCamera: str(robot.primary_camera) },
-    soft: { enabled: bool(soft.enabled, true), weight: num(soft.weight, 1), indicators },
+    robot: {
+      type: str(robot.type),
+      appearance: str(robot.appearance),
+      activeArms: strList(robot.active_arms),
+      primaryCamera: str(robot.primary_camera),
+    },
+    soft: {
+      enabled: bool(soft.enabled, true),
+      weight: num(soft.weight, 1),
+      onlyHardPassed: bool(soft.only_hard_passed, false),
+      indicators,
+    },
     hardCritics,
     scoring: {
       acceptThreshold: num(scoring.accept_threshold, DEFAULT_SCORING.acceptThreshold),
@@ -326,12 +340,14 @@ export function toSpec(form: SpecForm, name: string): Obj {
 
   const robot: Obj = { ...obj(form.rest.robot) }
   if (form.robot.type.trim()) robot.type = form.robot.type.trim()
+  if (form.robot.appearance.trim()) robot.appearance = form.robot.appearance.trim()
   if (form.robot.activeArms.length) robot.active_arms = form.robot.activeArms
   if (form.robot.primaryCamera.trim()) robot.primary_camera = form.robot.primaryCamera.trim()
 
   const soft: Obj = { ...obj(form.rest.soft_critics) }
   if (!form.soft.enabled) soft.enabled = false
   if (form.soft.weight !== 1) soft.weight = form.soft.weight
+  if (form.soft.onlyHardPassed) soft.only_hard_passed = true
   if (form.soft.indicators.length) {
     soft.indicators = form.soft.indicators
       .filter((i) => i.description.trim())
@@ -427,6 +443,7 @@ export function presetSpec(id: PresetId): SpecForm {
   const form = emptySpec()
   switch (id) {
     case 'pick_place': {
+      form.robot.appearance = 'white arms with black five-fingered hands'
       form.task.instruction = 'put the red cup on the tray'
       form.task.scene = 'A table with a red cup and an empty tray in front of the robot.'
       form.task.objects = objects(['red cup', 'target_object'], ['tray', 'target_zone'])
@@ -434,6 +451,7 @@ export function presetSpec(id: PresetId): SpecForm {
       break
     }
     case 'pick_only': {
+      form.robot.appearance = 'white arms with black five-fingered hands'
       form.task.instruction = 'pick the bottle from the shelf'
       form.task.scene = 'A shelf with a bottle in front of the robot. The robot takes it and holds it; nothing is placed.'
       form.task.objects = objects(['bottle', 'target_object'])
@@ -521,6 +539,7 @@ export function presetSpec(id: PresetId): SpecForm {
       break
     }
     case 'bimanual': {
+      form.robot.appearance = 'white arms with black five-fingered hands'
       form.task.instruction = 'pick up the bottle with the right arm, hand it over to the left arm and place it in the crate'
       form.task.scene =
         'A bottle stands on the right side of the table; the crate stands on the left side, within reach of the left arm only.'

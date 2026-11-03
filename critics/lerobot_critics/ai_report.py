@@ -94,6 +94,7 @@ FLAG_GLOSSARY: dict[str, str] = {
     "VLM_TASK_FAILED": "the VLM judged the task as not accomplished",
     "VLM_MAJOR_ANOMALY": "the VLM reported at least one anomaly with severity 'major'",
     "HUMAN_IN_WORKSPACE": "the VLM saw a person or hand in the workspace while the robot acted",
+    "VLM_INCOMPLETE": "some episodes have no soft verdict because the model could not be used (billing, access, errors)",
 }
 
 

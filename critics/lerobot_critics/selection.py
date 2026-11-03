@@ -97,6 +97,7 @@ FLAG_ACTION: dict[str, str] = {
     "VLM_TASK_FAILED": "watch the composite video; if the task really failed, exclude the episode",
     "VLM_MAJOR_ANOMALY": "watch the composite video at the reported timestamp",
     "HUMAN_IN_WORKSPACE": "keep hands out of the workspace while the robot moves, or trim the segment",
+    "VLM_INCOMPLETE": "fix the model access (credits, key) and run the critics again",
 }
 
 # What to do about a flag when the episodes are policy rollouts: the flag is the same finding,

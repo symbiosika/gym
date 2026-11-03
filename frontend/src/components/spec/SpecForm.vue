@@ -371,6 +371,17 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
             <template #icon><IconMagic class="size-4" /></template>
           </SecondaryButton>
         </div>
+        <details class="group mt-3">
+          <summary class="flex cursor-pointer items-center gap-1 text-sm text-surface-600 select-none dark:text-surface-300">
+            <IconChevron class="size-4 transition-transform group-open:rotate-180" />
+            {{ t('spec.softModel') }}
+          </summary>
+          <div class="mt-3 grid gap-3">
+            <FormField :label="t('spec.onlyHardPassed')" :hint="t('spec.onlyHardPassedHint')">
+              <Checkbox v-model="form.soft.onlyHardPassed" binary />
+            </FormField>
+          </div>
+        </details>
       </template>
       <div v-else class="gym-note border-s-warn">{{ t('spec.softOff') }}</div>
     </section>
@@ -524,6 +535,9 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
           <IconChevron class="size-4 text-surface-500 transition-transform group-open:rotate-180" />
         </summary>
         <div class="mt-3 grid gap-3 sm:grid-cols-3">
+          <FormField class="sm:col-span-3" :label="t('spec.appearance')" :hint="t('spec.appearanceHint')">
+            <InputText v-model="form.robot.appearance" fluid placeholder="white arms with black five-fingered hands" />
+          </FormField>
           <FormField :label="t('spec.robotType')" :hint="t('spec.robotTypeHint')">
             <InputText v-model="form.robot.type" fluid placeholder="humanoid_v1" />
           </FormField>

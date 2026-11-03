@@ -134,6 +134,24 @@ describe('spec form model', () => {
     expect(presetSpec('pick_only').soft.indicators.map((i) => i.id)).not.toContain('object_in_target')
   })
 
+  it('carries the robot appearance and the soft scope through the spec', () => {
+    const spec = toSpec(
+      fromSpec({
+        task: { instruction: 'pick' },
+        robot: { appearance: 'white arms' },
+        soft_critics: { only_hard_passed: true },
+      }),
+      'x',
+    ) as { robot?: { appearance?: string }; soft_critics?: { only_hard_passed?: boolean } }
+    expect(spec.robot?.appearance).toBe('white arms')
+    expect(spec.soft_critics?.only_hard_passed).toBe(true)
+    const plain = toSpec(fromSpec({ task: { instruction: 'pick' } }), 'x') as Record<string, unknown>
+    expect(plain.robot).toBeUndefined()
+    expect(plain.soft_critics).toBeUndefined()
+    for (const id of ['pick_place', 'pick_only', 'bimanual'] as const)
+      expect(presetSpec(id).robot.appearance).toBe('white arms with black five-fingered hands')
+  })
+
   it('has a valid spec behind every preset', () => {
     for (const id of PRESET_IDS) {
       const form = presetSpec(id)
