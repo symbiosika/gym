@@ -159,12 +159,17 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
           storageParts: null,
           driver: f.driver,
         }));
+  // a spec that was deleted since the skill named it must not fail the upload:
+  // the run falls back to the auto spec, as deleting a spec promises
+  const wantedSpec = skill.criticSpecName ?? null;
+  let specName: string | null = null;
   let jobId: string;
   try {
+    specName = wantedSpec && (await criticsClient.specExists(wantedSpec)) ? wantedSpec : null;
     const links = await datasetLinks(tenantId, stored);
     // the skill's spec says what the task is; the kind of the block says what the
     // episodes are: demonstrations for training or rollouts of a policy
-    ({ job_id: jobId } = await criticsClient.createJob(links, skill.criticSpecName ?? null, { run_hard: true, run_soft: true, contact_sheets: true }, purposeOf(block.kind), true, source.specOverrides ?? null));
+    ({ job_id: jobId } = await criticsClient.createJob(links, specName, { run_hard: true, run_soft: true, contact_sheets: true }, purposeOf(block.kind), true, source.specOverrides ?? null));
   } catch (error) {
     // nothing points at a zip stored here yet, so it would be orphaned for ever
     if (stored.storageRef) await removeFile(tenantId, DATASET_BUCKET, stored.storageRef).catch(() => undefined);
@@ -189,7 +194,7 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
       specOverrides: source.specOverrides ?? null,
       criticsDatasetName: criticsName,
       criticsJobId: jobId,
-      criticSpecName: skill.criticSpecName ?? null,
+      criticSpecName: specName,
       analysisStatus: "queued",
       uploadedBy: actor.userId,
     })
@@ -208,7 +213,7 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
     jobId,
     storage: stored.driver,
     parts: stored.storageParts?.length ?? 0,
-    spec: skill.criticSpecName ?? "auto",
+    spec: wantedSpec && !specName ? `auto (stored spec '${wantedSpec}' missing)` : (specName ?? "auto"),
     purpose: purposeOf(block.kind),
     specOverrides: source.specOverrides ?? null,
   });

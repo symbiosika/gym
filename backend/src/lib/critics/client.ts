@@ -308,6 +308,17 @@ export const criticsClient = {
   /** One stored spec, as the service holds it (its YAML read back as an object). */
   spec: (name: string) => json<Record<string, unknown>>(`/specs/${encodeURIComponent(name)}`),
 
+  /** Is a spec of this name stored in the service? `GET /specs/{name}` answers 404 for one that is not. */
+  async specExists(name: string): Promise<boolean> {
+    try {
+      await request(`/specs/${encodeURIComponent(name)}`);
+      return true;
+    } catch (error) {
+      if (error instanceof CriticsError && error.status === 404) return false;
+      throw error;
+    }
+  },
+
   /** Store a spec under `name`; an existing spec of that name is replaced. The service validates the spec. */
   putSpec: (name: string, spec: Record<string, unknown>) =>
     json<{ name: string }>(`/specs/${encodeURIComponent(name)}`, {

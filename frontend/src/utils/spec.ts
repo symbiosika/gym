@@ -388,6 +388,18 @@ export function toSpec(form: SpecForm, name: string): Obj {
 
 export const toYaml = (form: SpecForm, name: string): string => stringifyYaml(toSpec(form, name))
 
+/**
+ * The one-line summary of the folded robot section: the robot type and the
+ * active arms, `auto` for a part left to the critics (they read it from the
+ * dataset), a single `auto` when both are.
+ */
+export function robotSummary(robot: SpecForm['robot'], auto: string): string {
+  const type = robot.type.trim()
+  const arms = robot.activeArms.join(', ')
+  if (!type && !arms) return auto
+  return `${type || auto} · ${arms || auto}`
+}
+
 /** The form of a YAML text; throws with the parser's message when it is not a spec. */
 export function fromYaml(text: string): SpecForm {
   const parsed: unknown = parseYaml(text)

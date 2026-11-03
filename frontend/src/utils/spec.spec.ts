@@ -8,6 +8,7 @@ import {
   fromSpec,
   fromYaml,
   presetSpec,
+  robotSummary,
   slugOf,
   toSpec,
   toYaml,
@@ -190,5 +191,18 @@ describe('spec form model', () => {
     expect(slugOf('Größe passt')).toBe('gro_e_passt')
     expect(uniqueId('done', ['done', 'done_2'])).toBe('done_3')
     expect(uniqueId('', [])).toBe('indicator')
+  })
+})
+
+describe('robotSummary', () => {
+  const robot = (type: string, activeArms: string[]) => ({ ...emptySpec().robot, type, activeArms })
+  it('names the robot type and the active arms', () => {
+    expect(robotSummary(robot('mipa_3_7', ['right']), 'auto')).toBe('mipa_3_7 · right')
+    expect(robotSummary(robot(' mipa_3_7 ', ['left', 'right']), 'auto')).toBe('mipa_3_7 · left, right')
+  })
+  it('says auto for the part the critics take from the dataset', () => {
+    expect(robotSummary(robot('mipa_3_7', []), 'auto')).toBe('mipa_3_7 · auto')
+    expect(robotSummary(robot('', ['left']), 'auto')).toBe('auto · left')
+    expect(robotSummary(robot('', []), 'auto')).toBe('auto')
   })
 })

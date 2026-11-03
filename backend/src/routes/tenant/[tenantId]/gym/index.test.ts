@@ -606,6 +606,18 @@ describe("Gym operator flow", () => {
     expect((await testFetcher.get(app, `${base}/blocks/${blockId}`, token)).jsonResponse.skill.criticSpecName).toBe("Cup_on_Tray");
   });
 
+  test("a skill whose spec was deleted uploads with the auto spec", async () => {
+    await testFetcher.put(app, `${base}/skills/${skillId}`, token, { criticSpecName: "gone_spec" });
+    const up = await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, zipUpload("after_delete.zip"));
+    const usedSpec = critics.jobs.at(-1)?.spec;
+    // clean up before asserting, so a failure cannot leave a dataset behind for the count-based tests that follow
+    await testFetcher.put(app, `${base}/skills/${skillId}`, token, { criticSpecName: "Cup_on_Tray" });
+    if (up.jsonResponse?.id) await testFetcher.delete(app, `${base}/datasets/${up.jsonResponse.id}`, token);
+    expect(up.status).toBe(201);
+    expect(usedSpec).toBeNull();
+    expect(up.jsonResponse.criticSpecName).toBeNull();
+  });
+
   test("critic specs: read, write and remove them from the spec management", async () => {
     // the list says which skills work with which spec
     const list = await testFetcher.get(app, `${base}/critics/specs`, token);

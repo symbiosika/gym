@@ -854,6 +854,7 @@
     "insertDefaults": "Insert the default indicators",
     "insertDefaultsHint": "The critics' five indicators, worded for the target object and zone above.",
     "secHard": "Technical checks",
+    "secHardSummary": "{n} checks, {g} gates",
     "secHardHint": "On signals and videos. What is ticked runs; unticked does not.",
     "check": "Check",
     "checkOn": "Check runs",
@@ -929,6 +930,7 @@
       }
     },
     "secScoring": "Scoring",
+    "secScoringSummary": "accept ≥ {accept}, review ≥ {review}",
     "secScoringHint": "How the values become the verdict: accept, review, reject.",
     "acceptThreshold": "Accept from",
     "acceptThresholdHint": "Total score from here and no gate fired: accepted.",
@@ -941,6 +943,7 @@
     "ignoreFlags": "Ignore findings",
     "ignoreFlagsHint": "These findings do not count for this setup, neither as a gate nor for \"review\". Comma-separated.",
     "secRobot": "Robot",
+    "secRobotAuto": "auto",
     "secRobotHint": "Optional. Empty, the critics take everything from the dataset.",
     "robotType": "Robot type",
     "robotTypeHint": "As named in the dataset.",

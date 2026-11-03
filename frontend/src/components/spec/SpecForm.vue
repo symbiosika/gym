@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CriticsHardCriticInfo } from '@/types/gym'
 import {
@@ -7,12 +7,14 @@ import {
   PER_EPISODE,
   defaultIndicators,
   indicator,
+  robotSummary,
   slugOf,
   uniqueId,
   type SpecForm,
   type SpecFormSection,
   type SpecHardCritic,
   type SpecIndicator,
+  validateSpec,
 } from '@/utils/spec'
 import { NONE } from '@/utils/select'
 import type { IndicatorEvidence } from '@/utils/specSample'
@@ -82,6 +84,27 @@ function insertDefaults() {
 }
 
 // ------------------------------------------------------------- hard critics
+// the fold of a section carries one line of its state and opens by itself when it holds a problem
+const problems = computed(() => validateSpec(form.value))
+// 'weight' also covers the indicators, so the checks' own weights are re-checked here
+const hardHasError = computed(() => problems.value.includes('weight') && form.value.hardCritics.some((c) => c.weight < 0))
+const scoringHasError = computed(() => problems.value.some((e) => e === 'threshold' || e === 'thresholdOrder'))
+// the folds: closed to start with in the numbered form, open in the wizard; a problem opens one, only the operator closes it
+const hardOpen = ref(!numbered.value || hardHasError.value)
+const scoringOpen = ref(!numbered.value || scoringHasError.value)
+const robotOpen = ref(!numbered.value)
+watch(hardHasError, (v) => v && (hardOpen.value = true))
+watch(scoringHasError, (v) => v && (scoringOpen.value = true))
+const hardSummary = computed(() =>
+  t('spec.secHardSummary', {
+    n: form.value.hardCritics.filter((c) => c.enabled).length,
+    g: form.value.hardCritics.filter((c) => c.enabled && c.gate).length,
+  }),
+)
+const scoringSummary = computed(() =>
+  t('spec.secScoringSummary', { accept: form.value.scoring.acceptThreshold, review: form.value.scoring.reviewThreshold }),
+)
+const robotSummaryText = computed(() => robotSummary(form.value.robot, t('spec.secRobotAuto')))
 const openParams = ref<string | null>(null)
 const criticLabel = (id: string) => (te(`spec.critic.${id}.label`) ? t(`spec.critic.${id}.label`) : id)
 const criticDesc = (id: string) => (te(`spec.critic.${id}.desc`) ? t(`spec.critic.${id}.desc`) : '')
@@ -388,142 +411,150 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
 
     <!-- 3 · technical checks -->
     <section v-if="show('hard')">
-      <header class="mb-2 flex flex-wrap items-center gap-2">
-        <span
-          v-if="numbered"
-          class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
-          >3</span
-        >
-        <h3 class="text-sm font-semibold">{{ t('spec.secHard') }}</h3>
-        <span class="text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secHardHint') }}</span>
-      </header>
-      <div class="gym-panel overflow-x-auto">
-        <table class="gym-table">
-          <thead>
-            <tr>
-              <th class="w-8"></th>
-              <th>{{ t('spec.check') }}</th>
-              <th class="w-28">{{ t('spec.weight') }}</th>
-              <th>{{ t('spec.gate') }}</th>
-              <th class="w-32">{{ t('spec.params') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="c in form.hardCritics" :key="c.id">
-              <tr :class="c.enabled ? '' : 'opacity-60'">
-                <td><Checkbox v-model="c.enabled" binary :title="t('spec.checkOn')" /></td>
-                <td class="min-w-56">
-                  <span class="block text-sm font-medium">{{ criticLabel(c.id) }}</span>
-                  <span class="block text-xs text-surface-500 dark:text-surface-400">{{ criticDesc(c.id) }}</span>
-                </td>
-                <td><NumField v-model="c.weight" :min="0" :step="0.5" :fallback="1" narrow :disabled="!c.enabled" /></td>
-                <td class="min-w-56">
-                  <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                    <label class="flex items-center gap-2" :title="t('spec.gateHint')">
-                      <Checkbox v-model="c.gate" binary :disabled="!c.enabled" />
-                      <span class="text-xs">{{ t('spec.gateScore') }}</span>
-                    </label>
-                    <NumField v-if="c.gate" v-model="c.gateBelow" :min="0" :max="1" :step="0.05" :fallback="0.2" narrow />
-                    <span v-if="c.gateFlags.length" class="flex flex-wrap gap-1" :title="t('spec.gateFlagsHint')">
-                      <Pill v-for="f in c.gateFlags" :key="f" tone="bad">{{ f }}</Pill>
-                    </span>
-                  </div>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    class="flex cursor-pointer items-center gap-1 text-xs text-primary hover:underline"
-                    :aria-expanded="openParams === c.id"
-                    @click="openParams = openParams === c.id ? null : c.id"
-                  >
-                    <IconChevron class="size-3.5 transition-transform" :class="openParams === c.id ? 'rotate-180' : ''" />
-                    {{ overrides(c) ? t('spec.paramsChanged', { n: overrides(c) }) : t('spec.paramsDefault') }}
-                  </button>
-                </td>
+      <details class="group" :open="hardOpen" @toggle="hardOpen = ($event.target as HTMLDetailsElement).open">
+        <summary class="flex cursor-pointer flex-wrap items-center gap-2 select-none">
+          <span
+            v-if="numbered"
+            class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
+            >3</span
+          >
+          <h3 class="text-sm font-semibold">{{ t('spec.secHard') }}</h3>
+          <span class="text-xs text-surface-500 dark:text-surface-400">{{ hardSummary }}</span>
+          <IconChevron class="size-4 text-surface-500 transition-transform group-open:rotate-180" />
+        </summary>
+        <p class="mt-2 text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secHardHint') }}</p>
+        <div class="mt-3 gym-panel overflow-x-auto">
+          <table class="gym-table">
+            <thead>
+              <tr>
+                <th class="w-8"></th>
+                <th>{{ t('spec.check') }}</th>
+                <th class="w-28">{{ t('spec.weight') }}</th>
+                <th>{{ t('spec.gate') }}</th>
+                <th class="w-32">{{ t('spec.params') }}</th>
               </tr>
-              <tr v-if="openParams === c.id">
-                <td></td>
-                <td colspan="4" class="bg-surface-50 dark:bg-surface-800/40">
-                  <div v-if="!paramKeys(c).length" class="text-xs text-surface-500 dark:text-surface-400">
-                    {{ t('spec.noParams') }}
-                  </div>
-                  <div v-else class="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <label v-for="key in paramKeys(c)" :key="key" class="flex min-w-0 flex-col gap-1">
-                      <span class="flex items-baseline gap-2">
-                        <span class="font-mono text-xs font-semibold">{{ key }}</span>
-                        <span class="truncate font-mono text-[11px] text-surface-500 dark:text-surface-400">{{
-                          t('spec.paramDefault', { v: showDefault(defaultOf(c, key)) })
-                        }}</span>
+            </thead>
+            <tbody>
+              <template v-for="c in form.hardCritics" :key="c.id">
+                <tr :class="c.enabled ? '' : 'opacity-60'">
+                  <td><Checkbox v-model="c.enabled" binary :title="t('spec.checkOn')" /></td>
+                  <td class="min-w-56">
+                    <span class="block text-sm font-medium">{{ criticLabel(c.id) }}</span>
+                    <span class="block text-xs text-surface-500 dark:text-surface-400">{{ criticDesc(c.id) }}</span>
+                  </td>
+                  <td><NumField v-model="c.weight" :min="0" :step="0.5" :fallback="1" narrow :disabled="!c.enabled" /></td>
+                  <td class="min-w-56">
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <label class="flex items-center gap-2" :title="t('spec.gateHint')">
+                        <Checkbox v-model="c.gate" binary :disabled="!c.enabled" />
+                        <span class="text-xs">{{ t('spec.gateScore') }}</span>
+                      </label>
+                      <NumField v-if="c.gate" v-model="c.gateBelow" :min="0" :max="1" :step="0.05" :fallback="0.2" narrow />
+                      <span v-if="c.gateFlags.length" class="flex flex-wrap gap-1" :title="t('spec.gateFlagsHint')">
+                        <Pill v-for="f in c.gateFlags" :key="f" tone="bad">{{ f }}</Pill>
                       </span>
-                      <Select
-                        v-if="kindOf(defaultOf(c, key)) === 'boolean'"
-                        :model-value="boolParam(c, key)"
-                        :options="boolOptions(defaultOf(c, key))"
-                        option-label="label"
-                        option-value="value"
-                        size="small"
-                        fluid
-                        @update:model-value="setBoolParam(c, key, $event as string)"
-                      />
-                      <InputText
-                        v-else
-                        :model-value="paramText(c, key)"
-                        :type="kindOf(defaultOf(c, key)) === 'number' ? 'number' : 'text'"
-                        step="any"
-                        size="small"
-                        fluid
-                        class="font-mono! text-xs!"
-                        :placeholder="showDefault(defaultOf(c, key))"
-                        @blur="setParam(c, key, ($event.target as HTMLInputElement).value)"
-                        @keydown.enter.prevent="setParam(c, key, ($event.target as HTMLInputElement).value)"
-                      />
-                      <span v-if="paramHint(c.id, key)" class="text-xs text-surface-500 dark:text-surface-400">{{
-                        paramHint(c.id, key)
-                      }}</span>
-                    </label>
-                  </div>
-                  <p class="mt-3 text-xs text-surface-500 dark:text-surface-400">{{ t('spec.paramsHint') }}</p>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      class="flex cursor-pointer items-center gap-1 text-xs text-primary hover:underline"
+                      :aria-expanded="openParams === c.id"
+                      @click="openParams = openParams === c.id ? null : c.id"
+                    >
+                      <IconChevron class="size-3.5 transition-transform" :class="openParams === c.id ? 'rotate-180' : ''" />
+                      {{ overrides(c) ? t('spec.paramsChanged', { n: overrides(c) }) : t('spec.paramsDefault') }}
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="openParams === c.id">
+                  <td></td>
+                  <td colspan="4" class="bg-surface-50 dark:bg-surface-800/40">
+                    <div v-if="!paramKeys(c).length" class="text-xs text-surface-500 dark:text-surface-400">
+                      {{ t('spec.noParams') }}
+                    </div>
+                    <div v-else class="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <label v-for="key in paramKeys(c)" :key="key" class="flex min-w-0 flex-col gap-1">
+                        <span class="flex items-baseline gap-2">
+                          <span class="font-mono text-xs font-semibold">{{ key }}</span>
+                          <span class="truncate font-mono text-[11px] text-surface-500 dark:text-surface-400">{{
+                            t('spec.paramDefault', { v: showDefault(defaultOf(c, key)) })
+                          }}</span>
+                        </span>
+                        <Select
+                          v-if="kindOf(defaultOf(c, key)) === 'boolean'"
+                          :model-value="boolParam(c, key)"
+                          :options="boolOptions(defaultOf(c, key))"
+                          option-label="label"
+                          option-value="value"
+                          size="small"
+                          fluid
+                          @update:model-value="setBoolParam(c, key, $event as string)"
+                        />
+                        <InputText
+                          v-else
+                          :model-value="paramText(c, key)"
+                          :type="kindOf(defaultOf(c, key)) === 'number' ? 'number' : 'text'"
+                          step="any"
+                          size="small"
+                          fluid
+                          class="font-mono! text-xs!"
+                          :placeholder="showDefault(defaultOf(c, key))"
+                          @blur="setParam(c, key, ($event.target as HTMLInputElement).value)"
+                          @keydown.enter.prevent="setParam(c, key, ($event.target as HTMLInputElement).value)"
+                        />
+                        <span v-if="paramHint(c.id, key)" class="text-xs text-surface-500 dark:text-surface-400">{{
+                          paramHint(c.id, key)
+                        }}</span>
+                      </label>
+                    </div>
+                    <p class="mt-3 text-xs text-surface-500 dark:text-surface-400">{{ t('spec.paramsHint') }}</p>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </details>
     </section>
 
     <!-- 4 · scoring -->
     <section v-if="show('scoring')">
-      <header class="mb-2 flex flex-wrap items-center gap-2">
-        <span
-          v-if="numbered"
-          class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
-          >4</span
-        >
-        <h3 class="text-sm font-semibold">{{ t('spec.secScoring') }}</h3>
-        <span class="text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secScoringHint') }}</span>
-      </header>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <FormField :label="t('spec.acceptThreshold')" :hint="t('spec.acceptThresholdHint')">
-          <NumField v-model="form.scoring.acceptThreshold" :min="0" :max="1" :step="0.05" :fallback="0.75" />
-        </FormField>
-        <FormField :label="t('spec.reviewThreshold')" :hint="t('spec.reviewThresholdHint')">
-          <NumField v-model="form.scoring.reviewThreshold" :min="0" :max="1" :step="0.05" :fallback="0.55" />
-        </FormField>
-        <FormField :label="t('spec.hardWeight')" :hint="t('spec.hardWeightHint')">
-          <NumField v-model="form.scoring.hardWeight" :min="0" :step="0.5" :fallback="1" />
-        </FormField>
-        <FormField :label="t('spec.softWeight')" :hint="t('spec.softWeightHint')">
-          <NumField v-model="form.scoring.softWeight" :min="0" :step="0.5" :fallback="1" />
-        </FormField>
-        <FormField class="sm:col-span-2 lg:col-span-4" :label="t('spec.ignoreFlags')" :hint="t('spec.ignoreFlagsHint')">
-          <TokenField v-model="form.scoring.ignoreFlags" placeholder="INACTIVE_ARM_TRACKERR, LOW_DIVERSITY" />
-        </FormField>
-      </div>
+      <details class="group" :open="scoringOpen" @toggle="scoringOpen = ($event.target as HTMLDetailsElement).open">
+        <summary class="flex cursor-pointer flex-wrap items-center gap-2 select-none">
+          <span
+            v-if="numbered"
+            class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
+            >4</span
+          >
+          <h3 class="text-sm font-semibold">{{ t('spec.secScoring') }}</h3>
+          <span class="text-xs text-surface-500 dark:text-surface-400">{{ scoringSummary }}</span>
+          <IconChevron class="size-4 text-surface-500 transition-transform group-open:rotate-180" />
+        </summary>
+        <p class="mt-2 text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secScoringHint') }}</p>
+        <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <FormField :label="t('spec.acceptThreshold')" :hint="t('spec.acceptThresholdHint')">
+            <NumField v-model="form.scoring.acceptThreshold" :min="0" :max="1" :step="0.05" :fallback="0.75" />
+          </FormField>
+          <FormField :label="t('spec.reviewThreshold')" :hint="t('spec.reviewThresholdHint')">
+            <NumField v-model="form.scoring.reviewThreshold" :min="0" :max="1" :step="0.05" :fallback="0.55" />
+          </FormField>
+          <FormField :label="t('spec.hardWeight')" :hint="t('spec.hardWeightHint')">
+            <NumField v-model="form.scoring.hardWeight" :min="0" :step="0.5" :fallback="1" />
+          </FormField>
+          <FormField :label="t('spec.softWeight')" :hint="t('spec.softWeightHint')">
+            <NumField v-model="form.scoring.softWeight" :min="0" :step="0.5" :fallback="1" />
+          </FormField>
+          <FormField class="sm:col-span-2 lg:col-span-4" :label="t('spec.ignoreFlags')" :hint="t('spec.ignoreFlagsHint')">
+            <TokenField v-model="form.scoring.ignoreFlags" placeholder="INACTIVE_ARM_TRACKERR, LOW_DIVERSITY" />
+          </FormField>
+        </div>
+      </details>
     </section>
 
     <!-- 5 · the robot -->
     <section v-if="show('robot')">
-      <details class="group" :open="!numbered">
+      <details class="group" :open="robotOpen" @toggle="robotOpen = ($event.target as HTMLDetailsElement).open">
         <summary class="flex cursor-pointer flex-wrap items-center gap-2 select-none">
           <span
             v-if="numbered"
@@ -531,9 +562,10 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
             >5</span
           >
           <h3 class="text-sm font-semibold">{{ t('spec.secRobot') }}</h3>
-          <span class="text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secRobotHint') }}</span>
+          <span class="text-xs text-surface-500 dark:text-surface-400">{{ robotSummaryText }}</span>
           <IconChevron class="size-4 text-surface-500 transition-transform group-open:rotate-180" />
         </summary>
+        <p class="mt-2 text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secRobotHint') }}</p>
         <div class="mt-3 grid gap-3 sm:grid-cols-3">
           <FormField class="sm:col-span-3" :label="t('spec.appearance')" :hint="t('spec.appearanceHint')">
             <InputText v-model="form.robot.appearance" fluid placeholder="white arms with black five-fingered hands" />
