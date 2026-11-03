@@ -219,3 +219,29 @@ def detrended_std(pos: np.ndarray) -> float:
         coef = np.polyfit(t, pos[:, k], 1)
         res[:, k] = pos[:, k] - np.polyval(coef, t)
     return float(np.linalg.norm(res, axis=1).std())
+
+
+def dropout_rows(ep, rf) -> np.ndarray:
+    """Rows where some cartesian action or state feature is exactly (0, 0, 0).
+
+    A pose of all zeros is never a robot pose: it is a logger that started before the policy
+    (an inference run writing zeros until the first command arrives) or a transport dropout.
+    Read as commands, those rows become a metre of tracking error, a spike, a frozen command
+    stream and a saturated axis at once, so the arm critics drop them. Cached per episode.
+    """
+    key = "dropout_rows"
+    if key in ep.cache:
+        return ep.cache[key]
+    n = ep.length
+    mask = np.zeros(n, dtype=bool)
+    for p in rf.pairs:
+        if p.kind != "cartesian":
+            continue
+        for k in (p.action, p.state):
+            if not ep.has(k):
+                continue
+            arr = ep.array(k)
+            if arr.ndim == 2 and arr.shape[1] >= 3 and len(arr) == n:
+                mask |= np.abs(arr[:, :3]).sum(1) == 0
+    ep.cache[key] = mask
+    return mask

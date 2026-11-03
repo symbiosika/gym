@@ -40,6 +40,8 @@ class RobotFeatures:
     primary_camera: str | None = None
     wrist_cameras: list[str] = field(default_factory=list)
     cameras: list[str] = field(default_factory=list)
+    # which arm a wrist camera is mounted on (None for a scene camera)
+    camera_arms: dict[str, str | None] = field(default_factory=dict)
 
     @property
     def active_pairs(self) -> list[FeaturePair]:
@@ -131,6 +133,7 @@ def detect_features(ds: LeRobotDataset, spec: CriticSpec, ep: EpisodeContext | N
     # ---- cameras
     wrist = [c for c in rf.cameras if "wrist" in c.lower() or "gripper" in c.lower() or "hand" in c.lower()]
     rf.wrist_cameras = wrist
+    rf.camera_arms = {c: (_arm_of(c) if c in wrist else None) for c in rf.cameras}
     if spec.robot.primary_camera and spec.robot.primary_camera in rf.cameras:
         rf.primary_camera = spec.robot.primary_camera
     else:

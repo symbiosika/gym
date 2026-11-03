@@ -264,6 +264,15 @@ _m(
 # ---------------------------------------------------------------- tracking_error
 _m(
     "tracking_error",
+    "dropout_rows",
+    "All-zero rows left out",
+    "count",
+    "Rows where a cartesian action or state pose was exactly (0, 0, 0): a logger that started before the policy, or a transport dropout. They are not commands, so the tracking check skips them. The normalization critic flags them as ZERO_FRAMES.",
+    "count of rows with any cartesian xyz == 0",
+    "lower",
+)
+_m(
+    "tracking_error",
     "pos_err_raw_mean_mm.",
     "Raw position error",
     "mm",

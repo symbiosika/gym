@@ -58,6 +58,9 @@ class NormalizationCritic(HardCritic):
         "idle_flag_m_per_min": 0.5,  # IDLE_ARM_DRIFT above this
         "copy_tolerance": 0.01,  # max |a - s| / range below this = action is a copy of the state
         "dead_eps": 1e-6,
+        # a dim whose true range is below this never moved (a parked arm); stats.json cannot be
+        # "inflated" relative to nothing, so such dims are left out of the inflation check
+        "inflation_min_range": 1e-3,
         "inflation_flag": 1.5,  # dataset-level STATS_RANGE_INFLATED when any dim's range is inflated by more
         "stats_file": "meta/stats.json",
     }
@@ -246,6 +249,7 @@ class NormalizationCritic(HardCritic):
                 true_rng = np.maximum(hi - lo, 1e-9)
                 stat_rng = smax - smin
                 factor = stat_rng / true_rng
+                factor[true_rng < float(self.p("inflation_min_range"))] = 1.0
                 bad = np.where(factor > float(self.p("inflation_flag")))[0]
                 if len(bad):
                     inflated[feat] = {
