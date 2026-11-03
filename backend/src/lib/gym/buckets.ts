@@ -14,3 +14,5 @@ export const VARIATION_IMAGE_BUCKET = "gym-variation";
 export const UPLOAD_CHUNK_BUCKET = "gym-upload-chunks";
 /** the recorded datasets themselves: the zip an operator uploaded, kept for the critics and the export */
 export const DATASET_BUCKET = "gym-datasets";
+/** the photo of a robot, its thumbnail in the robot list (lib/gym/robots.ts) */
+export const ROBOT_IMAGE_BUCKET = "gym-robot";

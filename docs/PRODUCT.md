@@ -44,7 +44,13 @@ who need to look at the results:
 
 Every day at a cell produces one **day protocol** with a printable, shareable
 view, and every action is written to an **audit log** that can be read per
-skill and per day protocol.
+skill, per day protocol and per robot.
+
+The **robots** of the gym have a page of their own: each with its technical
+and personal name, its status, the cell it stands in, and what it is made of
+(platform reference, sensors, actuators, locomotion, compute, communication),
+every component with a status, so a faulty camera or a missing Wi-Fi card is
+seen before a block starts. Which robot is in which cell is set on the cell.
 
 Analysis is not done by GYM itself: every uploaded dataset goes to the
 **data critics** (`critics/`, a service of this repository), which

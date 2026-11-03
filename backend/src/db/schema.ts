@@ -4,6 +4,8 @@
  * The model follows the glossary in docs/GLOSSARY.md and has two axes:
  *
  * Controlling (the cell's time):
+ *   Robot         a robot of the gym: names, status, platform, capabilities;
+ *                 in one cell at most, which the cell says
  *   Cell          a physical training cell in the gym
  *   Day protocol  one per cell and day: operator, downtime, notes, the
  *                 printable record. Holds the blocks of that day.
@@ -162,6 +164,27 @@ export type FailureCode = (typeof FAILURE_CODES)[number];
 /** The rollouts with this code are not the policy's fault and leave the policy-attributable rate. */
 export const INVALID_FAILURE_CODE: FailureCode = "F-08";
 
+/**
+ * Whether a robot can work:
+ *
+ *   in_service   available for blocks
+ *   maintenance  out for repair or rework, comes back
+ *   retired      out for good; kept for its history
+ */
+export const ROBOT_STATUSES = ["in_service", "maintenance", "retired"] as const;
+export type RobotStatus = (typeof ROBOT_STATUSES)[number];
+
+/** The state of one component of a robot (a sensor, an actuator, a Wi-Fi card, …). */
+export const COMPONENT_STATUSES = ["ok", "degraded", "faulty", "unknown"] as const;
+export type ComponentStatus = (typeof COMPONENT_STATUSES)[number];
+
+/**
+ * The capability sections every robot has, always the same and in this order.
+ * The platform reference is not among them: it is a form, not a list.
+ */
+export const CAPABILITY_SECTIONS = ["sensors", "actuators", "locomotion", "compute", "communication"] as const;
+export type CapabilitySection = (typeof CAPABILITY_SECTIONS)[number];
+
 // ---------------------------------------------------------------------------
 // JSON documents
 // ---------------------------------------------------------------------------
@@ -267,6 +290,69 @@ export interface FollowUpSuggestion {
   createdAt: string;
 }
 
+/** What a robot is, as its maker names it. */
+export interface RobotPlatform {
+  manufacturer: string;
+  model: string;
+  serialNumber: string;
+  firmware: string;
+}
+
+export const EMPTY_ROBOT_PLATFORM: RobotPlatform = { manufacturer: "", model: "", serialNumber: "", firmware: "" };
+
+/** One component in a capability section of a robot: "Intel RealSense D435, 2, ok". */
+export interface RobotComponent {
+  id: string;
+  name: string;
+  /** free kind inside the section, e.g. "RGB-D camera", "gripper", "Wi-Fi card" */
+  type: string;
+  quantity: number;
+  status: ComponentStatus;
+  note: string;
+}
+
+export type RobotCapabilities = Record<CapabilitySection, RobotComponent[]>;
+
+export const EMPTY_ROBOT_CAPABILITIES: RobotCapabilities = {
+  sensors: [],
+  actuators: [],
+  locomotion: [],
+  compute: [],
+  communication: [],
+};
+
+// ---------------------------------------------------------------------------
+// Robots
+// ---------------------------------------------------------------------------
+
+/**
+ * A robot of the gym. Where it is comes from the cell that points at it
+ * (`cells.robot_id`), never from the robot itself, so the two cannot disagree.
+ */
+export const robots = pgBaseTable(
+  "robots",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }).notNull(),
+    /** the canonical name: model and number as the maker or the inventory names it */
+    technicalName: text("technical_name").notNull(),
+    /** the name the people of the gym call it by */
+    personalName: text("personal_name").notNull().default(""),
+    status: text("status").$type<RobotStatus>().notNull().default("in_service"),
+    notes: text("notes").notNull().default(""),
+    /** storage reference of lib/storage, bucket `gym-robot` */
+    imageRef: text("image_ref"),
+    platform: jsonb("platform").$type<RobotPlatform>().notNull().default(EMPTY_ROBOT_PLATFORM),
+    capabilities: jsonb("capabilities").$type<RobotCapabilities>().notNull().default(EMPTY_ROBOT_CAPABILITIES),
+    createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("gym_robots_tenant_idx").on(table.tenantId),
+    uniqueIndex("gym_robots_technical_name_uq").on(table.tenantId, table.technicalName),
+  ],
+);
+
 // ---------------------------------------------------------------------------
 // Cells
 // ---------------------------------------------------------------------------
@@ -278,8 +364,13 @@ export const cells = pgBaseTable(
     tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }).notNull(),
     name: text("name").notNull(),
     location: text("location").notNull().default(""),
-    /** the robot in the cell, informational */
-    robot: text("robot").notNull().default(""),
+    /** the robot in the cell; a robot is in one cell at most */
+    robotId: uuid("robot_id").references(() => robots.id, { onDelete: "set null" }),
+    /**
+     * Said on purpose that the cell has no robot yet. Without a robot and
+     * without this the robot of the cell is undefined: nobody said.
+     */
+    noRobot: boolean("no_robot").notNull().default(false),
     active: boolean("active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
@@ -288,6 +379,7 @@ export const cells = pgBaseTable(
   (table) => [
     index("gym_cells_tenant_idx").on(table.tenantId),
     uniqueIndex("gym_cells_name_uq").on(table.tenantId, table.name),
+    uniqueIndex("gym_cells_robot_uq").on(table.robotId),
   ],
 );
 
@@ -805,6 +897,8 @@ export const auditLog = pgBaseTable(
     /** the day protocol the action concerns; stays when the block goes */
     dayProtocolId: uuid("day_protocol_id").references(() => dayProtocols.id, { onDelete: "cascade" }),
     blockId: uuid("block_id").references(() => blocks.id, { onDelete: "set null" }),
+    /** the robot the action concerns: created, changed, moved between cells */
+    robotId: uuid("robot_id").references(() => robots.id, { onDelete: "set null" }),
     userId: uuid("user_id"),
     userName: text("user_name").notNull().default(""),
     /** dotted action name, e.g. "skill.created", "block.started", "dataset.uploaded" */
@@ -816,6 +910,7 @@ export const auditLog = pgBaseTable(
     index("gym_audit_log_tenant_idx").on(table.tenantId),
     index("gym_audit_log_skill_idx").on(table.skillId, table.createdAt),
     index("gym_audit_log_day_idx").on(table.dayProtocolId, table.createdAt),
+    index("gym_audit_log_robot_idx").on(table.robotId, table.createdAt),
   ],
 );
 
@@ -823,7 +918,13 @@ export const auditLog = pgBaseTable(
 // Relations
 // ---------------------------------------------------------------------------
 
-export const cellsRelations = relations(cells, ({ many }) => ({
+export const robotsRelations = relations(robots, ({ many }) => ({
+  cells: many(cells),
+  audit: many(auditLog),
+}));
+
+export const cellsRelations = relations(cells, ({ one, many }) => ({
+  robot: one(robots, { fields: [cells.robotId], references: [robots.id] }),
   days: many(dayProtocols),
 }));
 
@@ -893,6 +994,7 @@ export const evaluationReportsRelations = relations(evaluationReports, ({ one })
 // Types and valibot schemas
 // ---------------------------------------------------------------------------
 
+export type RobotSelect = typeof robots.$inferSelect;
 export type CellSelect = typeof cells.$inferSelect;
 export type CellInsert = typeof cells.$inferInsert;
 export type CollectionSelect = typeof collections.$inferSelect;

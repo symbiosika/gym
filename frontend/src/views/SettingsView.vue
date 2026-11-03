@@ -9,6 +9,7 @@ import { useGym } from '@/stores/gym'
 import { useOrg, type MemberRole } from '@/stores/org'
 import { useUi } from '@/stores/ui'
 import type { Cell, Collection, CriticsSpecInfo } from '@/types/gym'
+import { robotFullLabel } from '@/utils/robots'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SpecManager from '@/components/SpecManager.vue'
 import IconAdd from '~icons/carbon/add'
@@ -34,7 +35,13 @@ async function loadSpecs() {
   specs.value = await gymApi.specs(tenantId.value).catch(() => [])
 }
 
-const newCell = ref({ name: '', location: '', robot: '' })
+/**
+ * The robot of a cell as one choice: a robot's id, or one of the two states
+ * without a robot. "Undefined" is nobody said; "none" is said on purpose.
+ */
+const UNDEFINED_ROBOT = 'undefined'
+const NO_ROBOT = 'none'
+const newCell = ref({ name: '', location: '', robot: UNDEFINED_ROBOT as string })
 const newCollection = ref({ name: '', customer: '' })
 const inviteEmail = ref('')
 const inviteRole = ref<MemberRole>('member')
@@ -59,12 +66,42 @@ onMounted(async () => {
   await loadSpecs()
 })
 
+const robotChoice = (c: Cell) => c.robotId ?? (c.noRobot ? NO_ROBOT : UNDEFINED_ROBOT)
+const robotFields = (choice: string): Pick<Cell, 'robotId' | 'noRobot'> =>
+  choice === UNDEFINED_ROBOT || choice === NO_ROBOT
+    ? { robotId: null, noRobot: choice === NO_ROBOT }
+    : { robotId: choice, noRobot: false }
+
+/** Every robot, each with the cell it is in when that is another one. */
+const robotOptions = (cellId: string | null) => [
+  { label: t('settings.cell.robotUndefined'), value: UNDEFINED_ROBOT, muted: true },
+  { label: t('settings.cell.noRobot'), value: NO_ROBOT, muted: true },
+  ...gym.robots.map((r) => ({
+    label: robotFullLabel(r),
+    value: r.id,
+    muted: false,
+    elsewhere: r.cell && r.cell.id !== cellId ? r.cell.name : '',
+  })),
+]
+
+/** A robot in another cell is moved only when the admin says so. */
+async function confirmMove(choice: string, cellName: string): Promise<boolean> {
+  const r = gym.robots.find((x) => x.id === choice)
+  if (!r?.cell || r.cell.name === cellName) return true
+  return dialog.confirm({
+    title: t('settings.moveRobot', { robot: robotFullLabel(r), cell: cellName || t('settings.cell.namePlaceholder') }),
+    text: t('settings.moveRobotHint', { from: r.cell.name }),
+  })
+}
+
 async function addCell() {
   if (!newCell.value.name.trim()) return
+  if (!(await confirmMove(newCell.value.robot, newCell.value.name))) return
   try {
-    await gymApi.createCell(tenantId.value, newCell.value)
-    newCell.value = { name: '', location: '', robot: '' }
-    await gym.load(tenantId.value, true)
+    const { robot, ...cell } = newCell.value
+    await gymApi.createCell(tenantId.value, { ...cell, ...robotFields(robot) })
+    newCell.value = { name: '', location: '', robot: UNDEFINED_ROBOT }
+    await gym.reloadRobots(tenantId.value)
   } catch (e) {
     fail(e)
   }
@@ -74,9 +111,19 @@ async function saveCell(c: Cell) {
     await gymApi.updateCell(tenantId.value, c.id, {
       name: c.name,
       location: c.location,
-      robot: c.robot,
       active: c.active,
     })
+    ui.showBanner('ok', t('app.saved'), 1500)
+  } catch (e) {
+    fail(e)
+  }
+}
+async function setCellRobot(c: Cell, choice: string) {
+  if (choice === robotChoice(c)) return
+  if (!(await confirmMove(choice, c.name))) return
+  try {
+    await gymApi.updateCell(tenantId.value, c.id, robotFields(choice))
+    await gym.reloadRobots(tenantId.value)
     ui.showBanner('ok', t('app.saved'), 1500)
   } catch (e) {
     fail(e)
@@ -166,7 +213,12 @@ const rowBox = 'rounded-panel border border-surface-300 bg-surface-0 px-2.5 py-2
           <span></span>
           <span class="gym-field mb-0">{{ t('settings.cell.name') }}</span>
           <span class="gym-field mb-0">{{ t('settings.cell.location') }}</span>
-          <span class="gym-field mb-0">{{ t('settings.cell.robot') }}</span>
+          <span class="flex items-center gap-2">
+            <span class="gym-field mb-0">{{ t('settings.cell.robot') }}</span>
+            <RouterLink class="text-primary text-xs hover:underline" :to="{ name: 'Robots', params: { tenantId } }">{{
+              t('settings.manageRobots')
+            }}</RouterLink>
+          </span>
           <span></span>
         </div>
         <div v-for="(c, i) in gym.cells" :key="c.id" :class="[rowGrid, rowBox]">
@@ -174,7 +226,23 @@ const rowBox = 'rounded-panel border border-surface-300 bg-surface-0 px-2.5 py-2
           <InputText v-model="c.name" fluid :disabled="!app.isAdmin" @change="saveCell(c)" />
           <InputText v-model="c.location" fluid :disabled="!app.isAdmin" @change="saveCell(c)" />
           <div class="flex items-center gap-2">
-            <InputText v-model="c.robot" class="grow" :disabled="!app.isAdmin" @change="saveCell(c)" />
+            <Select
+              :model-value="robotChoice(c)"
+              class="min-w-0 grow"
+              :options="robotOptions(c.id)"
+              option-label="label"
+              option-value="value"
+              :aria-label="t('settings.cell.robot')"
+              :disabled="!app.isAdmin"
+              @update:model-value="(v: string) => setCellRobot(c, v)"
+            >
+              <template #option="{ option }">
+                <span :class="option.muted ? 'text-surface-500 italic dark:text-surface-400' : ''">{{ option.label }}</span>
+                <span v-if="option.elsewhere" class="ms-2 text-xs text-surface-500 dark:text-surface-400">{{
+                  t('settings.cell.robotIn', { cell: option.elsewhere })
+                }}</span>
+              </template>
+            </Select>
             <Checkbox
               v-model="c.active"
               binary
@@ -192,7 +260,20 @@ const rowBox = 'rounded-panel border border-surface-300 bg-surface-0 px-2.5 py-2
         <span class="font-mono text-xs text-surface-400">+</span>
         <InputText v-model="newCell.name" fluid :placeholder="t('settings.cell.namePlaceholder')" @keyup.enter="addCell" />
         <InputText v-model="newCell.location" fluid :placeholder="t('settings.cell.location')" @keyup.enter="addCell" />
-        <InputText v-model="newCell.robot" fluid :placeholder="t('settings.cell.robot')" @keyup.enter="addCell" />
+        <Select
+          v-model="newCell.robot"
+          :options="robotOptions(null)"
+          option-label="label"
+          option-value="value"
+          :aria-label="t('settings.cell.robot')"
+        >
+          <template #option="{ option }">
+            <span :class="option.muted ? 'text-surface-500 italic dark:text-surface-400' : ''">{{ option.label }}</span>
+            <span v-if="option.elsewhere" class="ms-2 text-xs text-surface-500 dark:text-surface-400">{{
+              t('settings.cell.robotIn', { cell: option.elsewhere })
+            }}</span>
+          </template>
+        </Select>
         <Button :disabled="!newCell.name.trim()" :aria-label="t('settings.cell.namePlaceholder')" @click="addCell">
           <template #icon><IconAdd /></template>
         </Button>

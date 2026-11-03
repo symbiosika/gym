@@ -2,7 +2,7 @@
  * Cells and collections: the two pick lists of an organisation.
  *
  *   GET/POST          /tenant/:tenantId/gym/cells
- *   PUT/DELETE        /tenant/:tenantId/gym/cells/:id
+ *   PUT/DELETE        /tenant/:tenantId/gym/cells/:id      { …, robotId, noRobot } puts a robot into the cell
  *   GET/POST          /tenant/:tenantId/gym/collections
  *   PUT/DELETE        /tenant/:tenantId/gym/collections/:id
  *
@@ -15,7 +15,7 @@ import { describeRoute, validator } from "hono-openapi";
 import * as v from "valibot";
 import { createCell, deleteCell, listCells, updateCell } from "../../../../lib/gym/cells";
 import { createCollection, deleteCollection, listCollections, updateCollection } from "../../../../lib/gym/collections";
-import { ok, tenantIdParam, tenantParam, toHttpError } from "./_shared";
+import { actorOf, ok, tenantIdParam, tenantParam, toHttpError } from "./_shared";
 
 export default function defineMasterDataRoutes(app: SymbiosikaFrameworkHonoApp, API_BASE_PATH = "") {
   const cellsBase = `${API_BASE_PATH}/tenant/:tenantId/gym/cells`;
@@ -37,7 +37,7 @@ export default function defineMasterDataRoutes(app: SymbiosikaFrameworkHonoApp, 
     async (c) => {
       try {
         const { tenantId } = c.req.valid("param");
-        return c.json(await createCell(tenantId, await c.req.json()), 201);
+        return c.json(await createCell(tenantId, await actorOf(c), await c.req.json()), 201);
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -47,7 +47,7 @@ export default function defineMasterDataRoutes(app: SymbiosikaFrameworkHonoApp, 
     async (c) => {
       try {
         const { tenantId, id } = c.req.valid("param");
-        return c.json(await updateCell(tenantId, id, await c.req.json()));
+        return c.json(await updateCell(tenantId, await actorOf(c), id, await c.req.json()));
       } catch (e) { throw toHttpError(e); }
     });
 

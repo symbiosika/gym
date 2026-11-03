@@ -6,6 +6,7 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const COMPONENT_STATUS_TONE: typeof import('./utils/robots').COMPONENT_STATUS_TONE
   const DEFAULT_HARD_CRITICS: typeof import('./utils/spec').DEFAULT_HARD_CRITICS
   const EffectScope: typeof import('vue').EffectScope
   const FetcherError: typeof import('./utils/fetcher').FetcherError
@@ -15,6 +16,7 @@ declare global {
   const OBJECT_ROLES: typeof import('./utils/spec').OBJECT_ROLES
   const PER_EPISODE: typeof import('./utils/spec').PER_EPISODE
   const PRESET_IDS: typeof import('./utils/spec').PRESET_IDS
+  const ROBOT_STATUS_TONE: typeof import('./utils/robots').ROBOT_STATUS_TONE
   const THEME_KEY: typeof import('./stores/ui').THEME_KEY
   const activeStep: typeof import('./utils/plan').activeStep
   const addDays: typeof import('./utils/time').addDays
@@ -25,6 +27,7 @@ declare global {
   const askedWords: typeof import('./utils/specSample').askedWords
   const blockerKey: typeof import('./utils/specSample').blockerKey
   const blockerSummary: typeof import('./utils/specSample').blockerSummary
+  const componentCount: typeof import('./utils/robots').componentCount
   const computed: typeof import('vue').computed
   const countVerdicts: typeof import('./utils/specSample').countVerdicts
   const createApp: typeof import('vue').createApp
@@ -63,6 +66,7 @@ declare global {
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
   const h: typeof import('vue').h
   const hasSession: typeof import('./utils/fetcher').hasSession
+  const healthIssues: typeof import('./utils/robots').healthIssues
   const indicator: typeof import('./utils/spec').indicator
   const indicatorEvidence: typeof import('./utils/specSample').indicatorEvidence
   const inject: typeof import('vue').inject
@@ -106,6 +110,8 @@ declare global {
   const ref: typeof import('vue').ref
   const resolveComponent: typeof import('vue').resolveComponent
   const resultRows: typeof import('./utils/specSample').resultRows
+  const robotFullLabel: typeof import('./utils/robots').robotFullLabel
+  const robotLabel: typeof import('./utils/robots').robotLabel
   const runFlags: typeof import('./utils/specSample').runFlags
   const sampleFlags: typeof import('./utils/specSample').sampleFlags
   const sampleTasks: typeof import('./utils/specSample').sampleTasks

@@ -16,6 +16,7 @@ import { tenants } from "@framework/lib/db/schema/users";
 import { generatePlan, listBlocks, startBlock, updateBrief } from "../src/lib/gym/blocks";
 import { createCell, listCells } from "../src/lib/gym/cells";
 import { createCollection, listCollections } from "../src/lib/gym/collections";
+import { createRobot, listRobots } from "../src/lib/gym/robots";
 import { createSkill, listSkills } from "../src/lib/gym/skills";
 import { isoDate } from "../src/lib/gym/time";
 
@@ -27,12 +28,16 @@ if (!tenantId) {
 }
 
 const actor = { userId: null, userName: "demo seed" };
+const existingRobots = await listRobots(tenantId);
+const robotId = async (technicalName: string, personalName: string) =>
+  existingRobots.find((r) => r.technicalName === technicalName)?.id ??
+  (await createRobot(tenantId, actor, { technicalName, personalName, platform: { manufacturer: "NEURA Robotics", model: "MAiRA" } })).id;
 const existingCells = await listCells(tenantId);
 for (const c of [
-  { name: "Cell 13", location: "Riederich", robot: "MAiRA" },
-  { name: "Cell 14", location: "Riederich", robot: "MAiRA" },
+  { name: "Cell 13", location: "Riederich", robotId: await robotId("MAiRA 001", "Mia") },
+  { name: "Cell 14", location: "Riederich", robotId: await robotId("MAiRA 002", "Max") },
 ]) {
-  if (!existingCells.some((x) => x.name === c.name)) await createCell(tenantId, c);
+  if (!existingCells.some((x) => x.name === c.name)) await createCell(tenantId, actor, c);
 }
 const cells = await listCells(tenantId);
 

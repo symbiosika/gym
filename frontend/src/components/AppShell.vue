@@ -15,7 +15,7 @@ import IconMoon from '~icons/carbon/moon'
 import IconSun from '~icons/carbon/sun'
 import IconChevronDown from '~icons/carbon/chevron-down'
 
-/** Header with brand, the three main areas, language, theme, avatar menu; then the current view. */
+/** Header with brand, the four main areas, language, theme, avatar menu; then the current view. */
 const app = useApp()
 const gym = useGym()
 const ui = useUi()
@@ -48,6 +48,7 @@ const tabs = computed(() => [
     label: t('app.nav.analysis'),
     match: ['Analysis', 'Skill'],
   },
+  { name: 'Robots', label: t('app.nav.robots'), match: ['Robots'] },
   { name: 'Settings', label: t('app.nav.settings'), match: ['Settings'] },
 ])
 const isActive = (match: string[]) => match.includes(String(route.name))

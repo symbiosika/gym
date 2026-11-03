@@ -1,0 +1,1 @@
+ALTER TABLE "gym_cells" DROP COLUMN "robot";

@@ -110,7 +110,7 @@ describe("Gym operator flow", () => {
   });
 
   test("cells, collections and a skill", async () => {
-    const created = await testFetcher.post(app, `${base}/cells`, token, { name: "Cell 13", location: "Riederich", robot: "MAiRA" });
+    const created = await testFetcher.post(app, `${base}/cells`, token, { name: "Cell 13", location: "Riederich" });
     expect(created.status).toBe(201);
     cellId = created.jsonResponse.id;
     expect((await testFetcher.post(app, `${base}/cells`, token, { name: "Cell 13" })).status).toBe(400);
