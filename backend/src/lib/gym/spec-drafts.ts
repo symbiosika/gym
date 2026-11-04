@@ -359,8 +359,10 @@ export async function startTest(tenantId: string, id: string, input: unknown): P
 
 /**
  * The spec the critics generated, trimmed to what a person decides: the task
- * as it was read from the data, the robot type and the active arm, the
- * technical checks as they ran and the thresholds. The success indicators are
+ * as it was read from the data, the robot type, the technical checks as they
+ * ran and the thresholds. The active arm is left out: the report carries the
+ * arm the run defaulted from motion, and pinning it would hide that the critics
+ * chose it (they say so with ACTIVE_ARMS_UNSET). The success indicators are
  * left out on purpose: the defaults are worded from the objects of the task,
  * which the person names in the wizard, and the wizard words them afresh from
  * those. What is left out the critics fill in with their defaults.
@@ -385,7 +387,6 @@ export function seedSpec(report: DatasetReport, name: string): Record<string, un
     robot: Object.fromEntries(
       Object.entries({
         type: robot.type || report.robot_type || undefined,
-        active_arms: Array.isArray(robot.active_arms) && robot.active_arms.length ? robot.active_arms : undefined,
         primary_camera: robot.primary_camera || undefined,
       }).filter(([, value]) => value !== undefined),
     ),

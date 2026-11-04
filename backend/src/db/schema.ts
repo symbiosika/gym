@@ -47,7 +47,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema, createUpdateSchema } from "drizzle-valibot";
 import { tenants } from "@framework/lib/db/schema/users";
-import type { CriticsSelection, DatasetReport } from "../lib/critics/client";
+import type { CriticsSelection, DatasetReport, SpecOverrides } from "../lib/critics/client";
 import type { CriticsSummary, EpisodeReason, EpisodeVerdict } from "../lib/critics/summary";
 import { PREFIX } from "./index";
 
@@ -486,6 +486,8 @@ export const datasets = pgBaseTable(
      * (lib/gym/dataset-uploads.ts). Null for a dataset stored as one file.
      */
     storageParts: jsonb("storage_parts").$type<string[]>(),
+    /** run facts of this dataset (the active arm, a task variant) the critics laid over the spec for its run */
+    specOverrides: jsonb("spec_overrides").$type<SpecOverrides>(),
     /** the name the dataset goes by at the critics, and the run that analysed it */
     criticsDatasetName: text("critics_dataset_name").notNull(),
     criticsJobId: text("critics_job_id"),
@@ -606,6 +608,8 @@ export const datasetUploads = pgBaseTable(
     bytes: bigint("bytes", { mode: "number" }).notNull(),
     chunkSize: integer("chunk_size").notNull(),
     chunkCount: integer("chunk_count").notNull(),
+    /** chosen at the announcement and read here at completion, so a resumed upload keeps it */
+    specOverrides: jsonb("spec_overrides").$type<SpecOverrides>(),
     createdBy: uuid("created_by"),
     createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "string" }).notNull().defaultNow(),
@@ -700,7 +704,7 @@ export const episodes = pgBaseTable(
 // ---------------------------------------------------------------------------
 
 export interface ExportSelection {
-  datasets: { datasetId: string; name: string; criticsDatasetName: string; criticsJobId: string | null; episodeIndexes: number[] }[];
+  datasets: { datasetId: string; name: string; criticsDatasetName: string; criticsJobId: string | null; specOverrides?: SpecOverrides | null; episodeIndexes: number[] }[];
   episodes: number;
 }
 

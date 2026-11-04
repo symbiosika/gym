@@ -1,4 +1,4 @@
-"""Generate a starter spec from a dataset (task text, robot type, arms, cameras)."""
+"""Generate a starter spec from a dataset (task text, robot type, cameras, the arms passed in)."""
 
 from __future__ import annotations
 
@@ -22,31 +22,14 @@ def auto_spec(
             "against its own (task.per_episode). Keep the success indicators worded relative to the "
             "instruction rather than naming one concrete object."
         )
-    arms = active_arms
-    if arms is None:
-        # guess the active arm: the one whose action moves most in the first episode
-        try:
-            ep = ds.episode(ds.episode_indices()[0])
-            import numpy as np
-
-            best, best_v = None, -1.0
-            for k in ds.numeric_keys:
-                if not k.startswith("action"):
-                    continue
-                arm = "left" if "left" in k.lower() else ("right" if "right" in k.lower() else None)
-                if arm is None:
-                    continue
-                v = float(np.linalg.norm(np.diff(ep.array(k)[:, :3], axis=0), axis=1).sum())
-                if v > best_v:
-                    best, best_v = arm, v
-            arms = [best] if best else []
-        except Exception:  # noqa: BLE001
-            arms = []
+    # No guess at the active arm: left empty, the runner decides from the motion of several
+    # episodes and says so (ACTIVE_ARMS_UNSET, resolve_active_arms). Arms passed in are kept.
+    arms = list(active_arms or [])
     spec = CriticSpec(
         name=ds.root.name,
         purpose=purpose,
         task=TaskSpec(instruction=task or "unknown task", notes=notes),
-        robot=RobotSpec(type=ds.robot_type, active_arms=arms or []),
+        robot=RobotSpec(type=ds.robot_type, active_arms=arms),
     )
     # repetitions per episode: median number of carried grasp cycles over the first episodes, so a
     # 5-repetition protocol is not flagged MULTIGRASP on every episode

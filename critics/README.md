@@ -156,6 +156,16 @@ The purpose is a fact of the run rather than of the task, so a job may set it:
 with the task's spec, the stored spec untouched (`lerobot-critics init-spec --purpose
 evaluation` writes a starter spec for rollouts).
 
+Spec overrides are run facts of the same kind: `POST /jobs {"spec": "cup_tray",
+"spec_overrides": {"robot": {"active_arms": ["right"]}}}` lays the active arm (or a task
+variant, `task.instruction` and `task.objects`) of this one dataset over the spec for this
+run. Only `robot.active_arms`, `task.instruction` and `task.objects` are allowed, never the
+judgement (scoring, critics, thresholds) or the robot's tuning; any other key, top level or
+nested, answers 422, also with `spec: null`. The stored spec is untouched, the job keeps the
+merged spec (`GET /jobs/{id}/spec`) and the overrides (`GET /jobs/{id}`, `spec_overrides`).
+With `spec: null` the generated spec takes the arms from the override; without one it leaves
+`active_arms` empty and the run defaults them from motion (`ACTIVE_ARMS_UNSET`).
+
 **The pre-roll.** An evaluation stack records from the start, but the policy takes over a few
 seconds in: until then the action topic carries zeros while the state is the resting robot.
 Read naively those frames are dropouts, a tracking error of a metre, a frozen command stream
@@ -278,7 +288,7 @@ from a run:
 
 1. **Check a dataset** (left): pick a dataset found under the data directory or upload a
    zipped LeRobot dataset, choose *what to check* — **Auto** generates a spec from the dataset
-   (task text, robot, active arm, repetitions per episode) and **saves it as
+   (task text, robot, repetitions per episode; the active arm is left to the run) and **saves it as
    `<dataset>-auto`** so it can be refined after the run — or a stored spec (YAML editor
    behind *Edit*), optionally restrict the episodes or switch the VLM judge off, press
    *Check dataset*. Runs are listed with status, progress and verdict counts.

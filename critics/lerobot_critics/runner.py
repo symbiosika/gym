@@ -19,6 +19,8 @@ from pydantic import BaseModel, Field
 
 from .critics.base import CriticResult, _jsonable
 from .critics.registry import build_hard_critics
+from .critics.soft.providers import VLMUnavailable
+from .dataset.features import resolve_active_arms
 from .dataset.loader import LeRobotDataset, open_dataset
 from .metrics_doc import docs_for_metrics
 from .scoring import EpisodeScore, aggregate
@@ -101,6 +103,8 @@ class DatasetReport(BaseModel):
     dataset_name: str
     spec_name: str
     spec: dict[str, Any]
+    # the arms that were scored (empty: all); what the spec names, or what moves in the data
+    active_arms: list[str] = Field(default_factory=list)
     created_at: str
     robot_type: str = ""
     fps: float = 0.0
@@ -176,7 +180,7 @@ def _hard_worker(args: tuple) -> dict[str, Any]:
 
 
 def _soft_worker(
-    judge, ds: LeRobotDataset, ep_index: int, keyframes: dict
+    judge, ds: LeRobotDataset, ep_index: int, keyframes: dict, hard: list[CriticResult] | None = None
 ) -> tuple[int, list[dict], str | None]:
     ep = ds.episode(ep_index)
     if keyframes.get("grasp"):
@@ -187,8 +191,10 @@ def _soft_worker(
             ]
         }
     try:
-        _, results = judge.judge(ep)
+        _, results = judge.judge(ep, hard=hard)
         return ep_index, [r.model_dump() for r in results], None
+    except VLMUnavailable:
+        raise
     except Exception as e:  # noqa: BLE001
         return ep_index, [], f"{type(e).__name__}: {e}"
 
@@ -210,6 +216,9 @@ def run(
     eps = sample_episodes(eps, options.max_episodes)
     if options.include_episodes:
         eps = sorted(set(eps) | {e for e in options.include_episodes if e in ds.episodes})
+    # the arms the critics score: what the spec names, checked against what moves in the data
+    spec = spec.model_copy(deep=True)
+    spec.robot.active_arms, spec_flags = resolve_active_arms(ds, spec)
     spec_dict = json.loads(spec.model_dump_json())
     soft_on = options.run_soft and spec.soft_critics.enabled and spec.soft_critics.vlm.provider != "none"
     composite = (
@@ -252,25 +261,62 @@ def run(
     t0 = time.time()
     soft_results: dict[int, list[dict]] = {}
     soft_errors: dict[int, str] = {}
+    soft_eps_run: list[int] = []
     if soft_on:
         from .critics.soft.vlm import VLMJudge
 
         judge = VLMJudge(spec, out_dir)
         conc = max(1, spec.soft_critics.vlm.max_concurrency)
-        done = 0
-        _progress("soft", 0, len(eps))
-        with ThreadPoolExecutor(max_workers=conc) as pool:
-            futs = [
-                pool.submit(_soft_worker, judge, ds, e, (per_ep.get(e) or {}).get("keyframes", {}))
+        hard_of = {
+            e: [CriticResult.model_validate(h) for h in (per_ep.get(e) or {}).get("hard", [])] for e in eps
+        }
+        soft_eps = eps
+        if spec.soft_critics.only_hard_passed and options.run_hard:
+            # an episode the hard critics already reject is out whatever the model says
+            soft_eps = [
+                e
                 for e in eps
+                if (per_ep.get(e) or {}).get("error")
+                or aggregate(e, hard_of[e], [], spec.scoring).verdict != "reject"
+            ]
+        soft_eps_run = soft_eps
+        done = 0
+        _progress("soft", 0, len(soft_eps))
+        unavailable: str | None = None
+        pool = ThreadPoolExecutor(max_workers=conc)
+        try:
+            futs = [
+                pool.submit(
+                    _soft_worker, judge, ds, e, (per_ep.get(e) or {}).get("keyframes", {}), hard_of[e]
+                )
+                for e in soft_eps
             ]
             for f in as_completed(futs):
-                e, res, err = f.result()
+                try:
+                    e, res, err = f.result()
+                except VLMUnavailable as ex:
+                    # the model cannot be used at all: stop asking it
+                    unavailable = str(ex)
+                    for g in futs:
+                        g.cancel()
+                    break
                 soft_results[e] = res
                 if err:
                     soft_errors[e] = err
                 done += 1
-                _progress("soft", done, len(eps))
+                _progress("soft", done, len(soft_eps))
+        finally:
+            pool.shutdown(wait=True, cancel_futures=True)
+        if unavailable:
+            for g in futs:  # keep what finished before the error
+                if g.done() and not g.cancelled() and g.exception() is None:
+                    e, res, err = g.result()
+                    soft_results[e] = res
+                    if err:
+                        soft_errors[e] = err
+            for e in soft_eps:
+                if e not in soft_results:
+                    soft_errors[e] = f"VLMUnavailable: {unavailable}"
     timing["soft_s"] = time.time() - t0
 
     # ---- assemble, finalize (dataset-relative flags), score
@@ -317,6 +363,13 @@ def run(
                     ignored = set(spec.scoring.ignore_flags)
                     dataset_flags.update({str(k): str(v) for k, v in fl.items() if str(k) not in ignored})
                 summaries[critic.id] = _jsonable(summ)
+    if soft_errors:
+        n_err = len(soft_errors)
+        reason = next(iter(soft_errors.values())).splitlines()[0]
+        dataset_flags["VLM_INCOMPLETE"] = (
+            f"{n_err} of {len(soft_eps_run)} episodes have no soft verdict: {reason}"
+        )
+    dataset_flags.update({k: v for k, v in spec_flags.items() if k not in set(spec.scoring.ignore_flags)})
     for rep in reports:
         rep.score = aggregate(rep.episode, rep.hard, rep.soft, spec.scoring)
         if rep.error:
@@ -334,6 +387,7 @@ def run(
         dataset_name=ds.root.name,
         spec_name=spec.name,
         spec=spec_dict,
+        active_arms=list(spec.robot.active_arms),
         created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         robot_type=ds.robot_type,
         fps=ds.fps,
@@ -345,7 +399,10 @@ def run(
         review=[r.episode for r in reports if r.score.verdict == "review"],
         exclude=[r.episode for r in reports if r.score.verdict == "reject"],
         flag_counts=dict(sorted(flag_counts.items(), key=lambda kv: -kv[1])),
-        dataset_stats=_dataset_stats(reports, per_ep),
+        dataset_stats={
+            **_dataset_stats(reports, per_ep),
+            **({"vlm_incomplete_episodes": len(soft_errors)} if soft_errors else {}),
+        },
         dataset_summaries=summaries,
         dataset_flags=dataset_flags,
         metric_docs=docs_for_metrics(present_metrics(reports)),

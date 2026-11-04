@@ -536,6 +536,14 @@ describe("Gym operator flow", () => {
     const notZip = new FormData();
     notZip.append("file", new File(["hello"], "notes.txt", { type: "text/plain" }));
     expect((await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, notZip)).status).toBe(400);
+    // the overrides of a multipart upload are a JSON text: not JSON, or not the run facts, is refused
+    for (const overrides of ["{robot: right", '{"scoring":{"accept_threshold":0}}', '{"robot":{"active_arms":["middle"]}}']) {
+      const form = zipUpload("overrides.zip");
+      form.append("specOverrides", overrides);
+      const refused = await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, form);
+      expect(refused.status).toBe(400);
+    }
+    expect((await testFetcher.get(app, `${base}/blocks/${blockId}`, token)).jsonResponse.datasets).toHaveLength(1);
 
     const follow = await testFetcher.post(app, `${base}/blocks/${blockId}/follow-up?lang=en`, token, {});
     expect(follow.status).toBe(200);
@@ -596,6 +604,18 @@ describe("Gym operator flow", () => {
     const updated = await testFetcher.put(app, `${base}/skills/${skillId}`, token, { criticSpecName: "Cup_on_Tray" });
     expect(updated.jsonResponse.criticSpecName).toBe("Cup_on_Tray");
     expect((await testFetcher.get(app, `${base}/blocks/${blockId}`, token)).jsonResponse.skill.criticSpecName).toBe("Cup_on_Tray");
+  });
+
+  test("a skill whose spec was deleted uploads with the auto spec", async () => {
+    await testFetcher.put(app, `${base}/skills/${skillId}`, token, { criticSpecName: "gone_spec" });
+    const up = await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, zipUpload("after_delete.zip"));
+    const usedSpec = critics.jobs.at(-1)?.spec;
+    // clean up before asserting, so a failure cannot leave a dataset behind for the count-based tests that follow
+    await testFetcher.put(app, `${base}/skills/${skillId}`, token, { criticSpecName: "Cup_on_Tray" });
+    if (up.jsonResponse?.id) await testFetcher.delete(app, `${base}/datasets/${up.jsonResponse.id}`, token);
+    expect(up.status).toBe(201);
+    expect(usedSpec).toBeNull();
+    expect(up.jsonResponse.criticSpecName).toBeNull();
   });
 
   test("critic specs: read, write and remove them from the spec management", async () => {
@@ -675,6 +695,7 @@ describe("Gym operator flow", () => {
     expect(manifest.episodes).toBe(4);
     expect(manifest.datasets).toHaveLength(2);
     expect(manifest.datasets[0].criticsJob).toBe("job_1");
+    expect(manifest.datasets[0].specOverrides).toBeNull();
     expect(manifest.datasets[0].episodes.sort()).toEqual([1, 2]);
     expect(manifest.datasets[0].ranges).toBe("1-2");
     expect(manifest.datasets[1].ranges).toBe("0-1");

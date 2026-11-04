@@ -82,6 +82,9 @@ FLAG_ACTION: dict[str, str] = {
     "CYCLE_COUNT": "check task.expected_cycles or the recording protocol",
     "MULTIGRASP": "keep it only if retries are desired behaviour",
     "REGRASP": "keep it only if re-adjusting is desired behaviour, otherwise re-record",
+    "ACTIVE_ARMS_UNSET": "name the active arm in the spec to confirm what was defaulted from motion",
+    "ACTIVE_ARMS_SUSPECT": "check robot.active_arms: the other arm moves far more than the one named",
+    "ACTIVE_ARMS_UNKNOWN": "fix robot.active_arms: it names an arm the dataset does not have",
     "UNFINISHED_GRASP": "trim the tail or re-record the release; the hand stayed closed at the end",
     "TREMOR": "stabilise the input device (support the arm, lower sensitivity) or filter the command",
     "HOLD_JITTER": "give the operator a hold / clutch on the leader so still phases are really still",
@@ -94,6 +97,7 @@ FLAG_ACTION: dict[str, str] = {
     "VLM_TASK_FAILED": "watch the composite video; if the task really failed, exclude the episode",
     "VLM_MAJOR_ANOMALY": "watch the composite video at the reported timestamp",
     "HUMAN_IN_WORKSPACE": "keep hands out of the workspace while the robot moves, or trim the segment",
+    "VLM_INCOMPLETE": "fix the model access (credits, key) and run the critics again",
 }
 
 # What to do about a flag when the episodes are policy rollouts: the flag is the same finding,

@@ -18,6 +18,7 @@ import type {
   CriticsStatus,
   DatasetUploadView,
   DatasetView,
+  SpecOverrides,
   DayView,
   EvaluationReportRecord,
   EvaluationReportSections,
@@ -121,7 +122,7 @@ const CHUNKS_IN_FLIGHT = 3
 async function uploadInChunks<T>(
   uploads: string,
   file: File,
-  extra: Record<string, string>,
+  extra: Record<string, unknown>,
   onProgress: (percent: number) => void,
   handle: UploadHandle,
 ): Promise<T> {
@@ -322,8 +323,16 @@ export const gymApi = {
     name: string | undefined,
     onProgress: (percent: number) => void,
     handle: UploadHandle = {},
+    /** run facts of this dataset (the active arm); kept on the upload at the server, so a resume needs no resending */
+    specOverrides: SpecOverrides | null = null,
   ): Promise<DatasetView> =>
-    uploadInChunks<DatasetView>(`${base(t)}/blocks/${id}/datasets/uploads`, file, name ? { name } : {}, onProgress, handle),
+    uploadInChunks<DatasetView>(
+      `${base(t)}/blocks/${id}/datasets/uploads`,
+      file,
+      { ...(name ? { name } : {}), ...(specOverrides ? { specOverrides } : {}) },
+      onProgress,
+      handle,
+    ),
 
   /** Give up an upload and let the server drop the chunks it is holding. */
   abortDatasetUpload: (t: string, id: string, uploadId: string) =>

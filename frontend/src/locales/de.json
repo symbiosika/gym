@@ -309,7 +309,21 @@
     "specAuto": "automatisch aus dem Dataset",
     "specChange": "Ändern",
     "toReview": "Zur Analyse",
-    "nothingYet": "Zuerst Zip-Dateien ablegen."
+    "nothingYet": "Zuerst Zip-Dateien ablegen.",
+    "activeArm": "Aktiver Arm",
+    "activeArmHint": "Normalerweise nichts zu tun: die Critics erkennen den arbeitenden Arm. Nur setzen, wenn beide Arme arbeiten oder die Erkennung falsch lag.",
+    "arm": {
+      "auto": "automatisch",
+      "left": "links",
+      "right": "rechts",
+      "both": "beide"
+    },
+    "armSuggested": "aus dem Dateinamen vorgeschlagen",
+    "adjust": "Für dieses Dataset anpassen",
+    "adjustHint": "Gilt nur für diesen Lauf, die Spec des Skills bleibt unverändert. Leer lassen übernimmt die Spec.",
+    "adjustInstruction": "Aufgabe (Anweisung)",
+    "adjustObjects": "Objekte, eines pro Zeile",
+    "adjustObjectsHint": "Das erste Objekt ist das Ziel, alle weiteren sind Störobjekte."
   },
   "review": {
     "title": "Analyse",
@@ -367,7 +381,8 @@
     "verdictManyRejected": "Viele Episoden wurden abgelehnt. Die Hinweise beim Dataset sagen, woran es lag.",
     "tipsTitle": "Fürs nächste Mal",
     "detailsShow": "Alle Details der Critics",
-    "detailsHide": "Details der Critics ausblenden"
+    "detailsHide": "Details der Critics ausblenden",
+    "activeArm": "Aktiver Arm: {arm} (überschrieben)"
   },
   "selection": {
     "title": "Episoden auswählen und herunterladen",
@@ -754,6 +769,10 @@
         "title": "Greifen und Ablegen",
         "desc": "Ein Objekt an einen Zielort bringen: Tasse auf Tablett, Teil in Kiste."
       },
+      "pick_only": {
+        "title": "Greifen und halten",
+        "desc": "Der Roboter greift ein Objekt und hält es am Ende; nichts wird abgelegt. Eine geschlossene Hand am Ende ist hier richtig."
+      },
       "repeated": {
         "title": "Wiederholte Zyklen",
         "desc": "Mehrere gleiche Greifzyklen pro Episode, z. B. drei Würfel umsetzen. Dauer und Zyklenzahl werden je Zyklus geprüft."
@@ -805,6 +824,8 @@
     "moreTask": "Weitere Angaben zur Aufgabe",
     "expectedCycles": "Greifzyklen pro Episode",
     "expectedCyclesHint": "Leer = einer oder unbekannt. Gesetzt prüfen die Critics die Anzahl.",
+    "endsInHand": "Die Aufgabe endet mit dem Objekt in der Hand",
+    "endsInHandHint": "An: Es wird kein Loslassen erwartet, und eine am Ende geschlossene Hand gilt nicht als unfertiger Griff.",
     "perEpisodeLabel": "Aufgabentext je Episode",
     "perEpisodeHint": "Ob das Modell gegen den im Dataset gespeicherten Text der Episode statt gegen diesen Satz urteilt.",
     "perEpisode": {
@@ -833,6 +854,7 @@
     "insertDefaults": "Standard-Indikatoren einfügen",
     "insertDefaultsHint": "Die fünf Indikatoren der Critics, formuliert für Zielobjekt und Zielzone oben.",
     "secHard": "Technische Prüfungen",
+    "secHardSummary": "{n} Prüfungen, {g} Gates",
     "secHardHint": "Auf Signalen und Videos. Was hier steht, läuft; abgehakt läuft es nicht.",
     "check": "Prüfung",
     "checkOn": "Prüfung läuft",
@@ -908,6 +930,7 @@
       }
     },
     "secScoring": "Bewertung",
+    "secScoringSummary": "akzeptieren ≥ {accept}, prüfen ≥ {review}",
     "secScoringHint": "Wie aus den Werten das Urteil wird: akzeptieren, prüfen, ablehnen.",
     "acceptThreshold": "Akzeptieren ab",
     "acceptThresholdHint": "Gesamtwert ab hier und kein Gate ausgelöst: akzeptiert.",
@@ -920,9 +943,15 @@
     "ignoreFlags": "Befunde ignorieren",
     "ignoreFlagsHint": "Diese Befunde zählen für dieses Setup nicht, weder als Gate noch für „prüfen“. Durch Komma getrennt.",
     "secRobot": "Roboter",
+    "secRobotAuto": "auto",
     "secRobotHint": "Optional. Leer nehmen die Critics alles aus dem Dataset.",
     "robotType": "Robotertyp",
     "robotTypeHint": "Wie im Dataset benannt.",
+    "appearance": "Aussehen des Roboters",
+    "appearanceHint": "Wird dem Modell genannt, damit es die eigene Hand des Roboters nicht für eine Person hält, z. B. weiße Arme mit schwarzen Fünf-Finger-Händen.",
+    "softModel": "Weitere Einstellungen des Modells",
+    "onlyHardPassed": "Nur Episoden beurteilen, die die Hard-Critics nicht verworfen haben",
+    "onlyHardPassedHint": "Spart die Kosten des Modells bei Episoden, die ohnehin ausscheiden.",
     "activeArms": "Aktive Arme",
     "activeArmsHint": "Leer = alle. Ein Arm, der ruhen soll, wird auf Drift geprüft statt auf Folgefehler.",
     "primaryCamera": "Hauptkamera",

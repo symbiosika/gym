@@ -62,7 +62,7 @@ from ..ai_report import render_ai_markdown, render_episode_markdown
 from ..critics.registry import list_hard_critics
 from ..runner import DatasetReport, RunOptions, parse_episodes
 from ..spec.autospec import auto_spec
-from ..spec.models import CriticSpec, Purpose, load_spec
+from ..spec.models import CriticSpec, Purpose, TaskSpec, apply_overrides, load_spec
 from .jobs import JobStore
 from .sources import DatasetSource, source_label
 from .sources import resolve_dataset as resolve_source
@@ -113,6 +113,12 @@ class JobRequest(BaseModel):
         "'evaluation' (rollouts of a policy judged on the outcome). Overrides the spec's own purpose "
         "for this run; null keeps it.",
     )
+    spec_overrides: dict[str, Any] | None = Field(
+        None,
+        description="Run facts of this dataset laid over the spec for this run only (the stored spec is "
+        "untouched): {'robot': {'active_arms': [...]}, 'task': {'instruction': ..., 'objects': [...]}}. "
+        "Only robot.active_arms, task.instruction and task.objects are allowed; any other key answers 422.",
+    )
     options: RunOptions = Field(default_factory=RunOptions)
     store_auto_spec: bool = Field(
         True,
@@ -145,7 +151,10 @@ def _auto_spec_name(dataset: DatasetSource) -> str:
 
 
 def _resolve_spec(
-    spec: str | dict[str, Any] | None, dataset: DatasetSource, purpose: Purpose | None = None
+    spec: str | dict[str, Any] | None,
+    dataset: DatasetSource,
+    purpose: Purpose | None = None,
+    overrides: dict[str, Any] | None = None,
 ) -> CriticSpec | None:
     """
     The spec of a run, or None for "generate one from the dataset".
@@ -158,11 +167,11 @@ def _resolve_spec(
     if spec is None:
         return None
     if isinstance(spec, dict):
-        return load_spec(spec, purpose)
+        return apply_overrides(load_spec(spec, purpose), overrides)
     path = SPECS_DIR / f"{spec}.yaml"
     if not path.is_file():
         raise HTTPException(404, f"spec '{spec}' not found")
-    return load_spec(path, purpose)
+    return apply_overrides(load_spec(path, purpose), overrides)
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -450,8 +459,18 @@ def delete_spec(name: str) -> None:
 @app.post("/jobs", status_code=202)
 def create_job(req: JobRequest) -> dict[str, Any]:
     jobs = []
+    if req.spec_overrides:
+        # refused here, not as a failed job: the generated spec of `spec: null` only exists in
+        # the job, so the override is tried on a bare spec first
+        try:
+            apply_overrides(CriticSpec(task=TaskSpec(instruction="override check")), req.spec_overrides)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
     for ds in req.all_datasets():
-        spec = _resolve_spec(req.spec, ds, req.purpose)
+        try:
+            spec = _resolve_spec(req.spec, ds, req.purpose, req.spec_overrides)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from e
         job_id = store.submit(
             ds,
             spec,
@@ -459,6 +478,7 @@ def create_job(req: JobRequest) -> dict[str, Any]:
             auto_spec_name=_auto_spec_name(ds),
             purpose=req.purpose,
             store_auto_spec=req.store_auto_spec,
+            overrides=req.spec_overrides,
         )
         # the parts of a dataset are links with a token each: the answer names them instead
         jobs.append(

@@ -35,6 +35,37 @@ class VLMResponse:
     steps: int = 0  # agentic navigation steps observed
 
 
+class VLMUnavailable(RuntimeError):
+    """The model cannot be used at all (billing, credits, access): trying the next episode is pointless."""
+
+
+RETRY_STATUS = (429, 500, 502, 503, 504)
+RETRY_WAITS_S = (2.0, 8.0, 30.0)
+
+
+def _status_of(e: Exception) -> int | None:
+    for attr in ("code", "status_code", "status"):
+        v = getattr(e, attr, None)
+        if isinstance(v, int):
+            return v
+    return None
+
+
+def _is_billing_error(e: Exception) -> bool:
+    """True when the model cannot be used at all, decided on the status first.
+
+    402 and 403 always are. A 429 is a rate limit unless it names depleted credits: Gemini's
+    ordinary quota message says "check your plan and billing details", so "billing" alone
+    must not end the soft stage there. Any other status keeps the message rule."""
+    status = _status_of(e)
+    if status in (402, 403):
+        return True
+    msg = str(e).lower()
+    if status == 429:
+        return "credit" in msg or "prepayment" in msg
+    return "resource_exhausted" in msg and ("credit" in msg or "billing" in msg)
+
+
 def _extract_json(text: str) -> dict[str, Any]:
     text = text.strip()
     m = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
@@ -60,6 +91,27 @@ class GeminiProvider:
         self.client = genai.Client(api_key=key, http_options={"timeout": int(timeout_s * 1000)})
         self.model = model
         self.temperature = temperature
+
+    def _generate(self, call):
+        """Run one ``generate_content`` call: a billing or access error raises
+        :class:`VLMUnavailable` at once, an overloaded or rate-limited API is retried (three
+        attempts, waits of 2 s, 8 s and 30 s), a rate limit that outlasts the retries is
+        :class:`VLMUnavailable` too, anything else passes through."""
+        attempt = 0
+        while True:
+            try:
+                return call()
+            except Exception as e:  # noqa: BLE001
+                if _is_billing_error(e):
+                    raise VLMUnavailable(f"{type(e).__name__}: {e}") from e
+                status = _status_of(e)
+                if status in RETRY_STATUS and attempt < len(RETRY_WAITS_S):
+                    time.sleep(RETRY_WAITS_S[attempt])
+                    attempt += 1
+                    continue
+                if status == 429:
+                    raise VLMUnavailable(f"{type(e).__name__}: {e}") from e
+                raise
 
     def _video_part(self, video_path: Path, mode: str, fps: float | None):
         from google.genai import types
@@ -96,14 +148,16 @@ class GeminiProvider:
 
         part = self._video_part(video_path, mode, static_fps)
         t0 = time.time()
-        resp = self.client.models.generate_content(
-            model=self.model,
-            contents=[types.Content(role="user", parts=[part, types.Part.from_text(text=prompt)])],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_json_schema=schema,
-                temperature=self.temperature,
-            ),
+        resp = self._generate(
+            lambda: self.client.models.generate_content(
+                model=self.model,
+                contents=[types.Content(role="user", parts=[part, types.Part.from_text(text=prompt)])],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_json_schema=schema,
+                    temperature=self.temperature,
+                ),
+            )
         )
         latency = time.time() - t0
         text = resp.text or ""
@@ -139,14 +193,16 @@ class GeminiProvider:
             parts.append(types.Part(inline_data=types.Blob(data=_jpeg(img), mime_type="image/jpeg")))
         parts.append(types.Part.from_text(text=prompt))
         t0 = time.time()
-        resp = self.client.models.generate_content(
-            model=self.model,
-            contents=[types.Content(role="user", parts=parts)],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_json_schema=schema,
-                temperature=self.temperature,
-            ),
+        resp = self._generate(
+            lambda: self.client.models.generate_content(
+                model=self.model,
+                contents=[types.Content(role="user", parts=parts)],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_json_schema=schema,
+                    temperature=self.temperature,
+                ),
+            )
         )
         um = resp.usage_metadata
         usage = {"total_tokens": getattr(um, "total_token_count", None)}
@@ -212,6 +268,8 @@ class OpenAICompatibleProvider:
             headers["X-Title"] = "lerobot-critics"
         t0 = time.time()
         r = self.client.post(f"{self.base_url}/chat/completions", json=body, headers=headers)
+        if r.status_code in (402, 403):
+            raise VLMUnavailable(f"VLM endpoint {r.status_code}: {r.text[:500]}")
         if r.status_code >= 400:
             raise RuntimeError(f"VLM endpoint {r.status_code}: {r.text[:500]}")
         js = r.json()

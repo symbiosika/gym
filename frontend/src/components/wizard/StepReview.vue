@@ -267,6 +267,9 @@ async function removeDataset(id: string, name: string) {
         >
           {{ isOpen(d.id, i) ? t('review.hideDetails') : t('review.showDetails') }}
         </button>
+        <Pill v-if="d.specOverrides?.robot?.active_arms?.length" tone="accent">{{
+          t('review.activeArm', { arm: d.specOverrides.robot.active_arms.map((a) => t(`upload.arm.${a}`)).join(' + ') })
+        }}</Pill>
         <Pill :tone="statusTone(d.analysisStatus)">{{ t(`analysisStatus.${d.analysisStatus}`) }}</Pill>
         <span class="text-sm text-surface-500 dark:text-surface-400">{{ fmtTime(d.createdAt) }}</span>
         <SecondaryButton
