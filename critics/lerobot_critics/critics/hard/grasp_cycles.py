@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ...dataset.features import detect_features
+from ...dataset.features import detect_features, gripper_arm_pair
 from ...dataset.loader import EpisodeContext
 from ..base import HardCritic
 from ..registry import register
@@ -78,7 +78,8 @@ class GraspCyclesCritic(HardCritic):
     description = (
         "Counts close->open cycles of the hand/gripper (hysteresis on the smoothed closure signal) and derives "
         "grasp/release keyframes. Scores against task.expected_cycles when set, otherwise requires >= 1 grasp. "
-        "Also reports hold durations, an unfinished grasp at episode end, and the grasp profile per cycle: how long "
+        "Also reports hold durations, an unfinished grasp at episode end (off for a task that ends in hand; the "
+        "hand state sees a closed hand, not a dropped object, so a drop is for the video judge), and the grasp profile per cycle: how long "
         "the closing took, how far the wrist moved while closing, how long it had settled before closing, the gaps "
         "between cycles and the share of the episode with the arm actually moving."
     )
@@ -139,11 +140,9 @@ class GraspCyclesCritic(HardCritic):
         sig = closure_signal(ep, feat, g.dims, g.closed_is_high)
         lo, hi = float(np.percentile(sig, 2)), float(np.percentile(sig, 98))
         swing = hi - lo
-        pairs = [p for p in rf.active_pairs if p.kind == "cartesian" and "elbow" not in p.state.lower()] or [
-            p for p in rf.pairs if p.kind == "cartesian" and "elbow" not in p.state.lower()
-        ]
-        pos = ep.array(pairs[0].state)[:, :3] if pairs and ep.has(pairs[0].state) else None
-        cmd = ep.array(pairs[0].action)[:, :3] if pairs and ep.has(pairs[0].action) else pos
+        pair = gripper_arm_pair(rf)
+        pos = ep.array(pair.state)[:, :3] if pair and ep.has(pair.state) else None
+        cmd = ep.array(pair.action)[:, :3] if pair and ep.has(pair.action) else pos
         if cmd is not None:
             speed = np.concatenate([[0.0], np.linalg.norm(np.diff(cmd, axis=0), axis=1) * fps])
             out["active_frac"] = float((speed > 0.02).mean())
@@ -247,7 +246,8 @@ class GraspCyclesCritic(HardCritic):
         # was ever released before it - a real release earlier in the episode (task done, gripper
         # then closed empty on its way to idle/retreat) is not a failure of that attempt.
         unfinished = (
-            bool(det["cycles"])
+            not self.spec.task.ends_in_hand
+            and bool(det["cycles"])
             and det["cycles"][-1]["release"] is None
             and not any(c["release"] is not None for c in det["cycles"][:-1])
         )

@@ -264,6 +264,15 @@ _m(
 # ---------------------------------------------------------------- tracking_error
 _m(
     "tracking_error",
+    "dropout_rows",
+    "All-zero rows left out",
+    "count",
+    "Rows where a cartesian action or state pose was exactly (0, 0, 0): a logger that started before the policy, or a transport dropout. They are not commands, so the tracking check skips them. The normalization critic flags them as ZERO_FRAMES.",
+    "count of rows with any cartesian xyz == 0",
+    "lower",
+)
+_m(
+    "tracking_error",
     "pos_err_raw_mean_mm.",
     "Raw position error",
     "mm",
@@ -677,7 +686,7 @@ _m(
     "release_frames",
     "Release keyframes",
     "frame",
-    "Frame index where each grasp opened again (null = still closed at the end).",
+    "Frame index where each grasp opened again (null = still closed at the end; that raises UNFINISHED_GRASP unless task.ends_in_hand is set).",
     "hysteresis crossing",
 )
 _m(
@@ -785,6 +794,44 @@ _m(
 )
 _m(
     "tremor",
+    "hf_pos_rms_cmd_mm",
+    "Tremor amplitude in the command",
+    "mm",
+    "How far the commanded wrist position shakes above 5 Hz: the RMS of the motion above the cutoff, in millimetres. The share says how much of the velocity power is tremor, this says whether it is big enough to matter; the TREMOR flag needs both.",
+    "FFT high-pass of the commanded xyz at hf_cutoff_hz, RMS of the remaining distance over all axes. Worst active arm.",
+    "lower",
+)
+_m(
+    "tremor",
+    "hf_pos_rms_state_mm",
+    "Tremor amplitude of the robot",
+    "mm",
+    "Same as hf_pos_rms_cmd_mm for the measured robot state. Much smaller than the command = the controller filters the tremor.",
+    "FFT high-pass of the state xyz, RMS over all axes.",
+    "lower",
+)
+_m(
+    "tremor",
+    "hf_pos_rms_cmd_mm.",
+    "Tremor amplitude in the command per feature",
+    "mm",
+    "hf_pos_rms_cmd_mm for one arm.",
+    "See hf_pos_rms_cmd_mm.",
+    "lower",
+    True,
+)
+_m(
+    "tremor",
+    "hf_pos_rms_state_mm.",
+    "Tremor amplitude of the robot per feature",
+    "mm",
+    "hf_pos_rms_state_mm for one arm.",
+    "See hf_pos_rms_state_mm.",
+    "lower",
+    True,
+)
+_m(
+    "tremor",
     "hf5_share_state",
     "Robot energy above 5 Hz",
     "fraction",
@@ -836,7 +883,7 @@ _m(
     "Where the tremor comes from",
     "label",
     "'input_device' when the command carries clearly more high-frequency energy than the robot state (the robot filters it: fix the teleop input), 'robot' when the state carries as much or more (mechanical vibration / controller), 'none' when both are low.",
-    "ratio of hf5_share_cmd to hf5_share_state against thresholds",
+    "ratio of hf_pos_rms_cmd_mm to hf_pos_rms_state_mm against source_ratio",
 )
 _m(
     "tremor",

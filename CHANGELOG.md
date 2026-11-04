@@ -4,13 +4,13 @@ GYM has one version for backend, frontend and critics
 (`scripts/version.sh`). Every pull request into `develop` that changes the app
 raises it, and its merge is tagged `v<version>`:
 
-- minor (0.7.0 → 0.8.0) for a feature,
-- patch (0.7.0 → 0.7.1) for a fix or a change to the documentation only,
+- minor (0.8.0 → 0.9.0) for a feature,
+- patch (0.8.0 → 0.8.1) for a fix or a change to the documentation only,
 - major once GYM is 1.0 and something breaks the API or cannot be migrated back.
 
-The versions before 0.8.0 were given afterwards, one per merged pull request.
+The versions before 0.9.0 were given afterwards, one per merged pull request.
 
-## 0.8.0
+## 0.9.0
 
 Robots.
 
@@ -28,12 +28,27 @@ Robots.
   "Updated sensors", "Deleted …"); a save that changes nothing leaves no entry.
 - The robot field of a cell in the settings is a choice of robots, "Undefined
   robot" or "No robot yet". Every robot written as free text before became a
-  robot of its own (migration 0011).
+  robot of its own (migration 0012).
 - Owners and admins maintain robots, every member reads them. MCP tools
   `list_robots` and `get_robot_audit`.
 - One version for backend, frontend and critics (`scripts/version.sh`, checked
   in CI), shown small next to the GYM brand in the navbar and on
   `GET /app-info`. This changelog.
+
+## 0.8.0 · 2026-11-04
+
+Per-dataset spec overrides (#10).
+
+- The critics lay the facts of a run over the spec of a dataset (which arms
+  were active, the instruction, the objects); GYM keeps them on the dataset,
+  and the Upload step asks for the arm.
+- The critics score only the active arms, check them against the data, sample
+  the grasping arm, skip zero-pose rows and guard against range inflation;
+  tremor in mm and a pick-only switch.
+- Soft critics: the prompt knows the robot, anomalies are typed and
+  corroborated, a billing error ends the stage, hard rejects may be skipped.
+- A deleted spec falls back to the auto spec; the spec form shows the
+  essentials first.
 
 ## 0.7.1 · 2026-10-21
 

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from ..runner import RunOptions, run
-from ..spec.models import CriticSpec, Purpose
+from ..spec.models import CriticSpec, Purpose, apply_overrides
 from .sources import DatasetSource, source_label
 from .sources import resolve_dataset as resolve_source
 
@@ -118,6 +118,7 @@ class JobStore:
         auto_spec_name: str = "auto",
         purpose: Purpose | None = None,
         store_auto_spec: bool = True,
+        overrides: dict[str, Any] | None = None,
     ) -> str:
         """
         Start a job. `spec` of None means "generate one from the dataset": that
@@ -141,10 +142,11 @@ class JobStore:
             created_at=_now(),
             progress={},
             options=options.model_dump(),
+            spec_overrides=overrides,
         )
         t = threading.Thread(
             target=self._run,
-            args=(job_id, dataset, spec, options, auto_spec_name, purpose, store_auto_spec),
+            args=(job_id, dataset, spec, options, auto_spec_name, purpose, store_auto_spec, overrides),
             daemon=True,
         )
         self._threads[job_id] = t
@@ -158,11 +160,14 @@ class JobStore:
         job_dir: Path,
         purpose: Purpose | None = None,
         store: bool = True,
+        overrides: dict[str, Any] | None = None,
     ) -> CriticSpec:
         """A starter spec from the dataset, kept under `name` (unless `store` is False) so the run can be reproduced."""
         from ..spec.autospec import auto_spec
 
-        generated = auto_spec(ds_path, purpose=purpose or "recording")
+        arms = ((overrides or {}).get("robot") or {}).get("active_arms")
+        generated = auto_spec(ds_path, active_arms=arms or None, purpose=purpose or "recording")
+        generated = apply_overrides(generated, overrides)
         generated.name = name
         if store:
             (self.specs_root / f"{name}.yaml").write_text(generated.to_yaml())
@@ -178,13 +183,14 @@ class JobStore:
         auto_spec_name: str = "auto",
         purpose: Purpose | None = None,
         store_auto_spec: bool = True,
+        overrides: dict[str, Any] | None = None,
     ) -> None:
         job_dir = self.root / job_id
         try:
             self._write(job_id, status="preparing")
             ds_path = self.resolve_dataset(dataset, job_dir)
             if spec is None:
-                spec = self._auto_spec(ds_path, auto_spec_name, job_dir, purpose, store_auto_spec)
+                spec = self._auto_spec(ds_path, auto_spec_name, job_dir, purpose, store_auto_spec, overrides)
                 self._write(job_id, spec_name=spec.name)
             options = options.model_copy(update={"out_dir": str(job_dir / "out")})
             self._write(job_id, status="running", dataset_path=str(ds_path))

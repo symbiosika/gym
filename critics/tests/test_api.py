@@ -614,3 +614,93 @@ def test_episode_videos_of_a_job_play_with_range_requests(client, synthetic_data
     part = client.get(f"/jobs/{job}/episodes/2/video", params={"camera": cam}, headers={"Range": "bytes=0-9"})
     assert part.status_code == 206 and len(part.content) == 10
     assert client.get(f"/jobs/{job}/episodes/2/video", params={"camera": "nope"}).status_code == 404
+
+
+def test_job_with_spec_overrides_runs_the_merged_spec(client, two_arm_dataset):
+    spec = {"name": "two_arm", "task": {"instruction": "pick"}, "soft_critics": {"enabled": False}}
+    assert client.put("/specs/two_arm", json=spec).status_code == 200
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(two_arm_dataset),
+            "spec": "two_arm",
+            "spec_overrides": {"robot": {"active_arms": ["right"]}},
+            "options": {"run_soft": False, "contact_sheets": False},
+        },
+    )
+    assert r.status_code == 202
+    job = r.json()["job_id"]
+    assert "active_arms:\n  - right" in client.get(f"/jobs/{job}/spec").text
+    assert client.get(f"/jobs/{job}").json()["spec_overrides"] == {"robot": {"active_arms": ["right"]}}
+    assert not client.get("/specs/two_arm").json()["robot"].get("active_arms")  # the stored spec is untouched
+    _wait(client, job)
+
+
+def test_spec_overrides_reject_judgement_keys(client, two_arm_dataset):
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(two_arm_dataset),
+            "spec": None,
+            "spec_overrides": {"scoring": {"accept_threshold": 0.1}},
+        },
+    )
+    assert r.status_code == 422 and "scoring" in r.text
+
+
+def test_auto_spec_takes_the_override(client, two_arm_dataset):
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(two_arm_dataset),
+            "spec": None,
+            "spec_overrides": {"robot": {"active_arms": ["left"]}},
+            "options": {"run_soft": False, "contact_sheets": False},
+        },
+    )
+    job = r.json()["job_id"]
+    _wait(client, job)
+    assert "active_arms:\n  - left" in client.get(f"/jobs/{job}/spec").text
+
+
+def test_spec_overrides_reject_nested_keys_outside_the_run_facts(client, two_arm_dataset):
+    spec = {"name": "two_arm_nested", "task": {"instruction": "pick"}, "soft_critics": {"enabled": False}}
+    assert client.put("/specs/two_arm_nested", json=spec).status_code == 200
+    for name in (None, "two_arm_nested"):
+        r = client.post(
+            "/jobs",
+            json={
+                "dataset": str(two_arm_dataset),
+                "spec": name,
+                "spec_overrides": {"robot": {"active_arms": ["right"], "preroll_min_s": 0.0}},
+            },
+        )
+        assert r.status_code == 422 and "robot.preroll_min_s" in r.text, (name, r.text)
+
+
+def test_a_bad_override_without_a_spec_is_refused_not_a_failed_job(client, two_arm_dataset):
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(two_arm_dataset),
+            "spec": None,
+            "spec_overrides": {"task": {"objects": [{"name": "cup", "role": "trophy"}]}},
+        },
+    )
+    assert r.status_code == 422 and "role" in r.text
+
+
+def test_apply_overrides_allows_only_the_run_facts():
+    import pytest
+
+    from lerobot_critics.spec.models import CriticSpec, TaskSpec, apply_overrides
+
+    base = CriticSpec(task=TaskSpec(instruction="pick"))
+    merged = apply_overrides(
+        base,
+        {"robot": {"active_arms": ["left"]}, "task": {"instruction": "place", "objects": [{"name": "cup"}]}},
+    )
+    assert merged.robot.active_arms == ["left"] and merged.task.instruction == "place"
+    for bad in ({"robot": {"preroll_min_s": 0.0}}, {"task": {"scene": "x"}}, {"robot": "left"}):
+        with pytest.raises(ValueError):
+            apply_overrides(base, bad)

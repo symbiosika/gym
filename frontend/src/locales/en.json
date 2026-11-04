@@ -310,7 +310,21 @@
     "specAuto": "automatic from the dataset",
     "specChange": "Change",
     "toReview": "To the analysis",
-    "nothingYet": "Drop zip files first."
+    "nothingYet": "Drop zip files first.",
+    "activeArm": "Active arm",
+    "activeArmHint": "Normally nothing to do: the critics detect the working arm. Set it only when both arms work or the detection was wrong.",
+    "arm": {
+      "auto": "auto",
+      "left": "left",
+      "right": "right",
+      "both": "both"
+    },
+    "armSuggested": "suggested from the file name",
+    "adjust": "Adjust for this dataset",
+    "adjustHint": "Applies to this run only, the skill's spec stays as it is. Leave empty to take the spec.",
+    "adjustInstruction": "Task (instruction)",
+    "adjustObjects": "Objects, one per line",
+    "adjustObjectsHint": "The first object is the target, all others are distractors."
   },
   "review": {
     "title": "Analysis",
@@ -368,7 +382,8 @@
     "verdictManyRejected": "Many episodes were rejected. The hints at the dataset say why.",
     "tipsTitle": "For next time",
     "detailsShow": "All details of the critics",
-    "detailsHide": "Hide the details of the critics"
+    "detailsHide": "Hide the details of the critics",
+    "activeArm": "Active arm: {arm} (override)"
   },
   "selection": {
     "title": "Select episodes and download",
@@ -885,6 +900,10 @@
         "title": "Pick and place",
         "desc": "Bring one object to a target: cup on tray, part into box."
       },
+      "pick_only": {
+        "title": "Pick only",
+        "desc": "The robot grasps an object and holds it at the end; nothing is placed. A closed hand at the end is correct here."
+      },
       "repeated": {
         "title": "Repeated cycles",
         "desc": "Several identical grasp cycles per episode, e.g. moving three cubes. Duration and cycle count are checked per cycle."
@@ -936,6 +955,8 @@
     "moreTask": "More about the task",
     "expectedCycles": "Grasp cycles per episode",
     "expectedCyclesHint": "Empty = one or unknown. Set, the critics check the count.",
+    "endsInHand": "The task ends with the object in hand",
+    "endsInHandHint": "On: no release is expected, and a hand still closed at the end is not an unfinished grasp.",
     "perEpisodeLabel": "Task text per episode",
     "perEpisodeHint": "Whether the model judges against the episode's text stored in the dataset instead of this sentence.",
     "perEpisode": {
@@ -964,6 +985,7 @@
     "insertDefaults": "Insert the default indicators",
     "insertDefaultsHint": "The critics' five indicators, worded for the target object and zone above.",
     "secHard": "Technical checks",
+    "secHardSummary": "{n} checks, {g} gates",
     "secHardHint": "On signals and videos. What is ticked runs; unticked does not.",
     "check": "Check",
     "checkOn": "Check runs",
@@ -1039,6 +1061,7 @@
       }
     },
     "secScoring": "Scoring",
+    "secScoringSummary": "accept ≥ {accept}, review ≥ {review}",
     "secScoringHint": "How the values become the verdict: accept, review, reject.",
     "acceptThreshold": "Accept from",
     "acceptThresholdHint": "Total score from here and no gate fired: accepted.",
@@ -1051,9 +1074,15 @@
     "ignoreFlags": "Ignore findings",
     "ignoreFlagsHint": "These findings do not count for this setup, neither as a gate nor for \"review\". Comma-separated.",
     "secRobot": "Robot",
+    "secRobotAuto": "auto",
     "secRobotHint": "Optional. Empty, the critics take everything from the dataset.",
     "robotType": "Robot type",
     "robotTypeHint": "As named in the dataset.",
+    "appearance": "Robot appearance",
+    "appearanceHint": "Told to the model so it does not take the robot's own hand for a person, e.g. white arms with black five-fingered hands.",
+    "softModel": "More model settings",
+    "onlyHardPassed": "Judge only the episodes the hard critics did not reject",
+    "onlyHardPassedHint": "Saves the model's cost on episodes that are out anyway.",
     "activeArms": "Active arms",
     "activeArmsHint": "Empty = all. An arm that should rest is checked for drift instead of tracking error.",
     "primaryCamera": "Primary camera",

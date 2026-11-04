@@ -8,6 +8,7 @@ import {
   fromSpec,
   fromYaml,
   presetSpec,
+  robotSummary,
   slugOf,
   toSpec,
   toYaml,
@@ -123,6 +124,35 @@ describe('spec form model', () => {
     expect(defaultIndicators([])[0]!.description).toContain('the target object')
   })
 
+  it('round-trips task.ends_in_hand', () => {
+    const form = fromSpec({ task: { instruction: 'pick', ends_in_hand: true } })
+    expect(form.task.endsInHand).toBe(true)
+    expect((toSpec(form, 'x').task as { ends_in_hand?: boolean }).ends_in_hand).toBe(true)
+    expect(
+      (toSpec(fromSpec({ task: { instruction: 'pick' } }), 'x').task as { ends_in_hand?: boolean }).ends_in_hand,
+    ).toBeUndefined()
+    expect(presetSpec('pick_only').task.endsInHand).toBe(true)
+    expect(presetSpec('pick_only').soft.indicators.map((i) => i.id)).not.toContain('object_in_target')
+  })
+
+  it('carries the robot appearance and the soft scope through the spec', () => {
+    const spec = toSpec(
+      fromSpec({
+        task: { instruction: 'pick' },
+        robot: { appearance: 'white arms' },
+        soft_critics: { only_hard_passed: true },
+      }),
+      'x',
+    ) as { robot?: { appearance?: string }; soft_critics?: { only_hard_passed?: boolean } }
+    expect(spec.robot?.appearance).toBe('white arms')
+    expect(spec.soft_critics?.only_hard_passed).toBe(true)
+    const plain = toSpec(fromSpec({ task: { instruction: 'pick' } }), 'x') as Record<string, unknown>
+    expect(plain.robot).toBeUndefined()
+    expect(plain.soft_critics).toBeUndefined()
+    for (const id of ['pick_place', 'pick_only', 'bimanual'] as const)
+      expect(presetSpec(id).robot.appearance).toBe('white arms with black five-fingered hands')
+  })
+
   it('has a valid spec behind every preset', () => {
     for (const id of PRESET_IDS) {
       const form = presetSpec(id)
@@ -161,5 +191,18 @@ describe('spec form model', () => {
     expect(slugOf('Größe passt')).toBe('gro_e_passt')
     expect(uniqueId('done', ['done', 'done_2'])).toBe('done_3')
     expect(uniqueId('', [])).toBe('indicator')
+  })
+})
+
+describe('robotSummary', () => {
+  const robot = (type: string, activeArms: string[]) => ({ ...emptySpec().robot, type, activeArms })
+  it('names the robot type and the active arms', () => {
+    expect(robotSummary(robot('mipa_3_7', ['right']), 'auto')).toBe('mipa_3_7 · right')
+    expect(robotSummary(robot(' mipa_3_7 ', ['left', 'right']), 'auto')).toBe('mipa_3_7 · left, right')
+  })
+  it('says auto for the part the critics take from the dataset', () => {
+    expect(robotSummary(robot('mipa_3_7', []), 'auto')).toBe('mipa_3_7 · auto')
+    expect(robotSummary(robot('', ['left']), 'auto')).toBe('auto · left')
+    expect(robotSummary(robot('', []), 'auto')).toBe('auto')
   })
 })

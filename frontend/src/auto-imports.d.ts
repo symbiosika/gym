@@ -24,6 +24,8 @@ declare global {
   const allFixes: typeof import('./utils/specSample').allFixes
   const answered: typeof import('./utils/specSample').answered
   const applyFix: typeof import('./utils/specSample').applyFix
+  const armFromFileName: typeof import('./utils/datasetArm').armFromFileName
+  const armOverrides: typeof import('./utils/datasetArm').armOverrides
   const askedWords: typeof import('./utils/specSample').askedWords
   const blockerKey: typeof import('./utils/specSample').blockerKey
   const blockerSummary: typeof import('./utils/specSample').blockerSummary
@@ -71,6 +73,7 @@ declare global {
   const indicator: typeof import('./utils/spec').indicator
   const indicatorEvidence: typeof import('./utils/specSample').indicatorEvidence
   const inject: typeof import('vue').inject
+  const instructionOverrides: typeof import('./utils/datasetArm').instructionOverrides
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
   const isReadonly: typeof import('vue').isReadonly
@@ -95,6 +98,7 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const overridesEditable: typeof import('./utils/datasetArm').overridesEditable
   const parseEpisodes: typeof import('./utils/episodes').parseEpisodes
   const percentDone: typeof import('./utils/plan').percentDone
   const planTotal: typeof import('./utils/plan').planTotal
@@ -113,6 +117,7 @@ declare global {
   const resultRows: typeof import('./utils/specSample').resultRows
   const robotFullLabel: typeof import('./utils/robots').robotFullLabel
   const robotLabel: typeof import('./utils/robots').robotLabel
+  const robotSummary: typeof import('./utils/spec').robotSummary
   const runFlags: typeof import('./utils/specSample').runFlags
   const sampleFlags: typeof import('./utils/specSample').sampleFlags
   const sampleTasks: typeof import('./utils/specSample').sampleTasks

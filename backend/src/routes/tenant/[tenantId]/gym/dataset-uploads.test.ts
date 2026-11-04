@@ -343,4 +343,42 @@ describe("Chunked dataset uploads", () => {
     expect((await putChunk(`${strangerPath}/chunks/0`, ZIP.slice(0, 8))).status).toBe(404);
     expect((await testFetcher.delete(app, `${uploads}/${id}`, token)).status).toBe(204);
   });
+
+  test("a dataset may carry spec overrides for its run, kept on the upload row until it completes", async () => {
+    const begin = await testFetcher.post(app, uploads, token, {
+      fileName: "right_arm.zip",
+      bytes: 8,
+      name: "right_arm",
+      specOverrides: { robot: { active_arms: ["right"] } },
+    });
+    expect(begin.status).toBe(201);
+    const uploadId = begin.jsonResponse.uploadId;
+    await putChunk(`${uploads}/${uploadId}/chunks/0`, ZIP.slice(0, 8));
+    const done = await testFetcher.post(app, `${uploads}/${uploadId}/complete`, token, {});
+    expect(done.status).toBe(201);
+    expect(done.jsonResponse.specOverrides).toEqual({ robot: { active_arms: ["right"] } });
+    expect(critics.jobs.at(-1)).toMatchObject({ spec_overrides: { robot: { active_arms: ["right"] } } });
+    // the chunks stay the parts of the dataset: the override changes nothing about how the bytes are kept
+    expect(critics.jobs.at(-1)!.parts).toHaveLength(1);
+    // a dataset without one hands the critics none
+    const plain = await testFetcher.post(app, uploads, token, { fileName: "plain.zip", bytes: 8 });
+    await putChunk(`${uploads}/${plain.jsonResponse.uploadId}/chunks/0`, ZIP.slice(0, 8));
+    const plainDone = await testFetcher.post(app, `${uploads}/${plain.jsonResponse.uploadId}/complete`, token, {});
+    expect(plainDone.jsonResponse.specOverrides).toBeNull();
+    expect(critics.jobs.at(-1)!.spec_overrides).toBeNull();
+    // the judgement is not for an operator to change
+    const bad = await testFetcher.post(app, uploads, token, { fileName: "x.zip", bytes: 8, specOverrides: { scoring: { accept_threshold: 0 } } });
+    expect(bad.status).toBe(400);
+    const badArm = await testFetcher.post(app, uploads, token, { fileName: "x.zip", bytes: 8, specOverrides: { robot: { active_arms: ["middle"] } } });
+    expect(badArm.status).toBe(400);
+    // an object's role is one of the critics' roles
+    const objects = (role: string) => ({ task: { objects: [{ name: "cup", role }] } });
+    const badRole = await testFetcher.post(app, uploads, token, { fileName: "x.zip", bytes: 8, specOverrides: objects("trophy") });
+    expect(badRole.status).toBe(400);
+    const goodRole = await testFetcher.post(app, uploads, token, { fileName: "x.zip", bytes: 8, specOverrides: objects("target_zone") });
+    expect(goodRole.status).toBe(201);
+    expect((await testFetcher.delete(app, `${uploads}/${goodRole.jsonResponse.uploadId}`, token)).status).toBe(204);
+    // the datasets of this test go, with their parts, so the other tests count their own chunks
+    for (const id of [done.jsonResponse.id, plainDone.jsonResponse.id]) await testFetcher.delete(app, `${base}/datasets/${id}`, token);
+  });
 });

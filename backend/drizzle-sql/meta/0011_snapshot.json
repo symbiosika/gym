@@ -1,5 +1,5 @@
 {
-  "id": "c34ca7cd-4d09-440a-b309-8f16a82d47f8",
+  "id": "f383739f-c094-4cc2-946b-0f4bf58aac1e",
   "prevId": "b1360a78-beaf-42f4-9d7e-3e9dbabbc9c3",
   "version": "7",
   "dialect": "postgresql",
@@ -35,12 +35,6 @@
         },
         "block_id": {
           "name": "block_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "robot_id": {
-          "name": "robot_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -136,27 +130,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "gym_audit_log_robot_idx": {
-          "name": "gym_audit_log_robot_idx",
-          "columns": [
-            {
-              "expression": "robot_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -205,19 +178,6 @@
           "tableTo": "gym_blocks",
           "columnsFrom": [
             "block_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "gym_audit_log_robot_id_gym_robots_id_fk": {
-          "name": "gym_audit_log_robot_id_gym_robots_id_fk",
-          "tableFrom": "gym_audit_log",
-          "tableTo": "gym_robots",
-          "columnsFrom": [
-            "robot_id"
           ],
           "columnsTo": [
             "id"
@@ -547,19 +507,6 @@
           "notNull": true,
           "default": "''"
         },
-        "robot_id": {
-          "name": "robot_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "no_robot": {
-          "name": "no_robot",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "active": {
           "name": "active",
           "type": "boolean",
@@ -625,21 +572,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "gym_cells_robot_uq": {
-          "name": "gym_cells_robot_uq",
-          "columns": [
-            {
-              "expression": "robot_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -654,19 +586,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "gym_cells_robot_id_gym_robots_id_fk": {
-          "name": "gym_cells_robot_id_gym_robots_id_fk",
-          "tableFrom": "gym_cells",
-          "tableTo": "gym_robots",
-          "columnsFrom": [
-            "robot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -988,6 +907,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "spec_overrides": {
+          "name": "spec_overrides",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_by": {
           "name": "created_by",
           "type": "uuid",
@@ -1188,6 +1113,12 @@
         },
         "storage_parts": {
           "name": "storage_parts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "spec_overrides": {
+          "name": "spec_overrides",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -2268,144 +2199,6 @@
           "tableTo": "gym_skills",
           "columnsFrom": [
             "skill_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.gym_robots": {
-      "name": "gym_robots",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "technical_name": {
-          "name": "technical_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "personal_name": {
-          "name": "personal_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'in_service'"
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "image_ref": {
-          "name": "image_ref",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "platform": {
-          "name": "platform",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{\"manufacturer\":\"\",\"model\":\"\",\"serialNumber\":\"\",\"firmware\":\"\"}'::jsonb"
-        },
-        "capabilities": {
-          "name": "capabilities",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{\"sensors\":[],\"actuators\":[],\"locomotion\":[],\"compute\":[],\"communication\":[]}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "gym_robots_tenant_idx": {
-          "name": "gym_robots_tenant_idx",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "gym_robots_technical_name_uq": {
-          "name": "gym_robots_technical_name_uq",
-          "columns": [
-            {
-              "expression": "tenant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "technical_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "gym_robots_tenant_id_base_tenants_id_fk": {
-          "name": "gym_robots_tenant_id_base_tenants_id_fk",
-          "tableFrom": "gym_robots",
-          "tableTo": "base_tenants",
-          "columnsFrom": [
-            "tenant_id"
           ],
           "columnsTo": [
             "id"

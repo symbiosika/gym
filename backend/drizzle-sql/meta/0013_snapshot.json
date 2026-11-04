@@ -1,6 +1,6 @@
 {
-  "id": "e3238461-89b0-439e-9437-4610a3d2d6c2",
-  "prevId": "98953e43-e434-4e67-9fab-6b16fe69542d",
+  "id": "98953e43-e434-4e67-9fab-6b16fe69542d",
+  "prevId": "c34ca7cd-4d09-440a-b309-8f16a82d47f8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -981,6 +981,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "spec_overrides": {
+          "name": "spec_overrides",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_by": {
           "name": "created_by",
           "type": "uuid",
@@ -1181,6 +1187,12 @@
         },
         "storage_parts": {
           "name": "storage_parts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "spec_overrides": {
+          "name": "spec_overrides",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -2330,14 +2342,14 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{\"manufacturer\":\"\",\"model\":\"\",\"serialNumber\":\"\",\"productVersion\":\"\"}'::jsonb"
+          "default": "'{\"manufacturer\":\"\",\"model\":\"\",\"serialNumber\":\"\",\"firmware\":\"\"}'::jsonb"
         },
         "capabilities": {
           "name": "capabilities",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{\"sensors\":[],\"actuators\":[],\"locomotion\":[],\"compute\":[],\"communication\":[],\"system\":[]}'::jsonb"
+          "default": "'{\"sensors\":[],\"actuators\":[],\"locomotion\":[],\"compute\":[],\"communication\":[]}'::jsonb"
         },
         "created_at": {
           "name": "created_at",

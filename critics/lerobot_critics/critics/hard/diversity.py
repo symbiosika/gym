@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ...dataset.features import detect_features
+from ...dataset.features import detect_features, gripper_arm_pair
 from ...dataset.loader import EpisodeContext
 from ..base import CriticResult, HardCritic
 from ..registry import register
@@ -35,11 +35,7 @@ class DiversityCritic(HardCritic):
     }
 
     def _wrist_pair(self, rf):
-        pairs = [p for p in rf.active_pairs if p.kind == "cartesian"] or [
-            p for p in rf.pairs if p.kind == "cartesian"
-        ]
-        pairs = [p for p in pairs if "elbow" not in p.state.lower()]
-        return pairs[0] if pairs else None
+        return gripper_arm_pair(rf)
 
     def evaluate(self, ep: EpisodeContext):
         rf = ep.cache.get("features") or detect_features(ep.ds, self.spec, ep)

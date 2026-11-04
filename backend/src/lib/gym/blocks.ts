@@ -41,7 +41,7 @@ import {
 import { editSceneImage, getGymImageModel, ImageGenerationError, isImageGenerationEnabled, variationImagePrompt } from "../ai/images";
 import { fallbackPlan, plainPlan, proposeFollowUp, proposeRecordingPlan, newStepId, type Language } from "../ai/plan";
 import type { CriticsSummary } from "../critics/summary";
-import { criticsClient } from "../critics/client";
+import { criticsClient, type SpecOverrides } from "../critics/client";
 import { blocksWithOpenDatasets, syncOpenDatasets, upgradeStaleSummariesOf } from "../critics/sync";
 import { recordAudit, SYSTEM_ACTOR, type Actor, type AuditRefs } from "./audit";
 import { getCell } from "./cells";
@@ -66,6 +66,8 @@ export interface DatasetSummary {
   analysisError: string | null;
   progress: Record<string, { done: number; total: number }> | null;
   criticsJobId: string | null;
+  /** run facts the critics laid over the spec for this dataset's run */
+  specOverrides: SpecOverrides | null;
   analysis: CriticsSummary | null;
   createdAt: string;
 }
@@ -168,6 +170,7 @@ export async function toBlockViews(rows: BlockSelect[]): Promise<BlockView[]> {
       analysisError: datasets.analysisError,
       progress: datasets.progress,
       criticsJobId: datasets.criticsJobId,
+      specOverrides: datasets.specOverrides,
       analysis: datasets.analysis,
       createdAt: datasets.createdAt,
     })
@@ -209,6 +212,7 @@ export async function toBlockViews(rows: BlockSelect[]): Promise<BlockView[]> {
           analysisError: d.analysisError,
           progress: d.progress ?? null,
           criticsJobId: d.criticsJobId,
+          specOverrides: d.specOverrides ?? null,
           analysis: d.analysis ?? null,
           createdAt: utcIso(d.createdAt)!,
         })),

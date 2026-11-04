@@ -53,6 +53,9 @@ FLAG_GLOSSARY: dict[str, str] = {
     "HESITATION": "long still span in the middle of the episode",
     # tracking error
     "TRACKERR": "follower deviates from the commanded pose beyond the bad threshold (active arm)",
+    "ACTIVE_ARMS_UNSET": "robot.active_arms was not set; the arm that moves in the data was scored",
+    "ACTIVE_ARMS_SUSPECT": "an arm the spec calls inactive moves far more than the active one",
+    "ACTIVE_ARMS_UNKNOWN": "robot.active_arms names an arm the features do not carry; all arms were scored",
     "INACTIVE_ARM_TRACKERR": "an arm that is not doing the task deviates from its command",
     # duplication
     "CAMSTALL": "camera frames repeated while the robot moved, or all cameras frozen at once",
@@ -72,7 +75,10 @@ FLAG_GLOSSARY: dict[str, str] = {
     "CYCLE_COUNT": "number of grasp cycles differs from task.expected_cycles",
     "MULTIGRASP": "several grasp cycles where one was expected (retry?)",
     "REGRASP": "the gripper re-closed within a second of releasing (re-adjust)",
-    "UNFINISHED_GRASP": "the gripper was still closed at the end of the episode without a release before",
+    "UNFINISHED_GRASP": (
+        "the gripper was still closed at the end of the episode without a release before "
+        "(not raised when task.ends_in_hand is set)"
+    ),
     # tremor
     "TREMOR": "the command carries strong 6-14 Hz velocity energy (hand tremor of the input device or a vibrating robot)",
     "HOLD_JITTER": "the command keeps moving (RMS speed above threshold) inside phases where the hand should be still",
@@ -88,6 +94,7 @@ FLAG_GLOSSARY: dict[str, str] = {
     "VLM_TASK_FAILED": "the VLM judged the task as not accomplished",
     "VLM_MAJOR_ANOMALY": "the VLM reported at least one anomaly with severity 'major'",
     "HUMAN_IN_WORKSPACE": "the VLM saw a person or hand in the workspace while the robot acted",
+    "VLM_INCOMPLETE": "some episodes have no soft verdict because the model could not be used (billing, access, errors)",
 }
 
 

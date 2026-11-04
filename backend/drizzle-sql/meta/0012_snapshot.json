@@ -1,6 +1,6 @@
 {
-  "id": "98953e43-e434-4e67-9fab-6b16fe69542d",
-  "prevId": "c34ca7cd-4d09-440a-b309-8f16a82d47f8",
+  "id": "c34ca7cd-4d09-440a-b309-8f16a82d47f8",
+  "prevId": "f383739f-c094-4cc2-946b-0f4bf58aac1e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -540,6 +540,13 @@
           "notNull": true,
           "default": "''"
         },
+        "robot": {
+          "name": "robot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "robot_id": {
           "name": "robot_id",
           "type": "uuid",
@@ -981,6 +988,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "spec_overrides": {
+          "name": "spec_overrides",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_by": {
           "name": "created_by",
           "type": "uuid",
@@ -1181,6 +1194,12 @@
         },
         "storage_parts": {
           "name": "storage_parts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "spec_overrides": {
+          "name": "spec_overrides",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false

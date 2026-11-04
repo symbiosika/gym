@@ -93,7 +93,8 @@ def test_without_the_detection_the_idle_start_is_read_as_faults(preroll_dataset)
     res = _run(ds, _spec(preroll_min_s=None), 0)
     assert "ZERO_FRAMES" in res["normalization"].flags
     assert "preroll_frames" not in res["normalization"].metrics
-    assert "TRACKERR" in res["tracking_error"].flags
+    # tracking_error skips all-zero pose rows itself (dropout_rows), so it no longer needs the preroll cut
+    assert res["tracking_error"].metrics["dropout_rows"] > 0
     assert "LAGGY" in res["duplication"].flags
     assert "ACTION_SPIKES" in res["smoothness"].flags
 

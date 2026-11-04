@@ -40,7 +40,7 @@ import { utcRows } from "./time";
  * A dataset as the selection lists it. The selection is the skill's, over all
  * its recording blocks, so every dataset says which day and cell it came from.
  */
-export type SelectionDatasetInfo = Pick<DatasetSelect, "id" | "name" | "dayProtocolId" | "blockId" | "episodeCount" | "createdAt" | "analysisStatus" | "analysis" | "storageRef" | "storageParts" | "criticsDatasetName" | "criticsJobId" | "selection"> & {
+export type SelectionDatasetInfo = Pick<DatasetSelect, "id" | "name" | "dayProtocolId" | "blockId" | "episodeCount" | "createdAt" | "analysisStatus" | "analysis" | "storageRef" | "storageParts" | "criticsDatasetName" | "criticsJobId" | "specOverrides" | "selection"> & {
   date: string;
   cellName: string;
 };
@@ -92,6 +92,7 @@ export async function getSelection(tenantId: string, skillId: string): Promise<S
       storageParts: datasets.storageParts,
       criticsDatasetName: datasets.criticsDatasetName,
       criticsJobId: datasets.criticsJobId,
+      specOverrides: datasets.specOverrides,
       selection: datasets.selection,
       date: dayProtocols.date,
       cellName: cells.name,
@@ -216,6 +217,7 @@ export async function createExport(tenantId: string, actor: Actor, skillId: stri
       name: d.dataset.name,
       criticsDatasetName: d.dataset.criticsDatasetName,
       criticsJobId: d.dataset.criticsJobId,
+      specOverrides: d.dataset.specOverrides ?? null,
       episodeIndexes: d.episodes.map((e) => e.index),
     })),
     episodes: selectedSets.reduce((a, d) => a + d.episodes.length, 0),
@@ -281,6 +283,7 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
       name: d.dataset.name,
       criticsDatasetName: d.dataset.criticsDatasetName,
       criticsJobId: d.dataset.criticsJobId,
+      specOverrides: d.dataset.specOverrides ?? null,
       episodeIndexes: d.episodes.map((e) => e.index),
     })),
     episodes: selectedSets.reduce((a, d) => a + d.episodes.length, 0),
@@ -343,6 +346,7 @@ export function buildZip(skillName: string, record: ExportSelect, sets: Selectio
       criticsDataset: s.dataset.criticsDatasetName,
       criticsJob: s.dataset.criticsJobId,
       spec: s.dataset.analysis?.specName ?? null,
+      specOverrides: s.dataset.specOverrides ?? null,
       episodes: s.episodes.map((e) => e.index),
       ranges: compactRanges(s.episodes.map((e) => e.index)),
       // the effective verdict; where a person overruled the critics, the critics' word is kept beside it

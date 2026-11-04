@@ -9,7 +9,7 @@ from ...dataset.loader import EpisodeContext
 from ...dataset.preroll import signal_start
 from ..base import HardCritic, ramp
 from ..registry import register
-from ._util import orientation_error_deg, runs, xcorr_lag
+from ._util import dropout_rows, orientation_error_deg, runs, xcorr_lag
 
 
 def _lag_frames(a: np.ndarray, s: np.ndarray, max_lag: int) -> int | None:
@@ -85,10 +85,19 @@ class TrackingErrorCritic(HardCritic):
         scores: list[float] = []
         active_pos_err: list[float] = []
         excl = [str(x).lower() for x in (self.p("exclude_patterns") or [])]
+        # all-zero pose rows are a logging fault (see _util.dropout_rows): a zero command against a
+        # real pose is not a metre of tracking error, so those rows are left out for every pair
+        row_keep = ~dropout_rows(ep, rf)
+        m["dropout_rows"] = int((~row_keep).sum())
+        row_keep = row_keep[st:]
         for p in rf.pairs:
             a, s = ep.array(p.action)[st:], ep.array(p.state)[st:]
             if a.shape != s.shape:
                 continue
+            if len(a) == len(row_keep) and not row_keep.all():
+                a, s = a[row_keep], s[row_keep]
+                if len(a) < 4:
+                    continue
             tag = p.action
             scored = not any(x in tag.lower() for x in excl)
             relax = 1.0 if p.active else float(self.p("inactive_arm_relax"))
@@ -167,7 +176,8 @@ class TrackingErrorCritic(HardCritic):
                 if p.active and float(per.max()) > float(self.p("joint_bad")):
                     flags.append("TRACKERR")
                     ev.append(f"{tag}: worst joint normalized error {per.max():.2f}")
-            if part_scores and scored:
+            # the score belongs to the arms doing the task; an idle arm only produces its flag
+            if part_scores and scored and p.active:
                 scores.append(float(np.mean(part_scores)))
         if not scores:
             return self.result(None, m, error="no active arm to score")

@@ -1,6 +1,6 @@
 [project]
 name = "lerobot-critics"
-version = "0.8.1"
+version = "0.9.0"
 description = "Episode quality critics for LeRobot datasets: hard (kinematic/video) and soft (VLM) checks that decide which teleop episodes go into training."
 readme = "README.md"
 requires-python = ">=3.10"

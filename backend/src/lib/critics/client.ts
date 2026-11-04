@@ -97,6 +97,20 @@ export interface CriticsSpecInfo {
  */
 export type CriticsPurpose = "recording" | "evaluation";
 
+/**
+ * Run facts of one dataset, laid over the skill's spec by the critics for that
+ * run (`spec_overrides` of POST /jobs); the stored spec is untouched. Only the
+ * robot and the task, never the judgement.
+ */
+export type SpecOverrides = {
+  robot?: { active_arms?: ("left" | "right")[] };
+  task?: { instruction?: string; objects?: { name: string; description?: string; role?: ObjectRole }[] };
+};
+
+/** The roles of an object in the task, as the critics name them (`TaskObject.role`). */
+export const OBJECT_ROLES = ["target_object", "target_zone", "distractor", "tool", "other"] as const;
+export type ObjectRole = (typeof OBJECT_ROLES)[number];
+
 export interface CriticsRunOptions {
   episodes?: number[] | null;
   /** look at no more than this many episodes, spread evenly over the dataset (a sample) */
@@ -294,6 +308,17 @@ export const criticsClient = {
   /** One stored spec, as the service holds it (its YAML read back as an object). */
   spec: (name: string) => json<Record<string, unknown>>(`/specs/${encodeURIComponent(name)}`),
 
+  /** Is a spec of this name stored in the service? `GET /specs/{name}` answers 404 for one that is not. */
+  async specExists(name: string): Promise<boolean> {
+    try {
+      await request(`/specs/${encodeURIComponent(name)}`);
+      return true;
+    } catch (error) {
+      if (error instanceof CriticsError && error.status === 404) return false;
+      throw error;
+    }
+  },
+
   /** Store a spec under `name`; an existing spec of that name is replaced. The service validates the spec. */
   putSpec: (name: string, spec: Record<string, unknown>) =>
     json<{ name: string }>(`/specs/${encodeURIComponent(name)}`, {
@@ -324,11 +349,20 @@ export const criticsClient = {
     purpose: CriticsPurpose = "recording",
     /** with spec null: false keeps the generated spec with the job instead of storing it as "<dataset>-auto" */
     storeAutoSpec = true,
+    /** the run facts of this one dataset, laid over the spec by the critics */
+    specOverrides: SpecOverrides | null = null,
   ): Promise<{ job_id: string; status: string }> {
     return json(`/jobs`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...source, spec, purpose, options, ...(storeAutoSpec ? {} : { store_auto_spec: false }) }),
+      body: JSON.stringify({
+        ...source,
+        spec,
+        purpose,
+        options,
+        ...(storeAutoSpec ? {} : { store_auto_spec: false }),
+        ...(specOverrides ? { spec_overrides: specOverrides } : {}),
+      }),
     });
   },
 

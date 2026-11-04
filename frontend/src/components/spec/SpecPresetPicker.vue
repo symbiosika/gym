@@ -3,6 +3,7 @@ import type { Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { PRESET_IDS, type PresetId } from '@/utils/spec'
 import IconBox from '~icons/carbon/box'
+import IconPick from '~icons/carbon/touch-1'
 import IconRepeat from '~icons/carbon/repeat'
 import IconCategory from '~icons/carbon/category'
 import IconPlug from '~icons/carbon/plug'
@@ -20,6 +21,7 @@ const { t } = useI18n()
 
 const icons: Record<PresetId, Component> = {
   pick_place: IconBox,
+  pick_only: IconPick,
   repeated: IconRepeat,
   sorting: IconCategory,
   insertion: IconPlug,

@@ -46,6 +46,11 @@ class TaskSpec(BaseModel):
         None, description="Expected pick-and-place repetitions per episode (None = unknown / single)"
     )
     notes: str = Field("", description="Extra hints for the VLM judge (recording protocol, what is normal)")
+    ends_in_hand: bool = Field(
+        False,
+        description="The task ends with the object held; no release is expected (a pick-only task). "
+        "Switches the UNFINISHED_GRASP check off and tells the VLM judge not to expect a placement.",
+    )
 
     @field_validator("per_episode", mode="before")
     @classmethod
@@ -69,6 +74,11 @@ class GripperSpec(BaseModel):
 
 class RobotSpec(BaseModel):
     type: str | None = None
+    appearance: str = Field(
+        "",
+        description='What the robot looks like, told to the VLM, e.g. "white arms with black five-fingered '
+        'hands", so its own hand is not taken for a person',
+    )
     active_arms: list[str] = Field(default_factory=list, description='Arm names e.g. ["left"]; empty = all')
     action_state_pairs: dict[str, str] | None = Field(
         None, description="Explicit action->state feature mapping; auto-detected when None"
@@ -146,6 +156,11 @@ class SoftCriticsConfig(BaseModel):
     indicators: list[SoftIndicator] = Field(default_factory=list)
     extra_questions: list[str] = Field(
         default_factory=list, description="Additional free-form things the VLM should report in 'anomalies'"
+    )
+    only_hard_passed: bool = Field(
+        False,
+        description="Judge only the episodes the hard critics did not reject; saves the model's cost on "
+        "episodes that are out anyway",
     )
 
 
@@ -246,3 +261,54 @@ def save_spec(spec: CriticSpec, path: str | Path) -> None:
         p.write_text(spec.model_dump_json(indent=2))
     else:
         p.write_text(spec.to_yaml())
+
+
+# The run facts one dataset may lay over a spec: which arms did the task, and the task variant.
+OVERRIDE_FIELDS: dict[str, tuple[str, ...]] = {
+    "robot": ("active_arms",),
+    "task": ("instruction", "objects"),
+}
+OVERRIDE_KEYS = tuple(OVERRIDE_FIELDS)
+
+
+def check_overrides(overrides: dict[str, Any] | None) -> None:
+    """Raise ValueError naming the first key of ``overrides`` that is not a run fact
+    (``OVERRIDE_FIELDS``), top level or nested."""
+    for key, value in (overrides or {}).items():
+        if key not in OVERRIDE_FIELDS:
+            raise ValueError(f"override key '{key}' is not allowed; only {', '.join(OVERRIDE_KEYS)}")
+        if not isinstance(value, dict):
+            raise ValueError(f"override '{key}' must be an object")
+        allowed = OVERRIDE_FIELDS[key]
+        for sub in value:
+            if sub not in allowed:
+                raise ValueError(
+                    f"override key '{key}.{sub}' is not allowed; only "
+                    + ", ".join(f"{key}.{a}" for a in allowed)
+                )
+
+
+def _deep_merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
+    out = dict(base)
+    for k, v in over.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def apply_overrides(spec: CriticSpec, overrides: dict[str, Any] | None) -> CriticSpec:
+    """
+    Lay the run facts of one dataset (the robot's active arms, the task variant) over a spec.
+
+    Dicts merge deep, lists and scalars are replaced. Only ``OVERRIDE_FIELDS`` are allowed
+    (``robot.active_arms``, ``task.instruction``, ``task.objects``): the judgement (scoring,
+    critics, thresholds) and the robot's tuning are the spec's and never change per run.
+    The stored spec is untouched; a new validated spec is returned.
+    """
+    if not overrides:
+        return spec
+    check_overrides(overrides)
+    merged = _deep_merge(spec.model_dump(mode="json"), overrides)
+    return CriticSpec.model_validate(merged)

@@ -237,6 +237,8 @@ export interface FollowUpSuggestion {
 export type Progress = Record<string, { done: number; total: number }>
 
 export interface DatasetSummary {
+  /** run facts the critics laid over the spec for this dataset's run, null when none were given */
+  specOverrides: SpecOverrides | null
   id: string
   name: string
   episodeCount: number
@@ -478,6 +480,15 @@ export interface Episode {
   reviewedByName: string
   reviewedAt: string | null
 }
+
+/** Run facts of one dataset the critics lay over the skill's spec for its run (the stored spec is untouched). */
+export interface SpecOverrides {
+  robot?: { active_arms?: ('left' | 'right')[] }
+  task?: { instruction?: string; objects?: { name: string; description?: string; role?: string }[] }
+}
+
+/** The active arm as chosen in the Upload step; `auto` leaves it to the spec and the critics. */
+export type ArmChoice = 'auto' | 'left' | 'right' | 'both'
 
 export interface DatasetView extends DatasetSummary {
   skillId: string

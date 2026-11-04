@@ -26,6 +26,44 @@ def system_role(spec: CriticSpec) -> str:
     return SYSTEM_ROLE_EVALUATION if spec.is_evaluation else SYSTEM_ROLE
 
 
+ANOMALY_TYPES = [
+    "object_drop",
+    "wrong_object",
+    "missed_grasp",
+    "regrasp",
+    "collision",
+    "object_knocked_over",
+    "human_in_workspace",
+    "scene_reset",
+    "robot_freeze",
+    "camera_freeze",
+    "camera_problem",
+    "video_discontinuity",
+    "other",
+]
+
+
+def short_camera(c: str) -> str:
+    """The camera's short name as the model sees it on the tile (``observation.images.front.color`` -> ``front``)."""
+    return c.split(".")[-2] if c.endswith(".color") and "." in c else c.split(".")[-1]
+
+
+def robot_block(spec: CriticSpec, active_arms: list[str], camera_arms: dict[str, str | None]) -> str:
+    """What the model is told about the robot: how it looks, which arm works, where the wrist cameras sit."""
+    rtype = spec.robot.type or "robot"
+    appearance = spec.robot.appearance.strip().rstrip(".")
+    lines = [f"Robot: {rtype}. {appearance}." if appearance else f"Robot: {rtype}."]
+    if active_arms:
+        if len(active_arms) == 1:
+            lines.append(f"The {active_arms[0]} arm does the task; the other arm rests and may be ignored.")
+        else:
+            lines.append(f"The {' and '.join(active_arms)} arms do the task.")
+    for cam, arm in camera_arms.items():
+        if arm:
+            lines.append(f"Camera '{short_camera(cam)}' is mounted on the {arm} wrist.")
+    return " ".join(lines)
+
+
 def indicator_block(spec: CriticSpec) -> str:
     lines = []
     for ind in spec.soft_critics.indicators:
@@ -83,6 +121,8 @@ def scene_block(
         else "The episode may contain one or several repetitions of the task."
     )
     who = "policy" if spec.is_evaluation else "operator"
+    if t.ends_in_hand:
+        cyc += " The task ends with the object held in the hand; no release or placement is expected."
     return (
         f'Task instruction given to the {who}: "{instruction}"\n'
         f"Scene: {t.scene or '(not specified)'}\n"
@@ -102,10 +142,22 @@ def build_prompt(
     episode_task: str | None = None,
     task_varies: bool = False,
     preroll_s: float = 0.0,
+    active_arms: list[str] | None = None,
+    camera_arms: dict[str, str | None] | None = None,
 ) -> str:
     """The whole prompt for one episode. ``preroll_s`` is the start-up delay the signal critics
     found (see ``dataset.preroll``): the model is told the still start is normal, so it is not
     reported as a freeze or a hesitation."""
+    robot = robot_block(spec, active_arms or [], camera_arms or {})
+    if primary:
+        robot += (
+            f" The working arm retracts out of the '{short_camera(primary)}' view when it carries the object "
+            "away; that is normal and not a drop. A black robot hand entering at the edge of a view is the "
+            "robot, not a person."
+        )
+    else:
+        robot += " A black robot hand entering at the edge of a view is the robot, not a person."
+    robot += "\n"
     extra = ""
     if spec.soft_critics.extra_questions:
         extra = (
@@ -148,6 +200,7 @@ def build_prompt(
         decide = "Finally decide task_success: true only if the task instruction was fully achieved in every attempt.\n"
     return (
         f"{system_role(spec)}\n\n"
+        f"{robot}"
         f"{scene_block(spec, cameras, primary, layout, episode_task, task_varies)}"
         f"The episode lasts {duration_s:.1f} s.\n"
         f"{still}\n"
@@ -159,6 +212,9 @@ def build_prompt(
         f"{judge}"
         f"{indicator_block(spec)}\n\n"
         f"{anomalies}"
+        "Give each anomaly its type from the schema; use 'human_in_workspace' only for an actual person or "
+        "human hand, never for the robot's own hand, and 'camera_freeze' or 'video_discontinuity' only when "
+        "the picture itself stops or jumps.\n"
         f"{extra}"
         f"{decide}"
         "Respond with JSON only, matching the schema."
@@ -200,7 +256,7 @@ def response_schema(spec: CriticSpec) -> dict[str, Any]:
                 "items": {
                     "type": "object",
                     "properties": {
-                        "type": {"type": "string"},
+                        "type": {"type": "string", "enum": ANOMALY_TYPES},
                         "time_s": {"type": "number"},
                         "severity": {"type": "string", "enum": ["info", "minor", "major"]},
                         "description": {"type": "string"},
