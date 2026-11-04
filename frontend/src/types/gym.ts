@@ -34,8 +34,15 @@ export interface Cell {
 
 export type RobotStatus = 'in_service' | 'maintenance' | 'retired'
 export const ROBOT_STATUSES: RobotStatus[] = ['in_service', 'maintenance', 'retired']
-export type ComponentStatus = 'ok' | 'degraded' | 'faulty' | 'unknown'
-export const COMPONENT_STATUSES: ComponentStatus[] = ['ok', 'degraded', 'faulty', 'unknown']
+/** `disconnected`: there and intact, but not connected (e.g. publishes on no ROS topic) */
+export type ComponentStatus = 'ok' | 'degraded' | 'faulty' | 'disconnected' | 'unknown'
+export const COMPONENT_STATUSES: ComponentStatus[] = ['ok', 'degraded', 'faulty', 'disconnected', 'unknown']
+/** What one save changed in a capability section, by component name (`details.sections` of `robot.updated`). */
+export interface SectionChange {
+  added: string[]
+  updated: string[]
+  removed: string[]
+}
 /** The capability sections every robot has, always the same and in this order. */
 export type CapabilitySection = 'sensors' | 'actuators' | 'locomotion' | 'compute' | 'communication' | 'system'
 export const CAPABILITY_SECTIONS: CapabilitySection[] = [

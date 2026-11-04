@@ -23,6 +23,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const profile = useProfile()
+const appVersion = __APP_VERSION__
 const profileOpen = ref(false)
 onMounted(() => {
   profile.loadMyInvitations().catch(() => {})
@@ -91,6 +92,7 @@ const menuItem =
         <h1 class="font-display text-primary text-xl leading-none font-bold tracking-tight">
           {{ t('app.name') }}
         </h1>
+        <span class="font-mono text-[0.625rem] leading-none text-surface-400 dark:text-surface-500">v{{ appVersion }}</span>
         <span class="truncate text-xs text-surface-500 dark:text-surface-400">{{ app.currentTenant?.name ?? t('app.sub') }}</span>
       </RouterLink>
 

@@ -95,8 +95,12 @@ function remove(c: RobotComponent) {
   persist(null)
 }
 
-const statusBorder = (c: RobotComponent) =>
-  c.status === 'faulty' ? 'border-s-bad border-s-[3px]' : c.status === 'degraded' ? 'border-s-warn border-s-[3px]' : ''
+const STATUS_BORDER: Partial<Record<RobotComponent['status'], string>> = {
+  faulty: 'border-s-bad border-s-[3px]',
+  degraded: 'border-s-warn border-s-[3px]',
+  disconnected: 'border-s-info border-s-[3px]',
+}
+const statusBorder = (c: RobotComponent) => STATUS_BORDER[c.status] ?? ''
 </script>
 
 <template>

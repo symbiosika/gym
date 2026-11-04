@@ -14,9 +14,10 @@ import {
   type RobotComponent,
   type RobotInput,
   type RobotPlatform,
+  type SectionChange,
 } from '@/types/gym'
 import { fmtDateTime } from '@/utils/time'
-import { ROBOT_STATUS_TONE, robotLabel } from '@/utils/robots'
+import { ROBOT_STATUS_TONE, robotLabel, sectionChangeLines } from '@/utils/robots'
 import SectionHeader from '@/components/SectionHeader.vue'
 import RobotThumb from './RobotThumb.vue'
 import RobotComponentList from './RobotComponentList.vue'
@@ -149,6 +150,32 @@ async function remove() {
   }
 }
 
+/** A few names, the rest counted: "Cam, Lidar, Hand +2 more". */
+function names(list: string[]): string {
+  const shown = list.slice(0, 3).join(', ')
+  return list.length > 3 ? `${shown} ${t('robots.audit.more', { n: list.length - 3 })}` : shown
+}
+
+/** A change: the status, the platform and per section what happened to which component, else "changed". */
+function describeUpdate(d: Record<string, unknown>): string {
+  const parts: string[] = []
+  const status = d.status as { from: string; to: string } | undefined
+  if (status)
+    parts.push(t('robots.audit.statusChanged', { from: t(`robots.status.${status.from}`), to: t(`robots.status.${status.to}`) }))
+  const changed = (d.changed as string[] | undefined) ?? []
+  if (changed.includes('platform')) parts.push(t('robots.audit.platform'))
+  for (const line of sectionChangeLines(d.sections as Partial<Record<CapabilitySection, SectionChange>> | undefined)) {
+    parts.push(
+      t(`robots.audit.component.${line.kind}`, {
+        what: t(`robots.componentNoun.${line.section}`, line.names.length),
+        names: names(line.names),
+      }),
+    )
+  }
+  if (changed.some((k) => ['technicalName', 'personalName', 'notes'].includes(k))) parts.push(t('robots.audit.updated'))
+  return parts.length ? parts.join(' · ') : t('robots.audit.updated')
+}
+
 /** One line of the history in words. */
 function describe(a: AuditEntry): string {
   const d = a.details as Record<string, unknown>
@@ -156,15 +183,8 @@ function describe(a: AuditEntry): string {
   switch (a.action) {
     case 'robot.created':
       return t('robots.audit.created')
-    case 'robot.updated': {
-      const status = d.status as { from: string; to: string } | undefined
-      return status
-        ? t('robots.audit.statusChanged', {
-            from: t(`robots.status.${status.from}`),
-            to: t(`robots.status.${status.to}`),
-          })
-        : t('robots.audit.updated')
-    }
+    case 'robot.updated':
+      return describeUpdate(d)
     case 'robot.assigned':
       return d.fromCellName
         ? t('robots.audit.moved', { from: s('fromCellName'), cell: s('cellName') })

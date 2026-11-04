@@ -530,6 +530,7 @@
     "healthCount": {
       "faulty": "{n} defekt",
       "degraded": "{n} eingeschränkt",
+      "disconnected": "{n} getrennt",
       "unknown": "{n} unbekannt"
     },
     "status": {
@@ -541,6 +542,7 @@
       "ok": "ok",
       "degraded": "eingeschränkt",
       "faulty": "defekt",
+      "disconnected": "getrennt",
       "unknown": "unbekannt"
     },
     "field": {
@@ -619,9 +621,24 @@
       "moved": "von {from} nach {cell} gestellt",
       "unassigned": "aus {cell} genommen",
       "image": "Foto ersetzt",
-      "imageRemoved": "Foto entfernt"
+      "imageRemoved": "Foto entfernt",
+      "platform": "Plattform geändert",
+      "component": {
+        "added": "{what} hinzugefügt: {names}",
+        "updated": "{what} geändert: {names}",
+        "removed": "{what} gelöscht: {names}"
+      },
+      "more": "+{n} weitere"
     },
-    "noHistory": "Noch kein Eintrag."
+    "noHistory": "Noch kein Eintrag.",
+    "componentNoun": {
+      "sensors": "Sensor | Sensoren",
+      "actuators": "Aktor | Aktoren",
+      "locomotion": "Fortbewegungskomponente | Fortbewegungskomponenten",
+      "compute": "Recheneinheit | Recheneinheiten",
+      "communication": "Kommunikationsgerät | Kommunikationsgeräte",
+      "system": "Systemkomponente | Systemkomponenten"
+    }
   },
   "settings": {
     "title": "Einstellungen",

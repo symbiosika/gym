@@ -117,6 +117,7 @@ declare global {
   const sampleFlags: typeof import('./utils/specSample').sampleFlags
   const sampleTasks: typeof import('./utils/specSample').sampleTasks
   const scoresOf: typeof import('./utils/specSample').scoresOf
+  const sectionChangeLines: typeof import('./utils/robots').sectionChangeLines
   const setFlagEffect: typeof import('./utils/specSample').setFlagEffect
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly

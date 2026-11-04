@@ -24,6 +24,7 @@ import {
   cells,
   robots,
   type AuditLogSelect,
+  type CapabilitySection,
   type ComponentStatus,
   type RobotCapabilities,
   type RobotComponent,
@@ -113,7 +114,7 @@ function normaliseCapabilities(input: v.InferOutput<typeof capabilitiesSchema> |
 }
 
 export function robotHealth(capabilities: RobotCapabilities): RobotHealth {
-  const health: RobotHealth = { ok: 0, degraded: 0, faulty: 0, unknown: 0 };
+  const health: RobotHealth = { ok: 0, degraded: 0, faulty: 0, disconnected: 0, unknown: 0 };
   for (const section of CAPABILITY_SECTIONS) for (const c of capabilities[section] ?? []) health[c.status] += 1;
   return health;
 }
@@ -199,32 +200,76 @@ export async function createRobot(tenantId: string, actor: Actor, input: unknown
   return toRobotView(row!, null);
 }
 
+/** What one save changed in a capability section, by component name. */
+export interface SectionChange {
+  added: string[];
+  updated: string[];
+  removed: string[];
+}
+
+const COMPONENT_FIELDS = ["name", "type", "quantity", "status", "note"] as const;
+
+/** The components added, changed and removed between two versions of a section, matched by id; null when nothing changed. */
+export function diffSection(before: RobotComponent[], after: RobotComponent[]): SectionChange | null {
+  const old = new Map(before.map((c) => [c.id, c]));
+  const change: SectionChange = { added: [], updated: [], removed: [] };
+  for (const c of after) {
+    const o = old.get(c.id);
+    if (!o) {
+      change.added.push(c.name);
+      continue;
+    }
+    old.delete(c.id);
+    if (COMPONENT_FIELDS.some((f) => o[f] !== c[f])) change.updated.push(c.name);
+  }
+  for (const o of old.values()) change.removed.push(o.name);
+  return change.added.length + change.updated.length + change.removed.length ? change : null;
+}
+
 /**
  * Change a robot. A section that is sent replaces the section as a whole; one
  * that is left out stays as it is, so the modal can save one section at a time.
+ * A save that changes nothing writes nothing and leaves no entry in the history;
+ * one that does names the fields it changed and, per section, the components
+ * added, changed and removed (`details.sections`).
  */
 export async function updateRobot(tenantId: string, actor: Actor, id: string, input: unknown): Promise<RobotView> {
   const data = v.parse(v.partial(robotInputSchema), input);
   const row = await getRobotRow(tenantId, id);
   if (data.technicalName !== undefined) await assertTechnicalNameFree(tenantId, data.technicalName, id);
-  const [updated] = await getDb()
+
+  const platform = { ...EMPTY_ROBOT_PLATFORM, ...row.platform, ...data.platform };
+  const before = normaliseCapabilities(undefined, row.capabilities);
+  const capabilities = normaliseCapabilities(data.capabilities, row.capabilities);
+  const sections: Partial<Record<CapabilitySection, SectionChange>> = {};
+  for (const section of CAPABILITY_SECTIONS) {
+    const change = data.capabilities?.[section] ? diffSection(before[section], capabilities[section]) : null;
+    if (change) sections[section] = change;
+  }
+  const changed = [
+    ...(["technicalName", "personalName", "status", "notes"] as const).filter((k) => data[k] !== undefined && data[k] !== row[k]),
+    ...(data.platform !== undefined && JSON.stringify(platform) !== JSON.stringify({ ...EMPTY_ROBOT_PLATFORM, ...row.platform }) ? ["platform"] : []),
+    ...(Object.keys(sections).length ? ["capabilities"] : []),
+  ];
+  if (!changed.length) return getRobot(tenantId, id);
+
+  await getDb()
     .update(robots)
     .set({
       ...(data.technicalName !== undefined ? { technicalName: data.technicalName } : {}),
       ...(data.personalName !== undefined ? { personalName: data.personalName } : {}),
       ...(data.status !== undefined ? { status: data.status } : {}),
       ...(data.notes !== undefined ? { notes: data.notes } : {}),
-      ...(data.platform !== undefined ? { platform: { ...EMPTY_ROBOT_PLATFORM, ...row.platform, ...data.platform } } : {}),
-      ...(data.capabilities !== undefined ? { capabilities: normaliseCapabilities(data.capabilities, row.capabilities) } : {}),
+      ...(data.platform !== undefined ? { platform } : {}),
+      ...(data.capabilities !== undefined ? { capabilities } : {}),
       updatedAt: new Date().toISOString(),
     })
-    .where(and(eq(robots.id, id), eq(robots.tenantId, tenantId)))
-    .returning();
-  const changed = Object.keys(data);
+    .where(and(eq(robots.id, id), eq(robots.tenantId, tenantId)));
   const details: Record<string, unknown> = { changed };
   if (data.status !== undefined && data.status !== row.status) details.status = { from: row.status, to: data.status };
+  if (Object.keys(sections).length) details.sections = sections;
   await recordAudit(tenantId, { robotId: id }, actor, "robot.updated", details);
-  return getRobot(tenantId, updated!.id);
+  return getRobot(tenantId, id);
 }
 
 /**

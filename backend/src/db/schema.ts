@@ -174,8 +174,11 @@ export const INVALID_FAILURE_CODE: FailureCode = "F-08";
 export const ROBOT_STATUSES = ["in_service", "maintenance", "retired"] as const;
 export type RobotStatus = (typeof ROBOT_STATUSES)[number];
 
-/** The state of one component of a robot (a sensor, an actuator, a Wi-Fi card, …). */
-export const COMPONENT_STATUSES = ["ok", "degraded", "faulty", "unknown"] as const;
+/**
+ * The state of one component of a robot (a sensor, an actuator, a Wi-Fi card, …).
+ *   disconnected  there and intact, but not connected (e.g. publishes on no ROS topic)
+ */
+export const COMPONENT_STATUSES = ["ok", "degraded", "faulty", "disconnected", "unknown"] as const;
 export type ComponentStatus = (typeof COMPONENT_STATUSES)[number];
 
 /**

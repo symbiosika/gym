@@ -87,7 +87,7 @@ describe("Robots", () => {
     expect(r.capabilities.sensors[1]).toMatchObject({ quantity: 1, note: "flickers", status: "degraded" });
     expect(r.capabilities.sensors[0].id).toBeTruthy();
     // health counts components, not their quantity
-    expect(r.health).toEqual({ ok: 1, degraded: 1, faulty: 1, unknown: 0 });
+    expect(r.health).toEqual({ ok: 1, degraded: 1, faulty: 1, disconnected: 0, unknown: 0 });
 
     expect((await testFetcher.post(app, `${base}/robots`, ownerToken, { technicalName: "MAiRA 001" })).status).toBe(400);
     expect((await testFetcher.post(app, `${base}/robots`, ownerToken, { technicalName: "" })).status).toBe(400);
@@ -118,6 +118,37 @@ describe("Robots", () => {
     expect((await testFetcher.put(app, `${base}/robots/${robotId}`, memberToken, { notes: "x" })).status).toBe(403);
   });
 
+  test("the history names the components added, changed and removed per section; a save that changes nothing leaves no entry", async () => {
+    const before = (await testFetcher.get(app, `${base}/robots/${robotId}`, memberToken)).jsonResponse;
+    const [cam, wrist] = before.capabilities.sensors;
+    const entries = async () => (await testFetcher.get(app, `${base}/robots/${robotId}/audit`, memberToken)).jsonResponse;
+    const count = (await entries()).length;
+
+    // the same section sent again, as the modal does when a row is closed
+    await testFetcher.put(app, `${base}/robots/${robotId}`, ownerToken, { capabilities: { sensors: before.capabilities.sensors } });
+    expect((await entries()).length).toBe(count);
+
+    const saved = await testFetcher.put(app, `${base}/robots/${robotId}`, ownerToken, {
+      capabilities: {
+        sensors: [
+          { ...cam, status: "disconnected", note: "no ROS topic" },
+          { name: "Force-torque sensor", status: "ok" },
+        ],
+      },
+    });
+    expect(saved.jsonResponse.capabilities.sensors[0].status).toBe("disconnected");
+    expect(saved.jsonResponse.health.disconnected).toBe(1);
+    const [latest] = await entries();
+    expect(latest).toMatchObject({
+      action: "robot.updated",
+      details: {
+        changed: ["capabilities"],
+        sections: { sensors: { added: ["Force-torque sensor"], updated: [cam.name], removed: [wrist.name] } },
+      },
+    });
+    expect(Object.keys(latest.details.sections)).toEqual(["sensors"]);
+  });
+
   test("a cell starts undefined, says no robot yet, or holds a robot", async () => {
     const a = await testFetcher.post(app, `${base}/cells`, ownerToken, { name: "Cell A" });
     expect(a.jsonResponse).toMatchObject({ robotId: null, noRobot: false });
@@ -135,7 +166,7 @@ describe("Robots", () => {
 
     // saving the cell with the same robot moves nothing
     await testFetcher.put(app, `${base}/cells/${cellA}`, ownerToken, { robotId, location: "Hall 2" });
-    expect(await actions(robotId)).toEqual(["robot.created", "robot.updated", "robot.assigned"]);
+    expect(await actions(robotId)).toEqual(["robot.created", "robot.updated", "robot.updated", "robot.assigned"]);
   });
 
   test("putting a robot into another cell takes it out of the first", async () => {

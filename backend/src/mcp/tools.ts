@@ -42,7 +42,7 @@ export const gymTools: McpToolDefinition[] = [
     name: "list_robots",
     title: "List robots",
     description:
-      "The robots of the organisation: technical and personal name, status (in_service, maintenance, retired), the cell each is in (null when in none), the platform reference, the capability sections (sensors, actuators, locomotion, compute, communication, system) with each component's quantity and status (ok, degraded, faulty, unknown), and the components counted by status.",
+      "The robots of the organisation: technical and personal name, status (in_service, maintenance, retired), the cell each is in (null when in none), the platform reference, the capability sections (sensors, actuators, locomotion, compute, communication, system) with each component's quantity and status (ok, degraded, faulty, disconnected, unknown), and the components counted by status.",
     inputSchema: v.object({ tenantId: tenantArg }),
     annotations: READ_ONLY,
     handler: (args, ctx) => callApi(ctx, tenantPath(ctx, "/gym/robots", args.tenantId)),
@@ -50,7 +50,7 @@ export const gymTools: McpToolDefinition[] = [
   {
     name: "get_robot_audit",
     title: "History of a robot",
-    description: "Every recorded action that concerns the robot (created, changed, put into or taken out of a cell) with user and timestamp, newest first.",
+    description: "Every recorded action that concerns the robot (created, changed, put into or taken out of a cell) with user and timestamp, newest first. A change names the fields it changed and, per capability section, the components added, updated and removed by name (details.sections).",
     inputSchema: v.object({ tenantId: tenantArg, robotId: uuid }),
     annotations: READ_ONLY,
     handler: (args, ctx) => callApi(ctx, tenantPath(ctx, `/gym/robots/${args.robotId}/audit`, args.tenantId)),

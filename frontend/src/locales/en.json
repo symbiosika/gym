@@ -530,6 +530,7 @@
     "healthCount": {
       "faulty": "{n} faulty",
       "degraded": "{n} degraded",
+      "disconnected": "{n} disconnected",
       "unknown": "{n} unknown"
     },
     "status": {
@@ -541,6 +542,7 @@
       "ok": "ok",
       "degraded": "degraded",
       "faulty": "faulty",
+      "disconnected": "disconnected",
       "unknown": "unknown"
     },
     "field": {
@@ -619,9 +621,24 @@
       "moved": "moved from {from} to {cell}",
       "unassigned": "taken out of {cell}",
       "image": "photo replaced",
-      "imageRemoved": "photo removed"
+      "imageRemoved": "photo removed",
+      "platform": "Updated platform reference",
+      "component": {
+        "added": "New {what}: {names}",
+        "updated": "Updated {what}: {names}",
+        "removed": "Deleted {what}: {names}"
+      },
+      "more": "+{n} more"
     },
-    "noHistory": "No entries yet."
+    "noHistory": "No entries yet.",
+    "componentNoun": {
+      "sensors": "sensor | sensors",
+      "actuators": "actuator | actuators",
+      "locomotion": "locomotion component | locomotion components",
+      "compute": "compute unit | compute units",
+      "communication": "communication device | communication devices",
+      "system": "system component | system components"
+    }
   },
   "settings": {
     "title": "Settings",

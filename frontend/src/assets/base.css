@@ -38,6 +38,9 @@
   --color-warn-soft: var(--gym-warn-bg);
   --color-bad: var(--gym-bad);
   --color-bad-soft: var(--gym-bad-bg);
+  /* A state, not a judgement: a light blue, e.g. a robot component that is disconnected. */
+  --color-info: var(--gym-info);
+  --color-info-soft: var(--gym-info-bg);
 
   --shadow-panel:
     0 1px 2px rgb(16 26 38 / 0.06), 0 4px 14px rgb(16 26 38 / 0.05);
@@ -88,6 +91,8 @@
   --gym-warn-bg: #fbf0dc;
   --gym-bad: #a6251f;
   --gym-bad-bg: #fae6e4;
+  --gym-info: #1f7bab;
+  --gym-info-bg: #e2f2fb;
 }
 
 /* Light */
@@ -149,6 +154,8 @@
   --gym-warn-bg: #2a2013;
   --gym-bad: #e0776e;
   --gym-bad-bg: #2b1614;
+  --gym-info: #67bfe8;
+  --gym-info-bg: #0f2430;
 }
 
 /* ------------------------------------------------------------------- canvas */

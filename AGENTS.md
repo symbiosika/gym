@@ -51,6 +51,13 @@ repository. Only create a PR when asked. Once the PR of a branch is merged,
 follow-up work goes in a new PR: restart the branch from fresh `origin/develop`
 (same name), push, and open a new PR; never reuse or stack on the merged one.
 
+One version for the whole repository: backend, frontend and critics carry the
+same semantic version, set with `scripts/version.sh set X.Y.Z` (never by hand
+in one part; `scripts/version.sh` checks them, and so does CI). A PR that
+changes the app raises it once, minor for a feature, patch for a fix or
+documentation only, and adds its entry to `CHANGELOG.md`; its merge into
+`develop` is tagged `vX.Y.Z`.
+
 ## 4. Layout
 
 - `backend/` Bun + Hono API. Framework alias `@framework/*` → `backend/framework/src/*`.
@@ -84,7 +91,7 @@ follow-up work goes in a new PR: restart the branch from fresh `origin/develop`
   - `lerobot_critics/critics/hard|soft` the critics themselves, `spec/` the spec model
   - `runner.py`, `scoring.py`, `selection.py` the run, the verdicts, the episode lists
   - `api/` the FastAPI service and its job store, `cli.py` the command line
-- `docs/` product description and glossary
+- `docs/` product description and glossary; `CHANGELOG.md` per version, `scripts/version.sh` the one version
 - Images and stacks: `Dockerfile` (app), `Dockerfile.critics-service` (critics),
   `docker-compose.critics.yml` (dev critics),
   `docker-compose.critics-service.yml` (critics alone, one variable),

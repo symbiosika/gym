@@ -10,6 +10,13 @@ permissions:
   contents: read
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backend, frontend and critics carry one version
+        run: scripts/version.sh
+
   backend:
     runs-on: ubuntu-latest
     steps:
