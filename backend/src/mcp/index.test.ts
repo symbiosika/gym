@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import type { McpRequestContext, McpToolResult, SymbiosikaFrameworkHonoApp } from "@framework/types";
 import { initTests, TEST_ORGANISATION_1 } from "@framework/test/init.test";
 import { getDb } from "@framework/lib/db/db-connection";
-import { cells, dayProtocols, skills } from "../db/schema";
+import { cells, dayProtocols, robots, skills } from "../db/schema";
 import defineGymRoutes from "../routes/tenant/[tenantId]/gym";
 import { gymMcpServer } from "./index";
 import { gymTools } from "./tools";
@@ -29,6 +29,7 @@ const cleanup = async () => {
   await db.delete(skills).where(eq(skills.tenantId, T));
   await db.delete(dayProtocols).where(eq(dayProtocols.tenantId, T));
   await db.delete(cells).where(eq(cells.tenantId, T));
+  await db.delete(robots).where(eq(robots.tenantId, T));
 };
 
 const post = (path: string, body: unknown) =>
@@ -101,6 +102,17 @@ describe("Gym MCP server", () => {
     expect(audit.map((a: { action: string }) => a.action)).toContain("block.started");
     const dayAudit = data(await call("get_day_protocol_audit", { dayProtocolId: days[0].id }));
     expect(dayAudit.map((a: { action: string }) => a.action)).toContain("day.created");
+  });
+
+  test("robots and their history, with the cell each is in", async () => {
+    const created = await post(`/api/v1/tenant/${T}/gym/robots`, { technicalName: "MCP robot", capabilities: { sensors: [{ name: "cam", status: "faulty" }] } });
+    expect(created.status).toBe(201);
+    const robot = (await created.json()) as { id: string };
+    expect((await post(`/api/v1/tenant/${T}/gym/cells`, { name: "MCP robot cell", robotId: robot.id })).status).toBe(201);
+    const listed = data(await call("list_robots", {})).find((r: { id: string }) => r.id === robot.id);
+    expect(listed).toMatchObject({ cell: { name: "MCP robot cell" }, health: { faulty: 1 } });
+    const history = data(await call("get_robot_audit", { robotId: robot.id })) as { action: string }[];
+    expect(history.map((a) => a.action)).toEqual(["robot.assigned", "robot.created"]);
   });
 
   test("errors are readable tool errors", async () => {

@@ -6,7 +6,8 @@
  * recording, dataset upload, analysis, selection, export. A row points at the
  * skill, the day protocol and the block it concerns, whichever apply, so the
  * log can be read per skill (the product) and per day protocol (the cell's
- * day). Append-only.
+ * day), and at the robot, so a robot's history (created, changed, moved
+ * between cells) can be read on the robot. Append-only.
  */
 import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@framework/lib/db/db-connection";
@@ -21,11 +22,12 @@ export interface Actor {
 
 export const SYSTEM_ACTOR: Actor = { userId: null, userName: "system" };
 
-/** What an audit row is about. Any of the three may be missing. */
+/** What an audit row is about. Any of them may be missing. */
 export interface AuditRefs {
   skillId?: string | null;
   dayProtocolId?: string | null;
   blockId?: string | null;
+  robotId?: string | null;
 }
 
 /** Display name of a user: first name and surname, else the e-mail. */
@@ -55,6 +57,7 @@ export async function recordAudit(
       skillId: refs.skillId ?? null,
       dayProtocolId: refs.dayProtocolId ?? null,
       blockId: refs.blockId ?? null,
+      robotId: refs.robotId ?? null,
       userId: actor.userId,
       userName: actor.userName,
       action,
@@ -64,11 +67,16 @@ export async function recordAudit(
   return row!;
 }
 
-/** The log of a skill or of a day protocol, newest first. */
-export async function listAudit(tenantId: string, by: { skillId?: string; dayProtocolId?: string }, limit = 500): Promise<AuditLogSelect[]> {
+/** The log of a skill, a day protocol or a robot, newest first. */
+export async function listAudit(
+  tenantId: string,
+  by: { skillId?: string; dayProtocolId?: string; robotId?: string },
+  limit = 500,
+): Promise<AuditLogSelect[]> {
   const conditions = [eq(auditLog.tenantId, tenantId)];
   if (by.skillId) conditions.push(eq(auditLog.skillId, by.skillId));
   if (by.dayProtocolId) conditions.push(eq(auditLog.dayProtocolId, by.dayProtocolId));
+  if (by.robotId) conditions.push(eq(auditLog.robotId, by.robotId));
   return getDb()
     .select()
     .from(auditLog)

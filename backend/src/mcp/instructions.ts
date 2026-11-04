@@ -11,7 +11,8 @@ and are read-only.
 
 Two axes, wording to use exactly:
 - Controlling (the cell's time):
-  - Cell: a physical training cell.
+  - Cell: a physical training cell. Says which robot stands in it, or that it has none yet.
+  - Robot: a robot of the gym with its capabilities and their status; in one cell at most.
   - Day protocol: one per cell and day; the controlling record. Carries the operator, the downtimes
     written down by hand, notes, and its blocks.
   - Block: one stretch of work in a day protocol for one skill, either a recording block (teleoperation,

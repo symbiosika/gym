@@ -5,6 +5,7 @@
     "nav": {
       "home": "Home",
       "analysis": "Analysis",
+      "robots": "Robots",
       "settings": "Settings"
     },
     "org": "Organisation",
@@ -530,6 +531,130 @@
     "vlmFailedError": "Error",
     "skills": "Skills"
   },
+  "robots": {
+    "title": "Robots",
+    "count": "{n} robots · {inCells} in cells",
+    "hint": "The robots of the gym. Which cell a robot is in is set on the cell, in the settings.",
+    "new": "New robot",
+    "empty": "No robots yet.",
+    "notInCell": "Not in a cell",
+    "cellInactive": "cell inactive",
+    "components": "{n} components",
+    "healthAllOk": "all ok",
+    "healthNone": "no components recorded",
+    "healthCount": {
+      "faulty": "{n} faulty",
+      "degraded": "{n} degraded",
+      "disconnected": "{n} disconnected",
+      "unknown": "{n} unknown"
+    },
+    "status": {
+      "in_service": "In service",
+      "maintenance": "Maintenance",
+      "retired": "Retired"
+    },
+    "componentStatus": {
+      "ok": "ok",
+      "degraded": "degraded",
+      "faulty": "faulty",
+      "disconnected": "disconnected",
+      "unknown": "unknown"
+    },
+    "field": {
+      "technicalName": "Technical name",
+      "technicalNameHint": "The canonical name: model and number, as the maker or the inventory lists it.",
+      "technicalNamePlaceholder": "e.g. MAiRA 001",
+      "personalName": "Personal name",
+      "personalNameHint": "What the team calls the robot.",
+      "personalNamePlaceholder": "e.g. Mia",
+      "status": "Status",
+      "notes": "Notes",
+      "cell": "Cell",
+      "cellHint": "Set on the cell, in the settings."
+    },
+    "photo": {
+      "upload": "Upload photo",
+      "replace": "Replace photo",
+      "remove": "Remove photo",
+      "none": "No photo"
+    },
+    "sections": {
+      "profile": "Profile",
+      "platform": "Platform reference",
+      "sensors": "Sensors",
+      "actuators": "Actuators",
+      "locomotion": "Locomotion",
+      "compute": "Compute",
+      "communication": "Communication",
+      "system": "System",
+      "history": "History"
+    },
+    "sectionHint": {
+      "platform": "Manufacturer, model, serial number, product version",
+      "sensors": "Cameras, force-torque sensors, lidar, encoders",
+      "actuators": "Arms, grippers, hands, joint drives",
+      "locomotion": "Wheels, legs, base, or stationary",
+      "compute": "Computers, GPUs, controllers",
+      "communication": "Wi-Fi cards, Bluetooth dongles, Ethernet, cellular",
+      "system": "Software: operating system, middleware, drivers, policies"
+    },
+    "platform": {
+      "manufacturer": "Manufacturer",
+      "model": "Model",
+      "serialNumber": "Serial number",
+      "productVersion": "Product version"
+    },
+    "component": {
+      "name": "Name",
+      "type": "Type",
+      "quantity": "Qty",
+      "status": "Status",
+      "note": "Note",
+      "add": "Add component",
+      "remove": "Remove component",
+      "namePlaceholder": "e.g. Intel RealSense D435",
+      "typePlaceholder": "e.g. RGB-D camera",
+      "edit": "Edit",
+      "done": "Done",
+      "copy": "Duplicate",
+      "saving": "Saving …",
+      "saved": "Saved",
+      "unsaved": "Nothing is saved without a name",
+      "noType": "no type"
+    },
+    "noComponents": "Nothing recorded yet.",
+    "create": "Create",
+    "createHint": "The technical name first; everything else after.",
+    "readOnly": "Only owners and admins change robots.",
+    "delete": "Delete robot \"{name}\"?",
+    "deleteHint": "Its cell is left with an undefined robot. A robot that is gone for good is better retired: that keeps its history.",
+    "audit": {
+      "created": "created",
+      "updated": "changed",
+      "statusChanged": "Status: {from} → {to}",
+      "assigned": "put into {cell}",
+      "moved": "moved from {from} to {cell}",
+      "unassigned": "taken out of {cell}",
+      "image": "photo replaced",
+      "imageRemoved": "photo removed",
+      "platform": "Updated platform reference",
+      "component": {
+        "added": "New {what}: {names}",
+        "updated": "Updated {what}: {names}",
+        "removed": "Deleted {what}: {names}"
+      },
+      "more": "+{n} more"
+    },
+    "noHistory": "No entries yet.",
+    "componentNoun": {
+      "sensors": "sensor | sensors",
+      "actuators": "actuator | actuators",
+      "locomotion": "locomotion component | locomotion components",
+      "compute": "compute unit | compute units",
+      "communication": "communication device | communication devices",
+      "system": "system component | system components"
+    }
+  },
   "settings": {
     "title": "Settings",
     "cells": "Cells",
@@ -540,7 +665,10 @@
       "namePlaceholder": "e.g. Cell 13",
       "location": "Location",
       "robot": "Robot",
-      "active": "active"
+      "active": "active",
+      "robotUndefined": "Undefined robot",
+      "noRobot": "No robot yet",
+      "robotIn": "in {cell}"
     },
     "deleteCell": "Delete cell \"{name}\"?",
     "deleteCellHint": "Only possible while no day protocol was kept in it.",
@@ -586,7 +714,10 @@
     "specs": "Critics specs",
     "manageSpecs": "Manage specs",
     "specUsedBy": "Skills",
-    "noSpecs": "No spec in the critics service yet."
+    "noSpecs": "No spec in the critics service yet.",
+    "moveRobot": "Move \"{robot}\" to {cell}?",
+    "moveRobotHint": "The robot is in {from} right now. {from} is left with an undefined robot.",
+    "manageRobots": "Manage robots"
   },
   "mobile": {
     "invalid": "This link is no longer valid. Scan the QR code on the cell's screen again.",

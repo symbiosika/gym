@@ -18,14 +18,83 @@ export const INVALID_FAILURE_CODE: FailureCode = 'F-08'
 export type AnalysisStatus = 'queued' | 'running' | 'done' | 'failed'
 export type Lang = 'de' | 'en'
 
+/**
+ * A cell and its robot. `robotId` set: that robot is in the cell. `noRobot`:
+ * said on purpose that it has none yet. Neither: undefined, nobody said.
+ */
 export interface Cell {
   id: string
   name: string
   location: string
-  robot: string
+  robotId: string | null
+  noRobot: boolean
   active: boolean
   sortOrder: number
 }
+
+export type RobotStatus = 'in_service' | 'maintenance' | 'retired'
+export const ROBOT_STATUSES: RobotStatus[] = ['in_service', 'maintenance', 'retired']
+/** `disconnected`: there and intact, but not connected (e.g. publishes on no ROS topic) */
+export type ComponentStatus = 'ok' | 'degraded' | 'faulty' | 'disconnected' | 'unknown'
+export const COMPONENT_STATUSES: ComponentStatus[] = ['ok', 'degraded', 'faulty', 'disconnected', 'unknown']
+/** What one save changed in a capability section, by component name (`details.sections` of `robot.updated`). */
+export interface SectionChange {
+  added: string[]
+  updated: string[]
+  removed: string[]
+}
+/** The capability sections every robot has, always the same and in this order. */
+export type CapabilitySection = 'sensors' | 'actuators' | 'locomotion' | 'compute' | 'communication' | 'system'
+export const CAPABILITY_SECTIONS: CapabilitySection[] = [
+  'sensors',
+  'actuators',
+  'locomotion',
+  'compute',
+  'communication',
+  'system',
+]
+
+export interface RobotPlatform {
+  manufacturer: string
+  model: string
+  serialNumber: string
+  productVersion: string
+}
+
+/** One component in a capability section: a sensor, an actuator, a Wi-Fi card, … */
+export interface RobotComponent {
+  /** made by the client for a new component, so a row keeps its identity before and after saving */
+  id?: string
+  name: string
+  type: string
+  quantity: number
+  status: ComponentStatus
+  note: string
+}
+
+export interface Robot {
+  id: string
+  technicalName: string
+  personalName: string
+  status: RobotStatus
+  notes: string
+  hasImage: boolean
+  platform: RobotPlatform
+  capabilities: Record<CapabilitySection, RobotComponent[]>
+  /** the cell the robot is in; set on the cell, in the settings */
+  cell: { id: string; name: string; location: string; active: boolean } | null
+  /** components counted by status, over all sections */
+  health: Record<ComponentStatus, number>
+  createdAt: string
+  updatedAt: string
+}
+
+export type RobotInput = Partial<
+  Pick<Robot, 'technicalName' | 'personalName' | 'status' | 'notes'> & {
+    platform: Partial<RobotPlatform>
+    capabilities: Partial<Record<CapabilitySection, RobotComponent[]>>
+  }
+>
 
 export interface Collection {
   id: string
@@ -483,6 +552,7 @@ export interface AuditEntry {
   skillId: string | null
   dayProtocolId: string | null
   blockId: string | null
+  robotId?: string | null
   userId: string | null
   userName: string
   action: string

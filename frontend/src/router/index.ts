@@ -23,6 +23,7 @@ const router = createRouter({
       name: 'EvaluationReport',
       component: () => import('@/views/EvaluationReportView.vue'),
     },
+    { path: '/tenant/:tenantId/robots', name: 'Robots', component: () => import('@/views/RobotsView.vue') },
     { path: '/tenant/:tenantId/settings', name: 'Settings', component: () => import('@/views/SettingsView.vue') },
     {
       path: '/tenant/:tenantId/spec-wizard/:draftId?',

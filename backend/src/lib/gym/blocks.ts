@@ -576,8 +576,8 @@ export async function mobileState(row: BlockSelect): Promise<MobileState> {
 // Scene photo and text
 // ---------------------------------------------------------------------------
 
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+export const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 /** Store the scene photo (replacing an earlier one). Works for both the signed-in and the mobile path. */
 export async function setSceneImage(row: BlockSelect, file: File, actor: Actor = SYSTEM_ACTOR): Promise<BlockSelect> {

@@ -15,7 +15,7 @@ import IconMoon from '~icons/carbon/moon'
 import IconSun from '~icons/carbon/sun'
 import IconChevronDown from '~icons/carbon/chevron-down'
 
-/** Header with brand, the three main areas, language, theme, avatar menu; then the current view. */
+/** Header with brand, the four main areas, language, theme, avatar menu; then the current view. */
 const app = useApp()
 const gym = useGym()
 const ui = useUi()
@@ -23,6 +23,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const profile = useProfile()
+const appVersion = __APP_VERSION__
 const profileOpen = ref(false)
 onMounted(() => {
   profile.loadMyInvitations().catch(() => {})
@@ -48,6 +49,7 @@ const tabs = computed(() => [
     label: t('app.nav.analysis'),
     match: ['Analysis', 'Skill'],
   },
+  { name: 'Robots', label: t('app.nav.robots'), match: ['Robots'] },
   { name: 'Settings', label: t('app.nav.settings'), match: ['Settings'] },
 ])
 const isActive = (match: string[]) => match.includes(String(route.name))
@@ -90,6 +92,7 @@ const menuItem =
         <h1 class="font-display text-primary text-xl leading-none font-bold tracking-tight">
           {{ t('app.name') }}
         </h1>
+        <span class="font-mono text-[0.625rem] leading-none text-surface-400 dark:text-surface-500">v{{ appVersion }}</span>
         <span class="truncate text-xs text-surface-500 dark:text-surface-400">{{ app.currentTenant?.name ?? t('app.sub') }}</span>
       </RouterLink>
 

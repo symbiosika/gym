@@ -1,20 +1,24 @@
 /**
  * Public app-info route.
  *
- *   GET /app-info   display name (and optional logo URL) of this installation
+ *   GET /app-info   display name (and optional logo URL) of this installation,
+ *                   and the version of GYM it runs
  *
  * Deliberately unauthenticated: the static auth pages (login, logout, verify
  * mail, …) render the app name before anyone is signed in. Only values that are
  * public anyway are exposed — the name comes from `appName` in `defineServer`
- * (APP_NAME env var), the logo URL from `logoUrl`.
+ * (APP_NAME env var), the logo URL from `logoUrl`, the version from
+ * package.json (one version for backend, frontend and critics, scripts/version.sh).
  */
 import type { SymbiosikaFrameworkHonoApp } from "@framework/types";
 import { _GLOBAL_SERVER_CONFIG } from "@framework/store";
 import { describeRoute, resolver } from "hono-openapi";
 import * as v from "valibot";
+import { version } from "../../../package.json";
 
 const appInfoResponse = v.object({
   appName: v.string(),
+  version: v.string(),
   logoUrl: v.optional(v.string()),
 });
 
@@ -40,6 +44,7 @@ export default function defineAppInfoRoutes(
       return c.json(
         {
           appName: _GLOBAL_SERVER_CONFIG.appName,
+          version,
           ...(_GLOBAL_SERVER_CONFIG.logoUrl
             ? { logoUrl: _GLOBAL_SERVER_CONFIG.logoUrl }
             : {}),

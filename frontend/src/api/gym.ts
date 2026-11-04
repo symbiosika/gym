@@ -30,6 +30,8 @@ import type {
   PolicyRecord,
   PrintView,
   PublicEvaluationReport,
+  Robot,
+  RobotInput,
   RolloutsView,
   SelectionChange,
   SelectionView,
@@ -170,6 +172,22 @@ export const gymApi = {
   createCell: (t: string, body: Partial<Cell>) => fetcher.post<Cell>(`${base(t)}/cells`, body),
   updateCell: (t: string, id: string, body: Partial<Cell>) => fetcher.put<Cell>(`${base(t)}/cells/${id}`, body),
   deleteCell: (t: string, id: string) => fetcher.delete<void>(`${base(t)}/cells/${id}`),
+
+  // robots; which cell a robot is in is set with updateCell
+  robots: (t: string) => fetcher.get<Robot[]>(`${base(t)}/robots`),
+  robot: (t: string, id: string) => fetcher.get<Robot>(`${base(t)}/robots/${id}`),
+  createRobot: (t: string, body: RobotInput) => fetcher.post<Robot>(`${base(t)}/robots`, body),
+  /** a capability section sent replaces that section; the others stay */
+  updateRobot: (t: string, id: string, body: RobotInput) => fetcher.put<Robot>(`${base(t)}/robots/${id}`, body),
+  deleteRobot: (t: string, id: string) => fetcher.delete<void>(`${base(t)}/robots/${id}`),
+  robotAudit: (t: string, id: string) => fetcher.get<AuditEntry[]>(`${base(t)}/robots/${id}/audit`),
+  robotImageUrl: (t: string, id: string, version: string) => `${base(t)}/robots/${id}/image?v=${encodeURIComponent(version)}`,
+  uploadRobotImage: (t: string, id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return fetcher.postFormData<Robot>(`${base(t)}/robots/${id}/image`, form)
+  },
+  removeRobotImage: (t: string, id: string) => fetcher.delete<Robot>(`${base(t)}/robots/${id}/image`),
   collections: (t: string) => fetcher.get<Collection[]>(`${base(t)}/collections`),
   createCollection: (t: string, body: Partial<Collection>) => fetcher.post<Collection>(`${base(t)}/collections`, body),
   updateCollection: (t: string, id: string, body: Partial<Collection>) =>

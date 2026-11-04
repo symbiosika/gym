@@ -98,7 +98,7 @@ describe("Chunked dataset uploads", () => {
     process.env.TEMPORARY_STORAGE_PATH = storage;
     await cleanup();
 
-    const cell = await testFetcher.post(app, `${base}/cells`, token, { name: "Cell 7", robot: "MAiRA" });
+    const cell = await testFetcher.post(app, `${base}/cells`, token, { name: "Cell 7", });
     const skill = await testFetcher.post(app, `${base}/skills`, token, { name: "Block to box", taskDescription: "Put the block in the box" });
     const started = await testFetcher.post(app, `${base}/blocks`, token, {
       cellId: cell.jsonResponse.id,

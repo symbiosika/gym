@@ -12,7 +12,12 @@ skill.
 | Term | Meaning | Code / API |
 |---|---|---|
 | Gym | The facility with its training cells. | |
-| Cell | A physical training cell in the gym with one robot. Day protocols belong to a cell. | `cell`, `gym_cells` |
+| Cell | A physical training cell in the gym. Day protocols belong to a cell. Says which robot stands in it (set in the settings), or on purpose that it has no robot yet; when it says neither, its robot is undefined. | `cell`, `gym_cells`, `robotId`, `noRobot` |
+| Robot | A robot of the gym: its technical name (the canonical one, model and number) and its personal name (what the team calls it), a status, a photo, the platform reference and the capability sections. In one cell at most; where it is comes from the cell, never from the robot. Moving it to another cell takes it out of the first, and both are written to its history (the audit log of the robot). Owners and admins maintain robots, every member reads them. | `robot`, `gym_robots`, route `/robots` |
+| Robot status | Whether a robot can work: in service, maintenance (out, comes back) or retired (out for good, kept for its history). | `RobotStatus` |
+| Platform reference | What a robot is as its maker names it: manufacturer, model, serial number, product version. | `platform`, `RobotPlatform` |
+| Capability section | One of the six lists every robot has, always the same and in this order: sensors, actuators, locomotion, compute, communication (Wi-Fi cards, Bluetooth dongles, Ethernet, …), system (the software: operating system, middleware, drivers, policies). | `capabilities`, `CAPABILITY_SECTIONS` |
+| Component | One entry of a capability section: name, type, quantity, status (ok, degraded, faulty, disconnected: there and intact but not connected, e.g. on no ROS topic, unknown) and a note. The components counted by status are the robot's health in the robot list. | `RobotComponent`, `ComponentStatus`, `health` |
 | Day protocol | One per cell and day: the controlling record. Carries the operator, the downtimes written down by hand, notes, the share id of the print view, and the blocks of the day. Created with the first block of the day, closed by hand (its open blocks close with it). | `dayProtocol`, `gym_day_protocols`, API `days` |
 | Block | One stretch of work in a day protocol for one skill: a recording block or an evaluation block. The unit of the operator wizard. Carries the scene brief, the plan, progress, the windows of its time, the mobile access token, its datasets and the wizard step. A day has as many blocks as the operator started, of any kind, for any skill. | `block`, `gym_blocks`, `BlockKind` |
 | Recording block | A block in which the robot is teleoperated. Its datasets train the skill. | `kind: "recording"` |
@@ -65,7 +70,7 @@ skill.
 | Export | A saved selection of a skill, downloadable as a zip with the manifest and the critics' selection files. Recording datasets only. | `export`, `gym_exports` |
 | Merged dataset | The same selection as one LeRobot dataset instead of a manifest: the selected episodes of every recording dataset of the skill, renumbered without gaps, with one task table. Built by the data critics, which hold the uploads, and handed straight to training. | `POST /merge`, `critics/lerobot_critics/merge.py` |
 | Manifest | The file in the export zip that maps source datasets (critics dataset, job, spec) to the selected episode indexes and their compact ranges. | `manifest.json` |
-| Audit log | Every relevant action with user and timestamp, pointing at the skill, the day protocol and the block it concerns. Read per skill and per day protocol. Append-only. | `gym_audit_log` |
+| Audit log | Every relevant action with user and timestamp, pointing at the skill, the day protocol, the block or the robot it concerns. Read per skill, per day protocol and per robot. Append-only. | `gym_audit_log` |
 | Access token | The token in the QR code links of the mobile views. Belongs to a block, expires, dies when the block closes. | `accessToken` |
 | Share id | The public id of the printable day protocol. The link is shareable, e.g. with a customer. | `shareId`, route `/print/:shareId` |
 | Print view | The simplified, printable view of a day protocol with all its blocks. | `PrintView` |

@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import Icons from 'unplugin-icons/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
+import { version } from './package.json'
 
 // The SPA is served by the backend under /static/app/ (see backend/src/index.ts).
 // In development Vite proxies the API and the auth pages to the backend.
@@ -15,6 +16,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: '/static/app/',
+    // the one version of GYM (scripts/version.sh), shown next to the brand in the navbar
+    define: { __APP_VERSION__: JSON.stringify(version) },
     build: { outDir: 'dist/static/app', emptyOutDir: true },
     plugins: [
       vue(),

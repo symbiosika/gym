@@ -6,6 +6,7 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const COMPONENT_STATUS_TONE: typeof import('./utils/robots').COMPONENT_STATUS_TONE
   const DEFAULT_HARD_CRITICS: typeof import('./utils/spec').DEFAULT_HARD_CRITICS
   const EffectScope: typeof import('vue').EffectScope
   const FetcherError: typeof import('./utils/fetcher').FetcherError
@@ -15,6 +16,7 @@ declare global {
   const OBJECT_ROLES: typeof import('./utils/spec').OBJECT_ROLES
   const PER_EPISODE: typeof import('./utils/spec').PER_EPISODE
   const PRESET_IDS: typeof import('./utils/spec').PRESET_IDS
+  const ROBOT_STATUS_TONE: typeof import('./utils/robots').ROBOT_STATUS_TONE
   const THEME_KEY: typeof import('./stores/ui').THEME_KEY
   const activeStep: typeof import('./utils/plan').activeStep
   const addDays: typeof import('./utils/time').addDays
@@ -22,10 +24,14 @@ declare global {
   const allFixes: typeof import('./utils/specSample').allFixes
   const answered: typeof import('./utils/specSample').answered
   const applyFix: typeof import('./utils/specSample').applyFix
+  const armFromFileName: typeof import('./utils/datasetArm').armFromFileName
+  const armOverrides: typeof import('./utils/datasetArm').armOverrides
   const askedWords: typeof import('./utils/specSample').askedWords
   const blockerKey: typeof import('./utils/specSample').blockerKey
   const blockerSummary: typeof import('./utils/specSample').blockerSummary
+  const componentCount: typeof import('./utils/robots').componentCount
   const computed: typeof import('vue').computed
+  const copyName: typeof import('./utils/robots').copyName
   const countVerdicts: typeof import('./utils/specSample').countVerdicts
   const createApp: typeof import('vue').createApp
   const criticEvidence: typeof import('./utils/specSample').criticEvidence
@@ -63,9 +69,11 @@ declare global {
   const getCurrentWatcher: typeof import('vue').getCurrentWatcher
   const h: typeof import('vue').h
   const hasSession: typeof import('./utils/fetcher').hasSession
+  const healthIssues: typeof import('./utils/robots').healthIssues
   const indicator: typeof import('./utils/spec').indicator
   const indicatorEvidence: typeof import('./utils/specSample').indicatorEvidence
   const inject: typeof import('vue').inject
+  const instructionOverrides: typeof import('./utils/datasetArm').instructionOverrides
   const isProxy: typeof import('vue').isProxy
   const isReactive: typeof import('vue').isReactive
   const isReadonly: typeof import('vue').isReadonly
@@ -90,6 +98,7 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const overridesEditable: typeof import('./utils/datasetArm').overridesEditable
   const parseEpisodes: typeof import('./utils/episodes').parseEpisodes
   const percentDone: typeof import('./utils/plan').percentDone
   const planTotal: typeof import('./utils/plan').planTotal
@@ -106,10 +115,14 @@ declare global {
   const ref: typeof import('vue').ref
   const resolveComponent: typeof import('vue').resolveComponent
   const resultRows: typeof import('./utils/specSample').resultRows
+  const robotFullLabel: typeof import('./utils/robots').robotFullLabel
+  const robotLabel: typeof import('./utils/robots').robotLabel
+  const robotSummary: typeof import('./utils/spec').robotSummary
   const runFlags: typeof import('./utils/specSample').runFlags
   const sampleFlags: typeof import('./utils/specSample').sampleFlags
   const sampleTasks: typeof import('./utils/specSample').sampleTasks
   const scoresOf: typeof import('./utils/specSample').scoresOf
+  const sectionChangeLines: typeof import('./utils/robots').sectionChangeLines
   const setFlagEffect: typeof import('./utils/specSample').setFlagEffect
   const shallowReactive: typeof import('vue').shallowReactive
   const shallowReadonly: typeof import('vue').shallowReadonly

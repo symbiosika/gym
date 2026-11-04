@@ -5,6 +5,7 @@
     "nav": {
       "home": "Start",
       "analysis": "Analyse",
+      "robots": "Roboter",
       "settings": "Einstellungen"
     },
     "org": "Organisation",
@@ -530,6 +531,130 @@
     "vlmFailedError": "Fehler",
     "skills": "Skills"
   },
+  "robots": {
+    "title": "Roboter",
+    "count": "{n} Roboter · {inCells} in Zellen",
+    "hint": "Die Roboter des Gyms. In welcher Zelle ein Roboter steht, wird in den Einstellungen bei der Zelle festgelegt.",
+    "new": "Neuer Roboter",
+    "empty": "Noch kein Roboter angelegt.",
+    "notInCell": "Keiner Zelle zugeordnet",
+    "cellInactive": "Zelle inaktiv",
+    "components": "{n} Komponenten",
+    "healthAllOk": "alles ok",
+    "healthNone": "keine Komponenten erfasst",
+    "healthCount": {
+      "faulty": "{n} defekt",
+      "degraded": "{n} eingeschränkt",
+      "disconnected": "{n} getrennt",
+      "unknown": "{n} unbekannt"
+    },
+    "status": {
+      "in_service": "In Betrieb",
+      "maintenance": "Wartung",
+      "retired": "Ausgemustert"
+    },
+    "componentStatus": {
+      "ok": "ok",
+      "degraded": "eingeschränkt",
+      "faulty": "defekt",
+      "disconnected": "getrennt",
+      "unknown": "unbekannt"
+    },
+    "field": {
+      "technicalName": "Technischer Name",
+      "technicalNameHint": "Der kanonische Name: Modell und Nummer, wie Hersteller oder Inventar ihn führen.",
+      "technicalNamePlaceholder": "z. B. MAiRA 001",
+      "personalName": "Rufname",
+      "personalNameHint": "Wie das Team den Roboter nennt.",
+      "personalNamePlaceholder": "z. B. Mia",
+      "status": "Status",
+      "notes": "Notizen",
+      "cell": "Zelle",
+      "cellHint": "Wird in den Einstellungen bei der Zelle festgelegt."
+    },
+    "photo": {
+      "upload": "Foto hochladen",
+      "replace": "Foto ersetzen",
+      "remove": "Foto entfernen",
+      "none": "Kein Foto"
+    },
+    "sections": {
+      "profile": "Steckbrief",
+      "platform": "Plattform",
+      "sensors": "Sensoren",
+      "actuators": "Aktoren",
+      "locomotion": "Fortbewegung",
+      "compute": "Rechenleistung",
+      "communication": "Kommunikation",
+      "system": "System",
+      "history": "Verlauf"
+    },
+    "sectionHint": {
+      "platform": "Hersteller, Modell, Seriennummer, Produktversion",
+      "sensors": "Kameras, Kraft-Momenten-Sensoren, Lidar, Encoder",
+      "actuators": "Arme, Greifer, Hände, Gelenkantriebe",
+      "locomotion": "Räder, Beine, Fahrwerk, oder stationär",
+      "compute": "Rechner, GPUs, Steuerungen",
+      "communication": "WLAN-Karten, Bluetooth-Dongles, Ethernet, Mobilfunk",
+      "system": "Software: Betriebssystem, Middleware, Treiber, Policies"
+    },
+    "platform": {
+      "manufacturer": "Hersteller",
+      "model": "Modell",
+      "serialNumber": "Seriennummer",
+      "productVersion": "Produktversion"
+    },
+    "component": {
+      "name": "Name",
+      "type": "Art",
+      "quantity": "Anzahl",
+      "status": "Status",
+      "note": "Notiz",
+      "add": "Komponente hinzufügen",
+      "remove": "Komponente entfernen",
+      "namePlaceholder": "z. B. Intel RealSense D435",
+      "typePlaceholder": "z. B. RGB-D-Kamera",
+      "edit": "Bearbeiten",
+      "done": "Fertig",
+      "copy": "Kopieren",
+      "saving": "Speichert …",
+      "saved": "Gespeichert",
+      "unsaved": "Ohne Namen wird nichts gespeichert",
+      "noType": "ohne Art"
+    },
+    "noComponents": "Noch nichts erfasst.",
+    "create": "Anlegen",
+    "createHint": "Zuerst der technische Name; alles Weitere danach.",
+    "readOnly": "Nur Inhaber und Admins ändern Roboter.",
+    "delete": "Roboter „{name}“ löschen?",
+    "deleteHint": "Seine Zelle hat danach einen unbestimmten Roboter. Ein Roboter, der endgültig weg ist, wird besser ausgemustert: so bleibt sein Verlauf.",
+    "audit": {
+      "created": "angelegt",
+      "updated": "geändert",
+      "statusChanged": "Status: {from} → {to}",
+      "assigned": "in {cell} gestellt",
+      "moved": "von {from} nach {cell} gestellt",
+      "unassigned": "aus {cell} genommen",
+      "image": "Foto ersetzt",
+      "imageRemoved": "Foto entfernt",
+      "platform": "Plattform geändert",
+      "component": {
+        "added": "{what} hinzugefügt: {names}",
+        "updated": "{what} geändert: {names}",
+        "removed": "{what} gelöscht: {names}"
+      },
+      "more": "+{n} weitere"
+    },
+    "noHistory": "Noch kein Eintrag.",
+    "componentNoun": {
+      "sensors": "Sensor | Sensoren",
+      "actuators": "Aktor | Aktoren",
+      "locomotion": "Fortbewegungskomponente | Fortbewegungskomponenten",
+      "compute": "Recheneinheit | Recheneinheiten",
+      "communication": "Kommunikationsgerät | Kommunikationsgeräte",
+      "system": "Systemkomponente | Systemkomponenten"
+    }
+  },
   "settings": {
     "title": "Einstellungen",
     "cells": "Zellen",
@@ -540,7 +665,10 @@
       "namePlaceholder": "z. B. Zelle 13",
       "location": "Ort",
       "robot": "Roboter",
-      "active": "aktiv"
+      "active": "aktiv",
+      "robotUndefined": "Unbestimmter Roboter",
+      "noRobot": "Noch kein Roboter",
+      "robotIn": "in {cell}"
     },
     "deleteCell": "Zelle „{name}“ löschen?",
     "deleteCellHint": "Nur möglich, solange kein Tagesprotokoll darin lag.",
@@ -586,7 +714,10 @@
     "specs": "Critics-Specs",
     "manageSpecs": "Specs verwalten",
     "specUsedBy": "Skills",
-    "noSpecs": "Noch keine Spec im Critics-Dienst."
+    "noSpecs": "Noch keine Spec im Critics-Dienst.",
+    "moveRobot": "„{robot}“ nach {cell} stellen?",
+    "moveRobotHint": "Der Roboter steht gerade in {from}. {from} hat danach einen unbestimmten Roboter.",
+    "manageRobots": "Roboter verwalten"
   },
   "mobile": {
     "invalid": "Dieser Link ist nicht mehr gültig. Am Bildschirm der Zelle den QR-Code neu scannen.",

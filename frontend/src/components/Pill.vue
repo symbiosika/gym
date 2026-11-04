@@ -5,13 +5,14 @@ import { computed } from 'vue'
  * The small status label used all over the app: a verdict, a wizard step, a
  * flag, a skill status, a block kind. `tone` follows the figure colours of design.md.
  */
-const props = withDefaults(defineProps<{ tone?: 'neutral' | 'ok' | 'warn' | 'bad' | 'accent' }>(), { tone: 'neutral' })
+const props = withDefaults(defineProps<{ tone?: 'neutral' | 'ok' | 'warn' | 'bad' | 'info' | 'accent' }>(), { tone: 'neutral' })
 
 const tones = {
   neutral: 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300',
   ok: 'bg-ok-soft text-ok',
   warn: 'bg-warn-soft text-warn',
   bad: 'bg-bad-soft text-bad',
+  info: 'bg-info-soft text-info',
   accent: 'bg-primary-50 text-primary dark:bg-primary-500/15 dark:text-primary-300',
 } as const
 
