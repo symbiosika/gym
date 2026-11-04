@@ -26,7 +26,7 @@ import IconLocation from '~icons/carbon/location'
 
 /**
  * Everything about one robot: photo, names, status and cell, the platform
- * reference, the five capability sections and its history. Every change is
+ * reference, the six capability sections and its history. Every change is
  * saved at once, a section as a whole. With `robotId` null it creates a robot
  * from its technical name first and then shows it like any other.
  */
@@ -70,7 +70,7 @@ async function loadAudit() {
 
 const title = computed(() => (robot.value ? robotLabel(robot.value) : t('robots.new')))
 const statusOptions = computed(() => ROBOT_STATUSES.map((s) => ({ label: t(`robots.status.${s}`), value: s })))
-const platformFields: (keyof RobotPlatform)[] = ['manufacturer', 'model', 'serialNumber', 'firmware']
+const platformFields: (keyof RobotPlatform)[] = ['manufacturer', 'model', 'serialNumber', 'productVersion']
 
 async function create() {
   if (!draft.value.technicalName.trim()) return
@@ -86,24 +86,28 @@ async function create() {
   }
 }
 
-/** Save what changed and take the robot back as the backend has it, keeping rows still without a name. */
-async function save(body: RobotInput) {
-  if (!robot.value) return
+/**
+ * Save what changed and take the robot back as the backend has it. The
+ * sections stay as they are on screen: their rows carry ids of their own, a
+ * row may be open for editing, and one without a name is not stored yet.
+ * `quiet` leaves the confirmation to the caller (the sections show it on the row).
+ */
+async function save(body: RobotInput, quiet = false): Promise<boolean> {
+  if (!robot.value) return false
   try {
     const saved = await gymApi.updateRobot(props.tenantId, robot.value.id, body)
-    for (const s of CAPABILITY_SECTIONS) {
-      saved.capabilities[s] = [...saved.capabilities[s], ...robot.value.capabilities[s].filter((c) => !c.name.trim())]
-    }
-    robot.value = saved
+    robot.value = { ...saved, capabilities: robot.value.capabilities }
     emit('changed', saved)
-    ui.showBanner('ok', t('app.saved'), 1500)
+    if (!quiet) ui.showBanner('ok', t('app.saved'), 1500)
     await loadAudit()
+    return true
   } catch (e) {
     fail(e)
+    return false
   }
 }
 
-const saveSection = (section: CapabilitySection, items: RobotComponent[]) => save({ capabilities: { [section]: items } })
+const saveSection = (section: CapabilitySection, items: RobotComponent[]) => save({ capabilities: { [section]: items } }, true)
 
 async function uploadImage(ev: Event) {
   const file = (ev.target as HTMLInputElement).files?.[0]
@@ -290,7 +294,7 @@ function describe(a: AuditEntry): string {
             <InputText
               v-model="robot.platform[f]"
               fluid
-              :class="f === 'serialNumber' || f === 'firmware' ? 'font-mono' : ''"
+              :class="f === 'serialNumber' || f === 'productVersion' ? 'font-mono' : ''"
               :disabled="!editable"
               @change="save({ platform: { [f]: robot.platform[f] } })"
             />
@@ -304,11 +308,15 @@ function describe(a: AuditEntry): string {
           :title="t(`robots.sections.${s}`)"
           :hint="t(`robots.sectionHint.${s}`)"
         />
-        <RobotComponentList v-model="robot.capabilities[s]" :editable="editable" @save="(items) => saveSection(s, items)" />
+        <RobotComponentList
+          v-model="robot.capabilities[s]"
+          :editable="editable"
+          :save="(items: RobotComponent[]) => saveSection(s, items)"
+        />
       </section>
 
       <section>
-        <SectionHeader n="08" :title="t('robots.sections.history')" />
+        <SectionHeader :n="String(CAPABILITY_SECTIONS.length + 3).padStart(2, '0')" :title="t('robots.sections.history')" />
         <div v-if="!audit.length" class="gym-empty">{{ t('robots.noHistory') }}</div>
         <ol v-else class="flex flex-col gap-1 text-sm">
           <li v-for="a in audit" :key="a.id" class="flex flex-wrap items-baseline gap-x-3">

@@ -27,3 +27,17 @@ export function healthIssues(health: Robot['health']): { status: Exclude<Compone
 }
 
 export const componentCount = (health: Robot['health']) => health.ok + health.degraded + health.faulty + health.unknown
+
+const COPY_SUFFIX = / copy \d+$/
+
+/**
+ * The name of a copy: "Cam" becomes "Cam copy 1", or the next free number
+ * when that one is taken. A copy of a copy counts on from the original name.
+ */
+export function copyName(name: string, taken: string[]): string {
+  const base = name.trim().replace(COPY_SUFFIX, '')
+  const names = new Set(taken.map((n) => n.trim()))
+  let n = 1
+  while (names.has(`${base} copy ${n}`)) n += 1
+  return `${base} copy ${n}`
+}

@@ -182,7 +182,7 @@ export type ComponentStatus = (typeof COMPONENT_STATUSES)[number];
  * The capability sections every robot has, always the same and in this order.
  * The platform reference is not among them: it is a form, not a list.
  */
-export const CAPABILITY_SECTIONS = ["sensors", "actuators", "locomotion", "compute", "communication"] as const;
+export const CAPABILITY_SECTIONS = ["sensors", "actuators", "locomotion", "compute", "communication", "system"] as const;
 export type CapabilitySection = (typeof CAPABILITY_SECTIONS)[number];
 
 // ---------------------------------------------------------------------------
@@ -295,10 +295,11 @@ export interface RobotPlatform {
   manufacturer: string;
   model: string;
   serialNumber: string;
-  firmware: string;
+  /** the version of the product as its maker names it, e.g. "MAiRA 2.4.1" */
+  productVersion: string;
 }
 
-export const EMPTY_ROBOT_PLATFORM: RobotPlatform = { manufacturer: "", model: "", serialNumber: "", firmware: "" };
+export const EMPTY_ROBOT_PLATFORM: RobotPlatform = { manufacturer: "", model: "", serialNumber: "", productVersion: "" };
 
 /** One component in a capability section of a robot: "Intel RealSense D435, 2, ok". */
 export interface RobotComponent {
@@ -319,6 +320,7 @@ export const EMPTY_ROBOT_CAPABILITIES: RobotCapabilities = {
   locomotion: [],
   compute: [],
   communication: [],
+  system: [],
 };
 
 // ---------------------------------------------------------------------------

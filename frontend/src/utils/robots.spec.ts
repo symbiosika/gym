@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { componentCount, healthIssues, robotFullLabel, robotLabel } from './robots'
+import { componentCount, copyName, healthIssues, robotFullLabel, robotLabel } from './robots'
 
 describe('robot names', () => {
   it('uses the personal name first, the technical one without it', () => {
@@ -24,5 +24,16 @@ describe('robot health', () => {
     const health = { ok: 0, degraded: 0, faulty: 0, unknown: 0 }
     expect(healthIssues(health)).toEqual([])
     expect(componentCount(health)).toBe(0)
+  })
+})
+
+describe('copy names', () => {
+  it('adds "copy 1", or the next free number', () => {
+    expect(copyName('Cam', ['Cam'])).toBe('Cam copy 1')
+    expect(copyName('Cam', ['Cam', 'Cam copy 1'])).toBe('Cam copy 2')
+    expect(copyName('Cam', ['Cam', 'Cam copy 2'])).toBe('Cam copy 1')
+  })
+  it('counts a copy of a copy on from the original', () => {
+    expect(copyName('Cam copy 1', ['Cam', 'Cam copy 1'])).toBe('Cam copy 2')
   })
 })

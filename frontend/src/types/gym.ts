@@ -37,19 +37,26 @@ export const ROBOT_STATUSES: RobotStatus[] = ['in_service', 'maintenance', 'reti
 export type ComponentStatus = 'ok' | 'degraded' | 'faulty' | 'unknown'
 export const COMPONENT_STATUSES: ComponentStatus[] = ['ok', 'degraded', 'faulty', 'unknown']
 /** The capability sections every robot has, always the same and in this order. */
-export type CapabilitySection = 'sensors' | 'actuators' | 'locomotion' | 'compute' | 'communication'
-export const CAPABILITY_SECTIONS: CapabilitySection[] = ['sensors', 'actuators', 'locomotion', 'compute', 'communication']
+export type CapabilitySection = 'sensors' | 'actuators' | 'locomotion' | 'compute' | 'communication' | 'system'
+export const CAPABILITY_SECTIONS: CapabilitySection[] = [
+  'sensors',
+  'actuators',
+  'locomotion',
+  'compute',
+  'communication',
+  'system',
+]
 
 export interface RobotPlatform {
   manufacturer: string
   model: string
   serialNumber: string
-  firmware: string
+  productVersion: string
 }
 
 /** One component in a capability section: a sensor, an actuator, a Wi-Fi card, … */
 export interface RobotComponent {
-  /** missing on a component the backend has not stored yet */
+  /** made by the client for a new component, so a row keeps its identity before and after saving */
   id?: string
   name: string
   type: string

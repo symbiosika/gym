@@ -92,6 +92,13 @@
       "when": 1793720347992,
       "tag": "0012_cells_drop_robot_text",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793786211456,
+      "tag": "0013_robots_system_product_version",
+      "breakpoints": true
     }
   ]
 }

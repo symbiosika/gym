@@ -82,8 +82,8 @@ describe("Robots", () => {
     expect(r.status).toBe("in_service");
     expect(r.cell).toBeNull();
     expect(r.hasImage).toBe(false);
-    expect(r.platform).toEqual({ manufacturer: "NEURA Robotics", model: "MAiRA", serialNumber: "", firmware: "" });
-    expect(Object.keys(r.capabilities)).toEqual(["sensors", "actuators", "locomotion", "compute", "communication"]);
+    expect(r.platform).toEqual({ manufacturer: "NEURA Robotics", model: "MAiRA", serialNumber: "", productVersion: "" });
+    expect(Object.keys(r.capabilities)).toEqual(["sensors", "actuators", "locomotion", "compute", "communication", "system"]);
     expect(r.capabilities.sensors[1]).toMatchObject({ quantity: 1, note: "flickers", status: "degraded" });
     expect(r.capabilities.sensors[0].id).toBeTruthy();
     // health counts components, not their quantity
@@ -99,17 +99,22 @@ describe("Robots", () => {
     const sensorId = before.capabilities.sensors[0].id;
     const updated = await testFetcher.put(app, `${base}/robots/${robotId}`, ownerToken, {
       status: "maintenance",
-      platform: { firmware: "2.4.1" },
-      capabilities: { compute: [{ name: "Jetson AGX Orin", type: "GPU", status: "ok" }] },
+      platform: { productVersion: "2.4.1" },
+      capabilities: {
+        compute: [{ name: "Jetson AGX Orin", type: "GPU", status: "ok" }],
+        // the client may name a new component's id itself, so it can keep track of the row
+        system: [{ id: "client-made-id", name: "Ubuntu", type: "Operating system", note: "22.04 LTS" }],
+      },
     });
     expect(updated.status).toBe(200);
     const r = updated.jsonResponse;
     expect(r.status).toBe("maintenance");
     expect(r.platform.manufacturer).toBe("NEURA Robotics");
-    expect(r.platform.firmware).toBe("2.4.1");
+    expect(r.platform.productVersion).toBe("2.4.1");
     expect(r.capabilities.sensors[0].id).toBe(sensorId);
     expect(r.capabilities.compute).toHaveLength(1);
     expect(r.capabilities.communication).toHaveLength(1);
+    expect(r.capabilities.system).toEqual([{ id: "client-made-id", name: "Ubuntu", type: "Operating system", quantity: 1, status: "unknown", note: "22.04 LTS" }]);
     expect((await testFetcher.put(app, `${base}/robots/${robotId}`, memberToken, { notes: "x" })).status).toBe(403);
   });
 

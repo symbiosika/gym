@@ -4,8 +4,8 @@
  * A robot has a technical name (the canonical one, model and number) and a
  * personal name (what the people of the gym call it), a status, a photo, the
  * platform reference and the capability sections every robot has, always the
- * same: sensors, actuators, locomotion, compute, communication. Each section
- * is a list of components with a quantity and a status.
+ * same: sensors, actuators, locomotion, compute, communication and system (the
+ * software). Each section is a list of components with a quantity and a status.
  *
  * Where a robot is comes from the cell that points at it (`cells.robot_id`,
  * set in the settings, lib/gym/cells.ts), never from the robot itself. A robot
@@ -58,11 +58,12 @@ const capabilitiesSchema = v.partial(
     locomotion: sectionSchema,
     compute: sectionSchema,
     communication: sectionSchema,
+    system: sectionSchema,
   }),
 );
 
 const platformSchema = v.partial(
-  v.object({ manufacturer: text(200), model: text(200), serialNumber: text(200), firmware: text(200) }),
+  v.object({ manufacturer: text(200), model: text(200), serialNumber: text(200), productVersion: text(200) }),
 );
 
 export const robotInputSchema = v.object({

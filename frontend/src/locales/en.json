@@ -569,21 +569,23 @@
       "locomotion": "Locomotion",
       "compute": "Compute",
       "communication": "Communication",
+      "system": "System",
       "history": "History"
     },
     "sectionHint": {
-      "platform": "Manufacturer, model, serial number, firmware",
+      "platform": "Manufacturer, model, serial number, product version",
       "sensors": "Cameras, force-torque sensors, lidar, encoders",
       "actuators": "Arms, grippers, hands, joint drives",
       "locomotion": "Wheels, legs, base, or stationary",
       "compute": "Computers, GPUs, controllers",
-      "communication": "Wi-Fi cards, Bluetooth dongles, Ethernet, cellular"
+      "communication": "Wi-Fi cards, Bluetooth dongles, Ethernet, cellular",
+      "system": "Software: operating system, middleware, drivers, policies"
     },
     "platform": {
       "manufacturer": "Manufacturer",
       "model": "Model",
       "serialNumber": "Serial number",
-      "firmware": "Firmware"
+      "productVersion": "Product version"
     },
     "component": {
       "name": "Name",
@@ -594,7 +596,14 @@
       "add": "Add component",
       "remove": "Remove component",
       "namePlaceholder": "e.g. Intel RealSense D435",
-      "typePlaceholder": "e.g. RGB-D camera"
+      "typePlaceholder": "e.g. RGB-D camera",
+      "edit": "Edit",
+      "done": "Done",
+      "copy": "Duplicate",
+      "saving": "Saving …",
+      "saved": "Saved",
+      "unsaved": "Nothing is saved without a name",
+      "noType": "no type"
     },
     "noComponents": "Nothing recorded yet.",
     "create": "Create",

@@ -42,7 +42,7 @@ export const gymTools: McpToolDefinition[] = [
     name: "list_robots",
     title: "List robots",
     description:
-      "The robots of the organisation: technical and personal name, status (in_service, maintenance, retired), the cell each is in (null when in none), the platform reference, the capability sections (sensors, actuators, locomotion, compute, communication) with each component's quantity and status (ok, degraded, faulty, unknown), and the components counted by status.",
+      "The robots of the organisation: technical and personal name, status (in_service, maintenance, retired), the cell each is in (null when in none), the platform reference, the capability sections (sensors, actuators, locomotion, compute, communication, system) with each component's quantity and status (ok, degraded, faulty, unknown), and the components counted by status.",
     inputSchema: v.object({ tenantId: tenantArg }),
     annotations: READ_ONLY,
     handler: (args, ctx) => callApi(ctx, tenantPath(ctx, "/gym/robots", args.tenantId)),

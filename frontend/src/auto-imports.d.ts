@@ -29,6 +29,7 @@ declare global {
   const blockerSummary: typeof import('./utils/specSample').blockerSummary
   const componentCount: typeof import('./utils/robots').componentCount
   const computed: typeof import('vue').computed
+  const copyName: typeof import('./utils/robots').copyName
   const countVerdicts: typeof import('./utils/specSample').countVerdicts
   const createApp: typeof import('vue').createApp
   const criticEvidence: typeof import('./utils/specSample').criticEvidence
