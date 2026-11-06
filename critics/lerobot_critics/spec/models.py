@@ -184,6 +184,13 @@ class ScoringConfig(BaseModel):
     reject_flags: list[str] = Field(
         default_factory=list, description="Flags that force 'reject' (in addition to gates)"
     )
+    soft_can_reject: bool = Field(
+        False,
+        description="Whether the soft critics (the VLM) may reject an episode on their own. Off (the "
+        "recording default): a soft gate, a reject flag the VLM raised, or a total the soft score drags "
+        "below review_threshold caps the episode at review, and only the hard critics reject. On (the "
+        "evaluation default): the model's judgement of the outcome rejects like any gate.",
+    )
     ignore_flags: list[str] = Field(
         default_factory=list,
         description="Flags to switch off for this dataset: they are dropped before gates, review "

@@ -328,6 +328,38 @@ def init_spec(
     console.print(cs.to_yaml())
 
 
+@app.command("eval")
+def eval_run(
+    source: Path = typer.Argument(
+        ..., help="Output directory of a finished run (contains report.json) or a report.json file"
+    ),
+    labels: Path = typer.Option(
+        ...,
+        "--labels",
+        "-l",
+        help="Episodes a person labelled: a filtered dataset's meta/subset_provenance.json, or "
+        '{"exclude": [...], "include": [...]}',
+    ),
+    as_json: bool = typer.Option(False, "--json", help="print the comparison as JSON"),
+):
+    """Score a finished run against episodes a person labelled: reject precision and recall,
+    the confusion of verdicts and labels, what every flag is worth and which of the person's
+    reasons the run catches. The regression check for a change to a spec or the VLM prompt."""
+    from .ai_report import load_report
+    from .benchmark import compare, load_labels, render_text
+
+    try:
+        report = load_report(source)
+    except FileNotFoundError as e:
+        raise typer.BadParameter(str(e), param_hint="SOURCE") from e
+    try:
+        lab = load_labels(labels)
+    except (OSError, ValueError) as e:
+        raise typer.BadParameter(str(e), param_hint="--labels") from e
+    res = compare(report, lab)
+    typer.echo(json.dumps(res, indent=1) if as_json else render_text(res))
+
+
 @app.command()
 def critics():
     """List built-in hard critics with their default parameters."""

@@ -138,5 +138,7 @@ def default_scoring(purpose: Purpose = "recording") -> dict[str, Any]:
             "review_flags": ["VLM_TASK_FAILED", "HUMAN_IN_WORKSPACE"],
             # rollouts are not a recording session: no outlier flags against the run
             "relative_flags": False,
+            # the model's judgement of the outcome is what an evaluation measures
+            "soft_can_reject": True,
         }
     return {}

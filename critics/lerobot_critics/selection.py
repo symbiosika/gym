@@ -25,7 +25,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from .ai_report import flag_meaning
-from .scoring import REVIEW_CAP_PREFIX, EpisodeScore, aggregate
+from .scoring import REVIEW_CAP_PREFIX, SOFT_CAP_PREFIX, EpisodeScore, aggregate
 from .spec.models import CriticSpec
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -272,7 +272,8 @@ def episode_reason(report: DatasetReport, r: EpisodeReport, spec: CriticSpec | N
     """One row explaining a single episode's verdict.
 
     ``cause`` is the *one* thing that decided it - ``gate``, ``flag`` (a review/reject flag on
-    an otherwise good score), ``score``, ``error`` or ``""`` for an accepted episode - and
+    an otherwise good score), ``soft`` (only the VLM would reject; capped at review, see
+    ``scoring.soft_can_reject``), ``score``, ``error`` or ``""`` for an accepted episode - and
     ``blocking`` names the flags behind a flag-driven verdict, i.e. exactly what you would
     have to switch off to get the episode back.
     """
@@ -294,6 +295,11 @@ def episode_reason(report: DatasetReport, r: EpisodeReport, spec: CriticSpec | N
     elif r.error:
         cause = "error"
         headline = f"critic run failed: {r.error.splitlines()[0]}"
+    elif soft_cap := next(
+        (x[len(SOFT_CAP_PREFIX) :] for x in s.reasons if x.startswith(SOFT_CAP_PREFIX)), None
+    ):
+        cause = "soft"
+        headline = f"only the VLM would reject ({soft_cap}); capped at review, a person decides"
     elif s.gates_failed:
         cause = "gate"
         by = f" (flag {', '.join(blocking)})" if blocking else ""
@@ -315,7 +321,7 @@ def episode_reason(report: DatasetReport, r: EpisodeReport, spec: CriticSpec | N
         "total": s.total,
         "cause": cause,
         "headline": headline,
-        "details": [d for d in s.reasons if not d.startswith(REVIEW_CAP_PREFIX)][:6],
+        "details": [d for d in s.reasons if not d.startswith((REVIEW_CAP_PREFIX, SOFT_CAP_PREFIX))][:6],
         "flags": list(s.flags),
         "blocking": blocking,
         "gates": list(s.gates_failed),

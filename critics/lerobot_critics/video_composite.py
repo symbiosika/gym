@@ -37,11 +37,15 @@ class CompositeWriter:
         out_fps: float = 5.0,
         scale: float = 1.0,
         crf: int = 28,
+        show: list[str] | None = None,
     ):
+        """``cameras`` are the images :meth:`write` receives, in that order; ``show`` the ones
+        the composite shows (default: all)."""
         self.out_path = Path(out_path)
         self.cameras = cameras
-        self.primary = primary if primary in cameras else cameras[0]
-        self.others = [c for c in cameras if c != self.primary]
+        shown = [c for c in (show or cameras) if c in cameras] or list(cameras)
+        self.primary = primary if primary in shown else shown[0]
+        self.others = [c for c in shown if c != self.primary]
         self.src_fps = src_fps
         self.out_fps = min(out_fps, src_fps)
         self.every = max(1, int(round(src_fps / self.out_fps)))

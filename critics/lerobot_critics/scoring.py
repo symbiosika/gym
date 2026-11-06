@@ -14,6 +14,8 @@ Verdict = Literal["accept", "review", "reject"]
 
 # Prefix of the reason line a review flag writes; the reports parse the flags back out of it.
 REVIEW_CAP_PREFIX = "capped at review by flag(s): "
+# Prefix of the reason line for an episode only the soft critics would have rejected.
+SOFT_CAP_PREFIX = "only the soft critics would reject, capped at review: "
 
 
 def robust_z(values: np.ndarray) -> np.ndarray:
@@ -79,16 +81,30 @@ def aggregate(
     reasons = [
         e for r in hard + soft for e in r.evidence if r.gate_failed or (r.score is not None and r.score < 0.5)
     ]
-    if gates or (set(cfg.reject_flags) & set(flags)):
-        verdict: Verdict = "reject"
+    reject_flags = set(cfg.reject_flags)
+    hard_flags = set(mute_flags([f for r in hard for f in r.flags], cfg))
+    hard_reject = [r.id for r in hard if r.gate_failed] + sorted(reject_flags & hard_flags)
+    soft_reject = [r.id for r in soft if r.gate_failed] + sorted((reject_flags & set(flags)) - hard_flags)
+    if total is not None and total < cfg.review_threshold:
+        # the total alone rejects; without the soft critics it counts as theirs when the hard
+        # score would have passed
+        if hs is not None and hs < cfg.review_threshold:
+            hard_reject.append(f"hard score {hs:.2f}")
+        else:
+            soft_reject.append(f"total {total:.2f}")
+    verdict: Verdict
+    if hard_reject or (cfg.soft_can_reject and soft_reject):
+        verdict = "reject"
+    elif soft_reject:
+        # the model alone does not reject a recording: a person looks
+        verdict = "review"
+        reasons.insert(0, SOFT_CAP_PREFIX + ", ".join(soft_reject))
     elif total is None:
         verdict = "review"
     elif total >= cfg.accept_threshold:
         verdict = "accept"
-    elif total >= cfg.review_threshold:
-        verdict = "review"
     else:
-        verdict = "reject"
+        verdict = "review"
     if verdict == "accept" and set(cfg.review_flags) & set(flags):
         verdict = "review"
         reasons.insert(0, REVIEW_CAP_PREFIX + ", ".join(sorted(set(cfg.review_flags) & set(flags))))
