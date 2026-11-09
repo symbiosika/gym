@@ -10,6 +10,28 @@ raises it, and its merge is tagged `v<version>`:
 
 The versions before 0.9.0 were given afterwards, one per merged pull request.
 
+## 0.10.0
+
+The VLM judge stops deciding alone.
+
+- A camera claim of the VLM (frozen camera, jump cut, blur, exposure) counts
+  only when a hard critic measured the same thing on the same camera within a
+  second of the time the model names. The duplication critic records its
+  stalls with their times (`video_stalls_moving.<camera>`) for that. A claim
+  nothing confirms is kept as minor and marked unverified, so it no longer
+  raises `VLM_MAJOR_ANOMALY`. A claim about the idle arm's camera never counts.
+- The model is told how the composite video was sampled (at 5 fps from 30 fps
+  the frame index advances by 6), which it had read as skipped frames.
+- The wrist camera of an idle arm (`robot.active_arms`) is left out of the
+  composite video, the sampled frames and the prompt.
+- New `scoring.soft_can_reject`: off for recordings, on for evaluations. When
+  off, an episode only the VLM would reject goes to review with the cause
+  `soft` instead of being rejected.
+- `lerobot-critics eval <run> --labels <file>` measures a run against a
+  person's labels (a filtered dataset's `subset_provenance.json` or an
+  include/exclude list): reject precision and recall, verdicts against labels,
+  what every flag is worth, which of the person's reasons the run catches.
+
 ## 0.9.0
 
 Robots.
