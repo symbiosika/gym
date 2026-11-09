@@ -10,7 +10,23 @@ from ...dataset.preroll import signal_start
 from ...dataset.scan import scan_episode
 from ..base import HardCritic, ramp
 from ..registry import register
-from ._util import longest_run
+from ._util import longest_run, runs
+
+
+def stall_spans(
+    dup: np.ndarray, moving: np.ndarray | None, start: int, fps: float, min_s: float
+) -> list[list[float]]:
+    """``[start_s, end_s]`` of every run of repeated camera frames while the robot moved, at
+    least ``min_s`` long, in seconds from the episode start. ``dup`` and ``moving`` begin at
+    frame ``start`` (the end of the pre-roll). The VLM's claims of a frozen or jumping picture
+    are checked against these spans."""
+    n = min(len(dup), len(moving)) if moving is not None else len(dup)
+    mask = dup[:n] & moving[:n] if moving is not None else dup[:n]
+    return [
+        [round((start + a) / fps, 3), round((start + b) / fps, 3)]
+        for a, b in runs(mask)
+        if (b - a) / fps >= min_s
+    ]
 
 
 @register
@@ -42,6 +58,8 @@ class DuplicationCritic(HardCritic):
         # a static body camera legitimately repeats frames while the arm is out of its view.
         # None = auto (wrist cameras, else all).
         "run_cameras": None,
+        # stalls at least this long are listed with their time (video_stalls_moving.<camera>)
+        "stall_report_s": 0.5,
     }
     relative_flags = {
         "action_dup_rate": ("LAGGY_OUTLIER", +1),
@@ -109,6 +127,9 @@ class DuplicationCritic(HardCritic):
                 m[f"video_dup_rate.{c}"] = sc["near_dup_rate"]  # raw, rig statistic
                 m[f"video_dup_rate_moving.{c}"] = rate
                 m[f"video_dup_run_moving.{c}"] = run
+                m[f"video_stalls_moving.{c}"] = stall_spans(
+                    mask, moving, st, ep.fps, float(self.p("stall_report_s"))
+                )
             if rates:
                 m["video_dup_rate_max"] = max(rates)
                 m["video_dup_run_max_s"] = run_max * dt

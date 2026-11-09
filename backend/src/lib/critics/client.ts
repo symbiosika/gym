@@ -241,7 +241,7 @@ export interface CriticsOverrides {
 export interface SelectionReason {
   verdict: "accept" | "review" | "reject";
   total: number | null;
-  cause: "" | "gate" | "flag" | "score" | "error";
+  cause: "" | "gate" | "flag" | "soft" | "score" | "error";
   why: string;
   blocking: string[];
   gates: string[];

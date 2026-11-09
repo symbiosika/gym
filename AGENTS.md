@@ -89,7 +89,7 @@ documentation only, and adds its entry to `CHANGELOG.md`; its merge into
 - `critics/` the data critics: the Python analysis engine, its CLI and the REST
   service the backend talks to. Own README, own tests, own CI job.
   - `lerobot_critics/critics/hard|soft` the critics themselves, `spec/` the spec model
-  - `runner.py`, `scoring.py`, `selection.py` the run, the verdicts, the episode lists
+  - `runner.py`, `scoring.py`, `selection.py` the run, the verdicts, the episode lists; `benchmark.py` a run against a person's labels (`lerobot-critics eval`)
   - `api/` the FastAPI service and its job store, `cli.py` the command line
 - `docs/` product description and glossary; `CHANGELOG.md` per version, `scripts/version.sh` the one version
 - Images and stacks: `Dockerfile` (app), `Dockerfile.critics-service` (critics),

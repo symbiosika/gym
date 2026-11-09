@@ -462,6 +462,18 @@ _m(
 )
 _m(
     "duplication",
+    "video_stalls_moving.",
+    "Camera stalls while moving",
+    "s",
+    "[start, end] in seconds of every run of repeated frames while the robot moved, at least stall_report_s "
+    "long. The VLM's claims of a frozen or jumping picture only count when one of these lies on the camera "
+    "it names, near the time it names.",
+    "runs(dup_mask & moving_mask) of at least stall_report_s, frame index / fps",
+    "info",
+    True,
+)
+_m(
+    "duplication",
     "video_dup_rate_max",
     "Worst camera repeat rate while moving",
     "fraction",

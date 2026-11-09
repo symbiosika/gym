@@ -28,6 +28,7 @@ pip install -e ".[all]"                                       # or work on it di
 lerobot-critics init-spec /data/my_dataset -o spec.yaml     # starter spec from the dataset
 lerobot-critics run /data/my_dataset --spec spec.yaml --out critic_out   # several datasets: list them all
 lerobot-critics episodes critic_out --why            # which episodes to filter, and why each one
+lerobot-critics eval critic_out --labels labels.json   # how far the run agrees with a person
 ```
 
 `critic_out/` then contains `report.md`, `report.json`, `episodes.csv`, `selection.json`
@@ -106,6 +107,12 @@ scoring:
 * **Gates** are the exclusion mechanism: `gate: true, gate_below: x` rejects when a critic's
   score drops below `x`; `gate_flags: [...]` rejects when the critic raises one of the named
   flags. `review_flags` cap an otherwise accepted episode at *review*.
+* **The VLM alone does not reject a recording.** With `scoring.soft_can_reject: false` (the
+  recording default) a failed soft gate, a reject flag only the VLM raised, or a total the soft
+  score drags below `review_threshold` caps the episode at *review*: a person decides. Only the
+  hard critics reject (a gate, a reject flag of theirs, or a hard score below
+  `review_threshold`). The reason row says `cause: soft`. Evaluations default to `true`, where
+  the model's judgement of the outcome is the measure.
 * **Dataset-relative outlier flags** (`*_OUTLIER`, robust median/MAD z-scores) are
   informational: they point at episodes that differ from the rest of the recording session
   without affecting the score.
@@ -147,7 +154,7 @@ one question, did the policy do the task:
   the object and the disturbances *before* the first correct placement; a collision after
   the task was done does not undo the success;
 * `review_flags` shrink to `VLM_TASK_FAILED` and `HUMAN_IN_WORKSPACE`, `relative_flags` is
-  off, the VLM judge is told it is watching a policy and to judge the outcome rather than the
+  off, `soft_can_reject` is on, the VLM judge is told it is watching a policy and to judge the outcome rather than the
   style, and the reports speak of success and failure instead of include and exclude;
 * every field a spec sets explicitly wins over these defaults.
 
@@ -255,6 +262,19 @@ notes, indicator descriptions + rubrics) and the model must answer a JSON schema
 Each indicator becomes a soft `CriticResult` (weight, optional gate). `vlm.summary`
 (weight 0) carries attempts, anomalies, `task_success`, token usage and latency and
 raises `VLM_TASK_FAILED`, `VLM_MAJOR_ANOMALY`, `HUMAN_IN_WORKSPACE`.
+
+With `robot.active_arms` set, the wrist camera of an arm that is not doing the task is left out
+of the composite, the frames and the prompt: it looks at a still scene and reads as a frozen
+camera. The prompt also says how the composite was sampled (at 5 fps of a 30 fps recording the
+frame index advances by 6 per image), so the model does not take that step for a jump cut.
+
+Claims about the picture itself are checked against the signal critics before they count. A
+`camera_freeze` needs a stall of at least 1 s on the camera the model names (any working camera
+when it names none) within 1 s of the claimed time, a `video_discontinuity` a stall that ends
+within 1 s of it (both from `duplication`'s `video_stalls_moving.<camera>`), a `camera_problem`
+a `BLUR` / `OVEREXPOSED` / `UNDEREXPOSED` of `image_quality` on that camera. A claim about an
+idle arm's camera never counts. An unconfirmed claim is kept as `minor` with `unverified: true`,
+a confirmed one names its evidence in `corroborated_by`.
 
 Providers (`soft_critics.vlm`):
 
@@ -450,7 +470,7 @@ appears under *other findings* was recorded but did not filter anything.
 
 `selection.json` carries the same thing machine-readably: `include` / `review` / `exclude`,
 `ranges` (the compact form), `include_with_review`, `reasons` per filtered episode
-(`cause` = gate / flag / score, `blocking` = the flags that decided it) and `switchable`
+(`cause` = gate / flag / soft / score, `blocking` = the flags that decided it) and `switchable`
 (per finding: which episodes it decides and which come back when muted). For LeRobot:
 
 ```bash
@@ -459,6 +479,23 @@ python -m lerobot.scripts.train ... --dataset.episodes "$(jq -c .include critic_
 
 `report.json` keeps every metric per critic per episode so a training pipeline (or a
 human) can apply a different policy later without re-running anything.
+
+### Measuring a run against a person's labels
+
+`lerobot-critics eval` scores a finished run against episodes a person labelled: the confusion
+of verdicts and labels, reject precision (a reject is a bad episode) and recall (a bad episode
+is rejected), which of the person's reasons the run catches, and what every flag is worth. Use
+it as the regression check for every change to a spec, a threshold or the VLM prompt.
+
+```bash
+lerobot-critics eval critic_out/ --labels my_dataset_filtered/meta/subset_provenance.json
+lerobot-critics eval critic_out/ --labels labels.json --json   # {"exclude": [...], "include": [...]}
+```
+
+The labels are the `subset_provenance.json` of a hand-filtered copy (`excluded` with the
+reasons per episode, the kept episodes in `source_to_new_episode_index`) or a plain
+`{"exclude": [episodes] | {episode: [reasons]}, "include": [episodes]}`; without `include`
+every other episode of the run counts as good.
 
 ## Visual report (charts, print to PDF)
 
@@ -579,6 +616,7 @@ lerobot_critics/
   critics/soft  prompt/schema builder, Gemini + OpenAI-compatible providers, VLM judge + cache
   scoring.py    weighted aggregation, gates, verdicts, robust z, muted flags
   selection.py  the episode lists, why each episode was filtered, what muting a finding gives back
+  benchmark.py  a finished run against a person's labels: precision, recall, what every flag is worth
   runner.py     process pool (hard) + thread pool (VLM), dataset stats, report writing
   report.py     report.json / report.md / episodes.csv / selection.json / contact sheets
   merge.py      selected episodes of several datasets as one v2.1 dataset (renumbered, one task table)
@@ -586,7 +624,7 @@ lerobot_critics/
   visual_report.py  report.html: printable visual report (SVG charts + top-N detail analysis)
   video_composite.py  multi-camera composite writer (ffmpeg)
   api/          FastAPI app + job store
-  cli.py        run / episodes / markdown / html / init-spec / critics / metrics / serve
+  cli.py        run / episodes / eval / markdown / html / init-spec / critics / metrics / serve
 tests/          synthetic LeRobot dataset fixture; loader, critics (incl. tremor / normalization / diversity,
                 metric-doc coverage), scoring, runner, API, VLM plumbing
 examples/specs  xlerobot.yaml

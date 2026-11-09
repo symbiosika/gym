@@ -214,7 +214,8 @@ def build_prompt(
         f"{anomalies}"
         "Give each anomaly its type from the schema; use 'human_in_workspace' only for an actual person or "
         "human hand, never for the robot's own hand, and 'camera_freeze' or 'video_discontinuity' only when "
-        "the picture itself stops or jumps.\n"
+        "the picture itself stops or jumps; for those and for 'camera_problem' put the label of the camera "
+        "tile in 'camera'.\n"
         f"{extra}"
         f"{decide}"
         "Respond with JSON only, matching the schema."
@@ -260,6 +261,7 @@ def response_schema(spec: CriticSpec) -> dict[str, Any]:
                         "time_s": {"type": "number"},
                         "severity": {"type": "string", "enum": ["info", "minor", "major"]},
                         "description": {"type": "string"},
+                        "camera": {"type": "string"},
                     },
                     "required": ["type", "time_s", "severity", "description"],
                 },
