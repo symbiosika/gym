@@ -22,6 +22,8 @@ from typing import Any
 import numpy as np
 
 INLINE_LIMIT = 19 * 1024 * 1024
+# Agentic video processing exists only on v1beta, and google-genai 3.0 switched its default to v1.
+GEMINI_API_VERSION = "v1beta"
 
 
 @dataclass
@@ -88,7 +90,9 @@ class GeminiProvider:
         key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if not key:
             raise RuntimeError("GEMINI_API_KEY not set")
-        self.client = genai.Client(api_key=key, http_options={"timeout": int(timeout_s * 1000)})
+        self.client = genai.Client(
+            api_key=key, http_options={"api_version": GEMINI_API_VERSION, "timeout": int(timeout_s * 1000)}
+        )
         self.model = model
         self.temperature = temperature
 
