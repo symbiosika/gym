@@ -10,6 +10,14 @@ raises it, and its merge is tagged `v<version>`:
 
 The versions before 0.9.0 were given afterwards, one per merged pull request.
 
+## 0.10.1
+
+- The VLM judge works again with google-genai 3.0, which switched its default
+  API version to v1: the critics ask for v1beta, the only version that offers
+  agentic video processing ("Agentic video processing is not enabled for api
+  version v1"). google-genai is held below 4.0, so a new major version no
+  longer slips into an image build.
+
 ## 0.10.0
 
 The VLM judge stops deciding alone.

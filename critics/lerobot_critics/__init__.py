@@ -16,4 +16,4 @@ reject verdict, and an include/exclude list that can be fed to training.
 
 from .spec.models import CriticSpec  # noqa: F401
 
-__version__ = "0.10.0"
+__version__ = "0.10.1"
