@@ -245,6 +245,7 @@ async function finish() {
               >· {{ variation.doneInVariation }} / {{ current.variations[variation.index]?.episodes }}</span
             >
           </div>
+          <VariationFields v-if="current && variation" class="mt-1" :fields="current.variations[variation.index]?.fields" />
           <div class="mt-3 h-2 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-800">
             <i
               class="block h-full rounded-full transition-[width]"

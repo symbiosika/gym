@@ -18,7 +18,6 @@ import type {
   CriticsStatus,
   DatasetUploadView,
   DatasetView,
-  SpecOverrides,
   DayView,
   EvaluationReportRecord,
   EvaluationReportSections,
@@ -33,15 +32,17 @@ import type {
   Robot,
   RobotInput,
   RolloutsView,
+  SampleReport,
+  SampleVideo,
   SelectionChange,
   SelectionView,
   SkillListItem,
+  SkillStrategy,
   SkillView,
-  SampleReport,
-  SampleVideo,
   SpecDraftRun,
   SpecDraftStep,
   SpecDraftView,
+  SpecOverrides,
 } from '@/types/gym'
 
 const base = (tenantId: string) => `/api/v1/tenant/${tenantId}/gym`
@@ -233,6 +234,23 @@ export const gymApi = {
     zipDownload(`${base(t)}/skills/${skillId}/exports/dataset`, name, 'dataset.zip'),
   exportDownloadUrl: (t: string, exportId: string) => `${base(t)}/exports/${exportId}/download`,
 
+  // strategy of a skill: description, pictures and PDFs, the run sheet
+  strategy: (t: string, skillId: string) => fetcher.get<SkillStrategy>(`${base(t)}/skills/${skillId}/strategy`),
+  updateStrategyText: (t: string, skillId: string, text: string) =>
+    fetcher.put<SkillStrategy>(`${base(t)}/skills/${skillId}/strategy`, { text }),
+  addStrategyFile: (t: string, skillId: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return fetcher.postFormData<SkillStrategy>(`${base(t)}/skills/${skillId}/strategy/files`, form)
+  },
+  strategyFileUrl: (t: string, skillId: string, fileId: string) => `${base(t)}/skills/${skillId}/strategy/files/${fileId}`,
+  removeStrategyFile: (t: string, skillId: string, fileId: string) =>
+    fetcher.delete<SkillStrategy>(`${base(t)}/skills/${skillId}/strategy/files/${fileId}`),
+  setRunSheet: (t: string, skillId: string, body: { fileName: string; csv: string; groupBy: string | null }) =>
+    fetcher.put<SkillStrategy>(`${base(t)}/skills/${skillId}/strategy/run-sheet`, body),
+  removeRunSheet: (t: string, skillId: string) =>
+    fetcher.delete<SkillStrategy>(`${base(t)}/skills/${skillId}/strategy/run-sheet`),
+
   // policies
   policies: (t: string, skillId: string) => fetcher.get<PolicyRecord[]>(`${base(t)}/skills/${skillId}/policies`),
   createPolicy: (
@@ -305,6 +323,9 @@ export const gymApi = {
   },
   removeVariationImage: (t: string, id: string, stepId: string, index: number) =>
     fetcher.delete<BlockView>(gymApi.variationImage(t, id, stepId, index)),
+  /** the skill's run sheet as the plan of a recording block: all rows, or a range like "1-50" */
+  planFromRunSheet: (t: string, id: string, rows?: string) =>
+    fetcher.post<BlockView>(`${base(t)}/blocks/${id}/plan/from-run-sheet`, rows ? { rows } : {}),
   generatePlan: (t: string, id: string, lang: Lang) =>
     fetcher.post<BlockView>(`${base(t)}/blocks/${id}/plan/generate?lang=${lang}`, {}),
   updatePlan: (t: string, id: string, plan: unknown) => fetcher.put<BlockView>(`${base(t)}/blocks/${id}/plan`, plan),

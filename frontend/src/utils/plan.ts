@@ -4,6 +4,30 @@ import type { PlanStep, PlanVariation, RecordingPlan, RecordingProgress } from '
 export const planTotal = (plan: RecordingPlan | null | undefined): number =>
   plan?.steps.reduce((a, s) => a + s.variations.reduce((b, v) => b + v.episodes, 0), 0) ?? 0
 
+/**
+ * The plan as the editor sends it back for saving. A picture travels as its
+ * storage reference only, a step the server has not seen yet (`local-…`)
+ * without an id, and what a run sheet said about an episode goes back as it
+ * came: leaving it out would drop it on the first edit.
+ */
+export const planToInput = (p: RecordingPlan) => ({
+  summary: p.summary,
+  sceneSetup: p.sceneSetup,
+  randomizations: p.randomizations,
+  steps: p.steps.map((s) => ({
+    id: s.id.startsWith('local-') ? undefined : s.id,
+    title: s.title,
+    instructions: s.instructions,
+    variations: s.variations.map((v) => ({
+      label: v.label,
+      episodes: v.episodes,
+      imagePrompt: v.imagePrompt ?? '',
+      image: v.image ? { ref: v.image.ref } : null,
+      ...(v.fields?.length ? { fields: v.fields } : {}),
+    })),
+  })),
+})
+
 /** One variation of a plan with the identity the image endpoints use: its step and its index in it. */
 export interface FlatVariation {
   stepIndex: number

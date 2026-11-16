@@ -120,6 +120,47 @@ export interface PlanVariation {
   /** English edit instruction the image is generated with */
   imagePrompt?: string
   image?: PlanVariationImage | null
+  /** what a run sheet says about this episode beyond its label; GYM gives the values no meaning */
+  fields?: PlanVariationField[]
+}
+
+/** One labelled value of a run sheet row: the column's name and the cell. */
+export interface PlanVariationField {
+  name: string
+  value: string
+}
+
+/** A picture or a PDF of a skill's strategy. */
+export interface StrategyFile {
+  id: string
+  ref: string
+  name: string
+  mime: string
+  size: number
+  createdAt: string
+}
+
+/**
+ * The run sheet of a skill: a CSV a person keeps, one row per episode to
+ * record. A guide for the operator; a block may take it over as its plan.
+ */
+export interface RunSheet {
+  fileName: string
+  /** header names in file order */
+  columns: string[]
+  /** one object per row, every value a string as in the file */
+  rows: Record<string, string>[]
+  /** the column whose value groups rows into plan steps, null = one step */
+  groupBy: string | null
+  importedAt: string
+}
+
+/** How a skill is to be recorded, as its people wrote it down. Optional in every part. */
+export interface SkillStrategy {
+  text: string
+  files: StrategyFile[]
+  runSheet: RunSheet | null
+  updatedAt: string
 }
 
 export interface PlanStep {

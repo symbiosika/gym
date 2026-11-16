@@ -14,6 +14,7 @@
  *   POST   /tenant/:tenantId/gym/blocks/:id/scene-image      multipart "file"
  *   DELETE /tenant/:tenantId/gym/blocks/:id/scene-image
  *   POST   /tenant/:tenantId/gym/blocks/:id/plan/generate?lang
+ *   POST   /tenant/:tenantId/gym/blocks/:id/plan/from-run-sheet  { rows? }: the skill's run sheet as the plan
  *   PUT    /tenant/:tenantId/gym/blocks/:id/plan
  *
  *   the optional reference image of one variation of the plan (:stepId and the
@@ -67,6 +68,7 @@ import {
   ensureAccessToken,
   finishRecording,
   generatePlan,
+  planFromRunSheet,
   generateVariationImage,
   getBlock,
   getBlockRow,
@@ -303,6 +305,16 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
       try {
         const { tenantId, id } = c.req.valid("param");
         return c.json(await generatePlan(tenantId, await actorOf(c), id, c.req.valid("query").lang));
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.post(`${base}/:id/plan/from-run-sheet`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "Take the run sheet of the skill over as the plan of a recording block (all rows, or a range like 1-50)", responses: ok }),
+    validator("param", tenantIdParam), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id } = c.req.valid("param");
+        return c.json(await planFromRunSheet(tenantId, await actorOf(c), id, await c.req.json().catch(() => ({}))));
       } catch (e) { throw toHttpError(e); }
     });
 

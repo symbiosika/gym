@@ -227,6 +227,19 @@ export interface PlanVariation {
   imagePrompt?: string;
   /** the reference image, when one was generated or uploaded */
   image?: PlanVariationImage | null;
+  /**
+   * What a run sheet says about this episode beyond its label, as labelled
+   * values in the order of the sheet's columns. Shown to the operator as they
+   * are: GYM gives none of them a meaning. Only on a plan taken over from a
+   * run sheet.
+   */
+  fields?: PlanVariationField[];
+}
+
+/** One labelled value of a run sheet row: the column's name and the cell. */
+export interface PlanVariationField {
+  name: string;
+  value: string;
 }
 
 /** One step of the recording plan: a scene setup with its variations. */
@@ -426,6 +439,46 @@ export const collections = pgBaseTable(
 // Skills and policies
 // ---------------------------------------------------------------------------
 
+/** A picture or a PDF of a skill's strategy, kept through lib/storage in the bucket `gym-strategy`. */
+export interface StrategyFile {
+  id: string;
+  /** storage reference of lib/storage */
+  ref: string;
+  name: string;
+  mime: string;
+  size: number;
+  createdAt: string;
+}
+
+/**
+ * The run sheet of a skill: a CSV a person keeps, one row per episode to
+ * record, read once and stored as rows. It is a guide for the operator and
+ * nothing more: a block may take it over as its recording plan, and no row is
+ * tied to the episode recorded for it. GYM reads two columns by name when
+ * they are there (`episode`, `prompt`) and one the person picks to group the
+ * rows into plan steps; every other column has no meaning to GYM.
+ */
+export interface RunSheet {
+  fileName: string;
+  /** header names in file order */
+  columns: string[];
+  /** one object per row, every value a string as in the file */
+  rows: Record<string, string>[];
+  /** the column whose value groups rows into plan steps, null = one step */
+  groupBy: string | null;
+  importedAt: string;
+}
+
+/** How a skill is to be recorded, as its people wrote it down: a description, pictures and PDFs, and the run sheet. Optional in every part. */
+export interface SkillStrategy {
+  /** written description, plain text with line breaks */
+  text: string;
+  files: StrategyFile[];
+  /** the run sheet as imported, null without one */
+  runSheet: RunSheet | null;
+  updatedAt: string;
+}
+
 export const skills = pgBaseTable(
   "skills",
   {
@@ -438,6 +491,8 @@ export const skills = pgBaseTable(
     /** name of the stored critics spec to analyse datasets with; null = auto spec */
     criticSpecName: text("critic_spec_name"),
     status: text("status").$type<SkillStatus>().notNull().default("active"),
+    /** the strategy of the skill: description, files and the run sheet; null until somebody writes one */
+    strategy: jsonb("strategy").$type<SkillStrategy>(),
     createdBy: uuid("created_by"),
     createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "string" }).notNull().defaultNow(),

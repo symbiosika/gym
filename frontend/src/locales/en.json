@@ -172,6 +172,14 @@
     "sceneHint": "Photo and description, here or with the phone."
   },
   "plan": {
+    "runSheet": {
+      "import": "Import from run sheet",
+      "rows": "Rows of the run sheet",
+      "rowsHint": "Rows like pages for printing, e.g. 1-50 or 1-3,6,8. Empty takes all {n} rows.",
+      "hint": "Take \"{name}\" ({n} rows) over as the plan: a step per group, an episode per row.",
+      "confirm": "Replace the plan with the run sheet?",
+      "confirmText": "The current plan and its reference images are replaced. Nothing has been recorded against it yet."
+    },
     "title": "Plan for the next hours",
     "lead": "Proposal from photo and text: setups and variations. Everything can be changed and saves itself.",
     "summary": "Summary",
@@ -448,6 +456,36 @@
     "none": "No skill yet. A skill is created when its first block is started.",
     "noMatch": "No skill matches the filter."
   },
+  "strategy": {
+    "lead": "How this skill is to be recorded, as its people wrote it down. All of it is optional: a block works with or without it.",
+    "text": {
+      "title": "Description",
+      "hint": "saved when you leave the field",
+      "placeholder": "What is recorded, which variations matter, what to watch out for …"
+    },
+    "files": {
+      "title": "Pictures and PDFs",
+      "hint": "PNG, JPEG, WebP or PDF, up to 20 MB each",
+      "add": "Add files",
+      "none": "No files yet.",
+      "open": "Open in a new tab",
+      "removeConfirm": "Remove \"{name}\"?"
+    },
+    "runSheet": {
+      "title": "Run sheet",
+      "hint": "a CSV with one row per episode to record",
+      "upload": "Upload CSV",
+      "replace": "Replace CSV",
+      "none": "No run sheet yet. Upload a CSV with a header row; a block can then take it over as its recording plan.",
+      "groupBy": "Group into plan steps by",
+      "groupByHint": "consecutive rows with the same value form one step",
+      "noGroup": "no grouping · one step",
+      "counts": "{rows} rows · {groups} steps",
+      "more": "and {n} more rows",
+      "removeConfirm": "Remove the run sheet?",
+      "removeText": "Plans that blocks already took over from it stay as they are."
+    }
+  },
   "skill": {
     "cell": "Cell",
     "name": "Name",
@@ -474,6 +512,7 @@
     "deleteConfirm": "Delete the skill with all blocks, datasets, exports and policies? The day protocols stay.",
     "tabs": {
       "blocks": "Blocks",
+      "strategy": "Strategy",
       "evaluations": "Evaluations",
       "policies": "Policies",
       "episodes": "Episodes",

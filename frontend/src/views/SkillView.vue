@@ -12,6 +12,7 @@ import { fmtDate, fmtDateTime, fmtMinutes, fmtPercent } from '@/utils/time'
 import SectionHeader from '@/components/SectionHeader.vue'
 import EpisodeTable from '@/components/EpisodeTable.vue'
 import IconLaunch from '~icons/carbon/launch'
+import StrategyTab from '@/components/skill/StrategyTab.vue'
 import SpecPicker from '@/components/SpecPicker.vue'
 
 /**
@@ -42,7 +43,10 @@ const form = ref<{ name: string; taskDescription: string; collectionId: string; 
 const fail = (e: unknown) => ui.showBanner('err', e instanceof Error ? e.message : String(e))
 
 const tabs = computed(() =>
-  (['blocks', 'evaluations', 'policies', 'episodes', 'audit'] as const).map((v) => ({ value: v, label: t(`skill.tabs.${v}`) })),
+  (['blocks', 'strategy', 'evaluations', 'policies', 'episodes', 'audit'] as const).map((v) => ({
+    value: v,
+    label: t(`skill.tabs.${v}`),
+  })),
 )
 const collectionOptions = computed(() => [
   { label: t('start.noCollection'), value: NONE },
@@ -355,6 +359,10 @@ async function removePolicy(p: PolicyRecord) {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section v-else-if="tab === 'strategy'" class="mt-4">
+        <StrategyTab :tenant-id="tenantId" :skill-id="skillId" />
       </section>
 
       <section v-else-if="tab === 'evaluations'" class="mt-4">

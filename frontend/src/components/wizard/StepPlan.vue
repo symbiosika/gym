@@ -6,7 +6,8 @@ import { useGym } from '@/stores/gym'
 import { useDialog } from '@/stores/dialog'
 import type { BlockView, Lang, RecordingPlan } from '@/types/gym'
 import PlanEditor from '@/components/PlanEditor.vue'
-import { planTotal, planVariations, variationsWithImage } from '@/utils/plan'
+import RunSheetImport from '@/components/wizard/RunSheetImport.vue'
+import { planToInput, planTotal, planVariations, variationsWithImage } from '@/utils/plan'
 import IconCheck from '~icons/carbon/checkmark'
 
 /** Step 2: the AI's plan, editable, then "start recording" (or "start the evaluation"). */
@@ -24,30 +25,12 @@ const plan = ref<RecordingPlan>(clone(props.block.plan!))
 const busy = ref('')
 const fail = (e: unknown) => emit('error', e instanceof Error ? e.message : String(e))
 
-const toInput = (p: RecordingPlan) => ({
-  summary: p.summary,
-  sceneSetup: p.sceneSetup,
-  randomizations: p.randomizations,
-  steps: p.steps.map((s) => ({
-    id: s.id.startsWith('local-') ? undefined : s.id,
-    title: s.title,
-    instructions: s.instructions,
-    // the picture stays with the variation; only its file id travels back
-    variations: s.variations.map((v) => ({
-      label: v.label,
-      episodes: v.episodes,
-      imagePrompt: v.imagePrompt ?? '',
-      image: v.image ? { ref: v.image.ref } : null,
-    })),
-  })),
-})
-
 /*
  * The plan saves itself: every edit is sent a moment after the last keystroke,
  * and before anything leaves the step. What the server holds is kept as a
  * snapshot; the editor is dirty while it differs from it.
  */
-const snapshot = (p: RecordingPlan) => JSON.stringify(toInput(p))
+const snapshot = (p: RecordingPlan) => JSON.stringify(planToInput(p))
 const saved = ref(snapshot(plan.value))
 const dirty = computed(() => snapshot(plan.value) !== saved.value)
 const saving = ref(false)
@@ -86,7 +69,7 @@ async function save(): Promise<boolean> {
   }
 }
 async function send(): Promise<boolean> {
-  const sent = toInput(plan.value)
+  const sent = planToInput(plan.value)
   saving.value = true
   try {
     const next = await gymApi.updatePlan(props.tenantId, props.block.id, sent)
@@ -123,6 +106,15 @@ async function regenerate() {
   } finally {
     busy.value = ''
   }
+}
+/** The run sheet replaced the plan on the server: what the editor held is gone with it, nothing of it is sent after. */
+function dropEdits() {
+  clearTimeout(timer)
+  saved.value = snapshot(plan.value)
+}
+function tookRunSheet(next: BlockView) {
+  adopt(next.plan!)
+  emit('update', next)
 }
 /** Back to the scene: the plan is saved on the way, so nothing typed is lost. */
 async function back() {
@@ -276,6 +268,14 @@ async function generateMissing() {
         :loading="busy === 'gen'"
         :label="busy === 'gen' ? t('brief.creatingPlan') : t('plan.regenerate')"
         @click="regenerate"
+      />
+      <RunSheetImport
+        :block="block"
+        :tenant-id="tenantId"
+        :disabled="!!busy"
+        @before="dropEdits"
+        @update="tookRunSheet"
+        @error="(m) => emit('error', m)"
       />
       <span class="grow"></span>
       <span

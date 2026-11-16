@@ -168,6 +168,7 @@ function fileChosen(ev: Event) {
           <template #icon><IconClose /></template>
         </SecondaryButton>
       </div>
+      <VariationFields class="mb-2 ms-12" :fields="v.fields" />
 
       <div
         v-if="openImage === key(i, j)"

@@ -172,6 +172,14 @@
     "sceneHint": "Foto und Beschreibung, hier oder mit dem Smartphone."
   },
   "plan": {
+    "runSheet": {
+      "import": "Aus Run Sheet übernehmen",
+      "rows": "Zeilen des Run Sheets",
+      "rowsHint": "Zeilen wie Seiten beim Drucken, z. B. 1-50 oder 1-3,6,8. Leer übernimmt alle {n} Zeilen.",
+      "hint": "\"{name}\" ({n} Zeilen) als Plan übernehmen: ein Schritt pro Gruppe, eine Episode pro Zeile.",
+      "confirm": "Plan durch das Run Sheet ersetzen?",
+      "confirmText": "Der aktuelle Plan und seine Referenzbilder werden ersetzt. Dagegen wurde noch nichts aufgenommen."
+    },
     "title": "Fahrplan für die nächsten Stunden",
     "lead": "Vorschlag aus Foto und Text: Aufbauten und Variationen. Alles lässt sich ändern und speichert von selbst.",
     "summary": "Zusammenfassung",
@@ -448,6 +456,36 @@
     "none": "Noch kein Skill. Ein Skill entsteht, wenn sein erster Block gestartet wird.",
     "noMatch": "Kein Skill passt zum Filter."
   },
+  "strategy": {
+    "lead": "Wie dieser Skill aufgenommen werden soll, so wie sein Team es festgehalten hat. Alles hier ist optional: Ein Block funktioniert mit und ohne.",
+    "text": {
+      "title": "Beschreibung",
+      "hint": "wird beim Verlassen des Felds gespeichert",
+      "placeholder": "Was aufgenommen wird, welche Variationen wichtig sind, worauf zu achten ist …"
+    },
+    "files": {
+      "title": "Bilder und PDFs",
+      "hint": "PNG, JPEG, WebP oder PDF, je bis 20 MB",
+      "add": "Dateien hinzufügen",
+      "none": "Noch keine Dateien.",
+      "open": "In neuem Tab öffnen",
+      "removeConfirm": "\"{name}\" entfernen?"
+    },
+    "runSheet": {
+      "title": "Run Sheet",
+      "hint": "eine CSV mit einer Zeile pro aufzunehmender Episode",
+      "upload": "CSV hochladen",
+      "replace": "CSV ersetzen",
+      "none": "Noch kein Run Sheet. Lade eine CSV mit Kopfzeile hoch; ein Block kann sie dann als Aufnahmeplan übernehmen.",
+      "groupBy": "Zu Planschritten gruppieren nach",
+      "groupByHint": "aufeinanderfolgende Zeilen mit gleichem Wert bilden einen Schritt",
+      "noGroup": "keine Gruppierung · ein Schritt",
+      "counts": "{rows} Zeilen · {groups} Schritte",
+      "more": "und {n} weitere Zeilen",
+      "removeConfirm": "Run Sheet entfernen?",
+      "removeText": "Pläne, die Blöcke bereits daraus übernommen haben, bleiben wie sie sind."
+    }
+  },
   "skill": {
     "cell": "Zelle",
     "name": "Name",
@@ -474,6 +512,7 @@
     "deleteConfirm": "Skill mit allen Blöcken, Datasets, Exporten und Policies löschen? Die Tagesprotokolle bleiben.",
     "tabs": {
       "blocks": "Blöcke",
+      "strategy": "Strategie",
       "evaluations": "Evaluierungen",
       "policies": "Policies",
       "episodes": "Episoden",

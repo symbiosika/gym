@@ -7,7 +7,7 @@
  * A skill has no cell and no dates of its own: those belong to the day
  * protocols and their blocks. The figures here are sums over them.
  */
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
 import {
@@ -24,8 +24,10 @@ import {
   type PolicySelect,
   type SkillSelect,
 } from "../../db/schema";
+import { removeFile } from "../storage";
 import { recordAudit, type Actor } from "./audit";
 import { toBlockViews, type BlockView } from "./blocks";
+import { STRATEGY_BUCKET } from "./buckets";
 import { InvalidInputError, NotFoundError } from "./errors";
 import { effectiveVerdictSql } from "./evaluations";
 import { teleopMinutes } from "./teleop";
@@ -69,7 +71,7 @@ export interface EvaluationSummary {
   minutes: number;
 }
 
-export interface SkillListItem extends SkillSelect {
+export interface SkillListItem extends Omit<SkillSelect, "strategy"> {
   collectionName: string | null;
   /** blocks of the skill by kind */
   recordingBlocks: number;
@@ -160,12 +162,19 @@ async function evaluationsOf(tenantId: string, skillIds: string[]): Promise<Map<
 }
 
 /** Skills with their figures, newest activity first. */
+/**
+ * A skill as a list reads it: without its strategy. A run sheet is thousands
+ * of rows, and a list of five hundred skills has no use for any of them; the
+ * strategy has its own route (lib/gym/strategy.ts).
+ */
+const { strategy: _strategy, ...skillListColumns } = getTableColumns(skills);
+
 export async function listSkills(tenantId: string, filter: ListFilter = {}): Promise<SkillListItem[]> {
   const conditions = [eq(skills.tenantId, tenantId)];
   if (filter.status) conditions.push(eq(skills.status, filter.status));
   if (filter.collectionId) conditions.push(eq(skills.collectionId, filter.collectionId));
   const rows = await getDb()
-    .select({ skill: skills, collectionName: collections.name })
+    .select({ skill: skillListColumns, collectionName: collections.name })
     .from(skills)
     .leftJoin(collections, eq(collections.id, skills.collectionId))
     .where(and(...conditions))
@@ -307,6 +316,13 @@ export async function updateSkill(tenantId: string, actor: Actor, id: string, in
  * cell's record, not the skill's.
  */
 export async function deleteSkill(tenantId: string, id: string): Promise<void> {
+  // the pictures and PDFs of the strategy are not rows: they go first, while the skill still says where they are
+  const existing = await getDb()
+    .select({ strategy: skills.strategy })
+    .from(skills)
+    .where(and(eq(skills.id, id), eq(skills.tenantId, tenantId)))
+    .limit(1);
+  for (const f of existing[0]?.strategy?.files ?? []) await removeFile(tenantId, STRATEGY_BUCKET, f.ref).catch(() => undefined);
   const deleted = await getDb()
     .delete(skills)
     .where(and(eq(skills.id, id), eq(skills.tenantId, tenantId)))

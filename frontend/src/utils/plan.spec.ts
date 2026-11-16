@@ -4,6 +4,7 @@ import {
   currentVariation,
   duplicateStep,
   percentDone,
+  planToInput,
   planTotal,
   planVariations,
   progressTotal,
@@ -101,5 +102,42 @@ describe('plan helpers', () => {
     expect(activeStep(plan, null)!.id).toBe('a')
     expect(activeStep(plan, { completed: { a: 5 }, currentStepId: 'a', updatedAt: '' })!.id).toBe('b')
     expect(activeStep(plan, { completed: { a: 5, b: 4 }, currentStepId: 'b', updatedAt: '' })).toBeNull()
+  })
+})
+
+describe('what the editor sends back', () => {
+  const fromSheet: RecordingPlan = {
+    summary: 'Run sheet s.csv, rows 1-2',
+    sceneSetup: [],
+    randomizations: [],
+    source: 'manual',
+    createdAt: '2026-10-26T08:00:00Z',
+    steps: [
+      {
+        id: 'step-a',
+        title: 'layout 1',
+        instructions: '',
+        episodes: 2,
+        variations: [
+          { label: '1 · pick the brown tube gel', episodes: 1, fields: [{ name: 'arm', value: 'left' }] },
+          { label: 'added by hand', episodes: 1, image: { ref: 'db:x', source: 'upload', prompt: '', createdAt: '' } },
+        ],
+      },
+      { id: 'local-1', title: 'new', instructions: '', episodes: 0, variations: [] },
+    ],
+  }
+
+  it('keeps what a run sheet said about an episode, so an edit does not drop it', () => {
+    const sent = planToInput(fromSheet)
+    expect(sent.steps[0]!.variations[0]!.fields).toEqual([{ name: 'arm', value: 'left' }])
+    expect(sent.steps[0]!.variations[1]!.fields).toBeUndefined()
+  })
+
+  it('sends only the reference of a picture, and no id for a step the server has not seen', () => {
+    const sent = planToInput(fromSheet)
+    expect(sent.steps[0]!.variations[1]!.image).toEqual({ ref: 'db:x' })
+    expect(sent.steps[0]!.variations[0]!.image).toBeNull()
+    expect(sent.steps[0]!.id).toBe('step-a')
+    expect(sent.steps[1]!.id).toBeUndefined()
   })
 })

@@ -125,6 +125,7 @@ async function count(delta: number, stepId?: string) {
               >{{ variation.doneInVariation }} / {{ current.variations[variation.index]?.episodes }}</span
             >
           </div>
+          <VariationFields :fields="current.variations[variation.index]?.fields" />
           <img
             v-if="currentImage"
             class="w-full rounded-panel border border-surface-300 dark:border-surface-700"
