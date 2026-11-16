@@ -395,6 +395,8 @@
     "activeArm": "Active arm: {arm} (override)"
   },
   "selection": {
+    "excluded": "excluded",
+    "excludedHint": "Taken out of the selection on the skill's Episodes tab: its episodes are not exported, their ticks stay.",
     "title": "Select episodes and download",
     "lead": "Every recording of this skill, over all days and cells. Rejected ones are deselected. Where you disagree with the critics, set your verdict with ✓ or ✗; it counts in every figure at once.",
     "selectedHint": "episodes selected",
@@ -487,6 +489,50 @@
     }
   },
   "skill": {
+    "episodesTab": {
+      "datasets": "Datasets",
+      "selectedOf": "{n} of {total} episodes selected",
+      "lead": "One row per recording dataset. Tick a dataset out to leave it out of exports and figures as a whole; which of its episodes are selected is decided in the block.",
+      "included": "In",
+      "includedHint": "Part of the skill's selection",
+      "excluded": "excluded",
+      "reviewPending": "{n} to review",
+      "showEpisodes": "Show the episodes",
+      "readOnly": "Read only. Verdicts and ticks are changed in the block's selection step.",
+      "toBlock": "Open the block",
+      "graspSpread": "Grasp spread",
+      "graspSpreadHint": "The critics' robust horizontal spread of the grasp positions in this dataset",
+      "export": "Export",
+      "exportHint": "The selection as a manifest: which episodes of which dataset",
+      "exportMerged": "Export merged dataset",
+      "exportMergedHint": "The selected episodes of all ticked datasets as one LeRobot dataset, ready for training",
+      "merging": "Merging …",
+      "nothingSelected": "No episode is selected in the ticked datasets.",
+      "exportAll": "All episodes",
+      "exportAllHint": "Download this dataset unfiltered: all {n} episodes, whatever their verdict or tick",
+      "notStored": "Recorded before GYM kept the uploads: upload it again to export it.",
+      "arm": {
+        "left": "left",
+        "right": "right"
+      },
+      "metrics": {
+        "title": "Positions over the selection",
+        "base": "{datasets} datasets · {episodes} episodes",
+        "without": "{n} without positions per arm",
+        "withoutHint": "Datasets analysed before positions per arm were measured only add their grasp positions to the overall line. A new upload is measured in full.",
+        "noneSelected": "Nothing is selected in the ticked datasets.",
+        "noneMeasured": "The critics measured no positions in the selected episodes (no cartesian wrist state).",
+        "mean": "Mean x / y / z (cm)",
+        "std": "Std x / y / z (cm)",
+        "all": "all",
+        "delta": "delta left minus right",
+        "group": {
+          "pick": "Pick positions",
+          "start": "Wrist at the start",
+          "end": "Wrist at the end"
+        }
+      }
+    },
     "cell": "Cell",
     "name": "Name",
     "task": "Task",
@@ -839,6 +885,11 @@
     "unknown": "open"
   },
   "info": {
+    "selectionMetrics": [
+      "Positions over the selection",
+      "Where the robot picked and where its wrists were at the start and at the end of an episode: mean and standard deviation per axis, in the robot's coordinates, with the number of positions behind each line. Taken over the selected episodes of the ticked datasets. The positions are measured by the data critics; GYM only does the arithmetic and judges nothing.",
+      "Std 0.4 / 0.6 / 0.1 cm over 150 picks: the object was nearly always in the same place."
+    ],
     "wbQuestions": [
       "Questions to the model",
       "Each question is one sentence the language model answers for every episode. “Must hold”: if the answer is no, the episode is rejected. “Only counts”: the answer goes into the total score. A changed question counts only once it is tested.",

@@ -13,11 +13,20 @@ from __future__ import annotations
 
 import numpy as np
 
-from ...dataset.features import detect_features, gripper_arm_pair
+from ...dataset.features import arm_grippers, arm_wrist_pairs, detect_features, gripper_arm_pair
 from ...dataset.loader import EpisodeContext
 from ..base import CriticResult, HardCritic
 from ..registry import register
 from .grasp_cycles import closure_signal, detect_cycles
+
+# a hand whose closure swings less than this share of the busiest hand's in the episode is resting
+RESTING_HAND_SWING_FRAC = 0.25
+
+
+def _pos(s: np.ndarray, i: int) -> list[float] | None:
+    """The position in row ``i``, clamped to the episode; None for an all-zero row (a dropout)."""
+    v = s[int(min(max(i, 0), len(s) - 1))]
+    return None if np.abs(v).sum() == 0 else [round(float(x), 4) for x in v]
 
 
 @register
@@ -67,7 +76,46 @@ class DiversityCritic(HardCritic):
             "start_pos_m": _at(0),
             "end_pos_m": _at(n - 1),
         }
+        m.update(self._per_arm(ep, rf, off))
         return self.result(None, m)
+
+    def _per_arm(self, ep: EpisodeContext, rf, off: int) -> dict:
+        """Where every arm was and which one grasped, whatever the spec calls active.
+
+        The figures above follow the spec's arm and the grasp_cycles critic; on a robot whose
+        arms take turns from episode to episode that is one arm for the whole run. These keys
+        are read per episode instead: each arm's wrist at the start and the end, each arm's own
+        grasps from its own hand, and the arm that grasped. Informational like the rest.
+        """
+        wrists: dict[str, dict] = {}
+        xyz: dict[str, np.ndarray] = {}
+        for arm, pair in arm_wrist_pairs(rf).items():
+            if not ep.has(pair.state):
+                continue
+            s = ep.array(pair.state)[:, :3]
+            xyz[arm] = s
+            wrists[arm] = {"start_pos_m": _pos(s, 0), "end_pos_m": _pos(s, len(s) - 1)}
+        found: dict[str, dict] = {}
+        for arm, grip in arm_grippers(ep.ds, rf).items():
+            if arm not in xyz or not ep.has(grip.feature):
+                continue
+            sig = closure_signal(ep, grip.feature, grip.dims, grip.closed_is_high)
+            found[arm] = detect_cycles(sig, ep.fps, self.spec.robot.gripper.min_swing)
+        # a resting hand drifts a little, and a drift is a full swing to a detector that scales
+        # to what it sees: only a hand that closes about as far as the busiest one has grasped
+        widest = max((c["swing"] for c in found.values()), default=0.0)
+        by_arm: dict[str, dict] = {}
+        swing: dict[str, float] = {}
+        for arm, c in found.items():
+            cycles = c["cycles"] if widest > 0 and c["swing"] >= RESTING_HAND_SWING_FRAC * widest else []
+            s = xyz[arm]
+            grasp = [_pos(s, k["grasp"] + off) for k in cycles if k.get("grasp") is not None]
+            release = [_pos(s, k["release"]) for k in cycles if k.get("release") is not None]
+            by_arm[arm] = {"grasp_pos_m": [g for g in grasp if g], "release_pos_m": [r for r in release if r]}
+            swing[arm] = float(c["swing"])
+        grasped = [a for a in by_arm if by_arm[a]["grasp_pos_m"]]
+        grasp_arm = max(grasped, key=lambda a: (len(by_arm[a]["grasp_pos_m"]), swing[a])) if grasped else None
+        return {"wrists": wrists, "grasps_by_arm": by_arm, "grasp_arm": grasp_arm}
 
     def finalize(self, results: list[CriticResult], z_cut: float) -> None:
         pts = np.array([g for r in results for g in (r.metrics.get("grasp_pos_m") or [])], float)

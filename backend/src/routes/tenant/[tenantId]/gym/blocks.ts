@@ -41,6 +41,8 @@
  *   DELETE /tenant/:tenantId/gym/blocks/:id/datasets/uploads/:uploadId    give up, drop the chunks
  *   POST   /tenant/:tenantId/gym/blocks/:id/follow-up?lang
  *   GET    /tenant/:tenantId/gym/datasets/:id
+ *   PUT    /tenant/:tenantId/gym/datasets/:id/included           { included }: in or out of the skill's selection as a whole
+ *   POST   /tenant/:tenantId/gym/datasets/:id/export-unfiltered  the dataset with all its episodes, as a zip
  *   DELETE /tenant/:tenantId/gym/datasets/:id
  */
 import type { SymbiosikaFrameworkHonoApp } from "@framework/types";
@@ -59,7 +61,8 @@ import {
   listUploads,
   putChunk,
 } from "../../../../lib/gym/dataset-uploads";
-import { deleteDataset, getDataset, uploadDataset } from "../../../../lib/gym/datasets";
+import { deleteDataset, getDataset, setDatasetIncluded, uploadDataset } from "../../../../lib/gym/datasets";
+import { createUnfilteredExport } from "../../../../lib/gym/exports";
 import { toDayView } from "../../../../lib/gym/day-protocols";
 import {
   closeBlock,
@@ -532,6 +535,36 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
       try {
         const { tenantId, id } = c.req.valid("param");
         return c.json(await getDataset(tenantId, id));
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.put(`${dsBase}/:id/included`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "Take a recording dataset out of the skill's selection as a whole, or back in", responses: ok }),
+    validator("param", tenantIdParam), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id } = c.req.valid("param");
+        const { included } = v.parse(v.object({ included: v.boolean() }), await c.req.json());
+        return c.json(await setDatasetIncluded(tenantId, await actorOf(c), id, included));
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.post(`${dsBase}/:id/export-unfiltered`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "Download one dataset with all its episodes, whatever their verdict or tick", responses: ok }),
+    validator("param", tenantIdParam), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id } = c.req.valid("param");
+        const result = await createUnfilteredExport(tenantId, await actorOf(c), id);
+        // streamed through, like the merged export: a dataset with videos is too big to hold in memory
+        return new Response(result.body, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/zip",
+            "Content-Disposition": `attachment; filename="${result.fileName}"`,
+            "X-Export-Episodes": String(result.episodes),
+          },
+        });
       } catch (e) { throw toHttpError(e); }
     });
 

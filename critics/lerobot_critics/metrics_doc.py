@@ -1091,6 +1091,30 @@ _m(
     "first active cartesian pair (elbows excluded)",
 )
 _m("diversity", "end_pos_m", "End pose", "m", "Wrist position in the last frame.", "state_xyz[-1]")
+_m(
+    "diversity",
+    "wrists",
+    "Wrist start and end per arm",
+    "m",
+    "For every arm with a cartesian state, whatever the spec calls active: the wrist position in the first and in the last frame (start_pos_m, end_pos_m), keyed by the arm's side. On a robot whose arms take turns this is where both arms were in every episode.",
+    "state_xyz[0], state_xyz[-1] per arm",
+)
+_m(
+    "diversity",
+    "grasps_by_arm",
+    "Grasp and release positions per arm",
+    "m",
+    "For every arm with its own hand or gripper and a cartesian state, whatever the spec calls active: the wrist position at each of that hand's grasp and release keyframes (grasp_pos_m, release_pos_m). A hand whose closure swings less than a quarter of the busiest hand's in the episode is resting and has none.",
+    "state_xyz[grasp_frame] per arm, cycles from that arm's hand",
+)
+_m(
+    "diversity",
+    "grasp_arm",
+    "Arm that grasped",
+    "arm",
+    "The arm with the most grasps in this episode (ties: the hand that closed further); empty without a grasp or when the hands carry no side in their name. Informational: scoring follows robot.active_arms.",
+    "argmax over grasps_by_arm",
+)
 _m("diversity", "start_pos_m", "Start pose", "m", "Wrist position in the first frame.", "state_xyz[0]")
 _m(
     "diversity",

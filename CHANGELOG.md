@@ -10,6 +10,42 @@ raises it, and its merge is tagged `v<version>`:
 
 The versions before 0.9.0 were given afterwards, one per merged pull request.
 
+## 0.11.0
+
+Skills in the navigation, a strategy per skill, datasets instead of episodes.
+
+- A Skills tab between Home and Analysis: every skill of the organisation in
+  one list, with a search and a status filter.
+- A skill has a Strategy tab: a written description, pictures and PDFs, and a
+  run sheet, a CSV with one row per episode to record. A recording block can
+  take the run sheet over as its plan ("Import from run sheet", all rows or a
+  range like 1-50): a step per group of rows, an episode per row, the other
+  columns shown to the operator as labelled values. The sheet is a guide:
+  taking it over is optional, a block without it works as before, and no row
+  is tied to a recorded episode.
+- The Episodes tab of a skill lists datasets instead of single episodes: what
+  is selected of each, accept / review / reject of the selected, whether
+  reviews are open, and the critics' grasp spread. A dataset is taken in or
+  out of the selection as a whole with a tick; a row opens to its episodes,
+  read-only.
+- Positions over the selection: pick positions, and each wrist at the start
+  and at the end, as mean and standard deviation per axis, per arm and as the
+  delta between the sides. The data critics measure them per episode
+  (`diversity`: `wrists`, `grasps_by_arm`, `grasp_arm`, for every arm whatever
+  the spec calls active); GYM only adds them up. Datasets analysed before this
+  version carry no positions per arm and show only their grasp positions until
+  they are uploaded again.
+- "Export merged dataset" on the Episodes tab, over the selected episodes of
+  the ticked datasets, and "All episodes" per dataset: the dataset unfiltered,
+  whatever the verdicts and ticks.
+- A VLM failure in the analysis can be acknowledged: it leaves the red banner
+  and stays listed with who and when until that is taken back.
+- A policy can carry a link to where it lives (http or https).
+- The critics name both arms (`ACTIVE_ARMS_BOTH`) when the spec leaves the arms
+  unset, none stands out and both work, the way they name the left or the
+  right one. A statement of the report: scores and the VLM prompt are as
+  before.
+
 ## 0.10.1
 
 - The VLM judge works again with google-genai 3.0, which switched its default

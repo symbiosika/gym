@@ -69,6 +69,8 @@ declare module 'vue' {
     SecondaryButton: typeof import('./volt/SecondaryButton.vue')['default']
     SectionHeader: typeof import('./components/SectionHeader.vue')['default']
     Select: typeof import('./volt/Select.vue')['default']
+    SelectionMetrics: typeof import('./components/skill/SelectionMetrics.vue')['default']
+    SelectionOverview: typeof import('./components/skill/SelectionOverview.vue')['default']
     SettingsPanel: typeof import('./components/specwizard/workbench/SettingsPanel.vue')['default']
     SpecForm: typeof import('./components/spec/SpecForm.vue')['default']
     SpecManager: typeof import('./components/SpecManager.vue')['default']

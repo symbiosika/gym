@@ -163,31 +163,58 @@ def gripper_arm_pair(rf: RobotFeatures) -> FeaturePair | None:
     return pairs[0] if pairs else None
 
 
+def _hand_pairs(ds: LeRobotDataset, rf: RobotFeatures) -> list[FeaturePair]:
+    """The dedicated hand or gripper state features, as pairs."""
+    return [p for p in rf.pairs if p.kind == "hand"] or [
+        FeaturePair(k, k, [], "hand", _arm_of(k), True)
+        for k in ds.features
+        if k.startswith("observation.state") and any(h in k.lower() for h in HAND_HINTS)
+    ]
+
+
+def _hand_signal(ds: LeRobotDataset, p: FeaturePair) -> GripperSignal:
+    f = ds.features[p.state]
+    n = f.shape[0] if f.shape else 1
+    names = [x.lower() for x in (f.names or [])]
+    # for multi-finger hands skip thumb yaw/pitch (they barely move), use the finger flexion dims
+    dims = [i for i, nm in enumerate(names) if ("thumb" not in nm)] if names else list(range(n))
+    dims = dims or list(range(n))
+    return GripperSignal(p.state, dims, True, p.action if p.action != p.state else None)
+
+
+def arm_wrist_pairs(rf: RobotFeatures) -> dict[str, FeaturePair]:
+    """The wrist pose of every arm that has one, by the side in its name, whatever the spec
+    calls active: where each arm is, not which one is scored."""
+    out: dict[str, FeaturePair] = {}
+    for p in _cartesian_pairs(rf, False):
+        if p.arm and p.arm not in out:
+            out[p.arm] = p
+    return out
+
+
+def arm_grippers(ds: LeRobotDataset, rf: RobotFeatures) -> dict[str, GripperSignal]:
+    """The hand or gripper of every arm that has a dedicated one, by the side in its name,
+    whatever the spec calls active. A gripper that is a dimension of a joint vector has no
+    side of its own and is not listed."""
+    out: dict[str, GripperSignal] = {}
+    for p in _hand_pairs(ds, rf):
+        if p.arm and p.arm not in out:
+            out[p.arm] = _hand_signal(ds, p)
+    return out
+
+
 def _auto_gripper(
     ds: LeRobotDataset, rf: RobotFeatures, active_arms: list[str], ep: EpisodeContext | None
 ) -> GripperSignal | None:
     # 1) dedicated hand/gripper state features (prefer active arm, then the one that moves most)
-    hand_pairs = [p for p in rf.pairs if p.kind == "hand"]
-    if not hand_pairs:
-        hand_pairs = [
-            FeaturePair(k, k, [], "hand", _arm_of(k), True)
-            for k in ds.features
-            if k.startswith("observation.state") and any(h in k.lower() for h in HAND_HINTS)
-        ]
+    hand_pairs = _hand_pairs(ds, rf)
     if hand_pairs:
         cands = [p for p in hand_pairs if p.active] or hand_pairs
         if len(cands) > 1 and ep is not None:
             cands.sort(
                 key=lambda p: -float(np.ptp(ep.array(p.state), axis=0).max()) if ep.has(p.state) else 0.0
             )
-        p = cands[0]
-        f = ds.features[p.state]
-        n = f.shape[0] if f.shape else 1
-        names = [x.lower() for x in (f.names or [])]
-        # for multi-finger hands skip thumb yaw/pitch (they barely move), use the finger flexion dims
-        dims = [i for i, nm in enumerate(names) if ("thumb" not in nm)] if names else list(range(n))
-        dims = dims or list(range(n))
-        return GripperSignal(p.state, dims, True, p.action if p.action != p.state else None)
+        return _hand_signal(ds, cands[0])
     # 2) a gripper dimension inside a joint vector
     for p in rf.pairs:
         idx = [i for i, nm in enumerate(p.names) if "gripper" in nm.lower()]

@@ -7,10 +7,10 @@ import { useGym } from '@/stores/gym'
 import { useDialog } from '@/stores/dialog'
 import { useUi } from '@/stores/ui'
 import { NONE } from '@/utils/select'
-import type { AuditEntry, EvaluationReportRecord, PolicyRecord, SelectionView, SkillView as SkillData } from '@/types/gym'
+import type { AuditEntry, EvaluationReportRecord, PolicyRecord, SkillView as SkillData } from '@/types/gym'
 import { fmtDate, fmtDateTime, fmtMinutes, fmtPercent } from '@/utils/time'
 import SectionHeader from '@/components/SectionHeader.vue'
-import EpisodeTable from '@/components/EpisodeTable.vue'
+import SelectionOverview from '@/components/skill/SelectionOverview.vue'
 import IconLaunch from '~icons/carbon/launch'
 import StrategyTab from '@/components/skill/StrategyTab.vue'
 import SpecPicker from '@/components/SpecPicker.vue'
@@ -29,7 +29,6 @@ const tenantId = computed(() => String(route.params.tenantId))
 const skillId = computed(() => String(route.params.skillId))
 
 const skill = ref<SkillData | null>(null)
-const selection = ref<SelectionView | null>(null)
 const audit = ref<AuditEntry[]>([])
 const reports = ref<EvaluationReportRecord[]>([])
 const tab = ref('blocks')
@@ -62,7 +61,6 @@ async function load() {
       collectionId: skill.value.collectionId ?? NONE,
       criticSpecName: skill.value.criticSpecName,
     }
-    selection.value = await gymApi.selection(tenantId.value, skillId.value)
     audit.value = await gymApi.skillAudit(tenantId.value, skillId.value)
     reports.value = await gymApi.evaluationReports(tenantId.value, skillId.value)
   } catch (e) {
@@ -72,11 +70,6 @@ async function load() {
 onMounted(load)
 watch(skillId, load)
 
-const selectedMap = computed(() => {
-  const map: Record<string, boolean> = {}
-  for (const d of selection.value?.datasets ?? []) for (const e of d.episodes) map[e.id] = e.selected
-  return map
-})
 /** the evaluations oldest first, so the success rate reads as a course over time */
 const evaluationsByDate = computed(() => [...(skill.value?.evaluations ?? [])].sort((a, b) => a.date.localeCompare(b.date)))
 const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' : r >= 50 ? 'warn' : 'bad')
@@ -545,8 +538,7 @@ async function removePolicy(p: PolicyRecord) {
       </section>
 
       <section v-else-if="tab === 'episodes'" class="mt-4">
-        <div v-if="!selection || !selection.datasets.length" class="gym-empty">{{ t('skill.noEpisodes') }}</div>
-        <EpisodeTable v-else :selection="selection" :selected="selectedMap" readonly />
+        <SelectionOverview :tenant-id="tenantId" :skill-id="skillId" @exported="load" />
       </section>
 
       <section v-else class="mt-4">

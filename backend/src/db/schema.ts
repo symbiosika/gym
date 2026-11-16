@@ -665,6 +665,13 @@ export const datasets = pgBaseTable(
     /** the critics' report.json and selection.json, mirrored as they are */
     report: jsonb("report").$type<DatasetReport>(),
     selection: jsonb("selection").$type<CriticsSelection>(),
+    /**
+     * Whether the dataset is part of the skill's selection at all. Taken out,
+     * none of its episodes reach an export or the figures over the selection,
+     * while their ticks stay as they are: taking it in again restores them.
+     * Only recording datasets are ever in a selection.
+     */
+    included: boolean("included").notNull().default(true),
     /** a person has seen that the language model did not judge this dataset; null while nobody has */
     vlmFailureAck: jsonb("vlm_failure_ack").$type<VlmFailureAck>(),
     analysisError: text("analysis_error"),

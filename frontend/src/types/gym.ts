@@ -574,6 +574,67 @@ export interface SelectionDatasetInfo {
   /** the day and the cell the dataset was recorded on: the selection spans every recording block of the skill */
   date: string
   cellName: string
+  /** part of the skill's selection; taken out, none of its episodes are exported or counted, their ticks stay */
+  included: boolean
+}
+
+/** A mean and a spread per axis (x, y, z) in centimetres over `n` positions. */
+export interface AxisStat {
+  n: number
+  meanCm: [number, number, number]
+  stdCm: [number, number, number]
+}
+
+/**
+ * The position figures over the selected episodes of the datasets in the
+ * selection: arithmetic over what the critics measured per episode.
+ */
+export interface SelectionMetrics {
+  datasets: number
+  episodes: number
+  /** episodes among them whose report has no positions per arm (analysed before those were measured) */
+  withoutPositions: number
+  pick: { all: AxisStat | null; byArm: Record<string, AxisStat> }
+  wristStart: Record<string, AxisStat>
+  wristEnd: Record<string, AxisStat>
+  /** left minus right, over the episodes where both have a position */
+  deltaStart: AxisStat | null
+  deltaEnd: AxisStat | null
+}
+
+/** One recording dataset of a skill as the Episodes tab lists it. */
+export interface SelectionOverviewRow {
+  dataset: {
+    id: string
+    name: string
+    date: string
+    cellName: string
+    blockId: string
+    dayProtocolId: string
+    analysisStatus: AnalysisStatus
+    included: boolean
+    /** GYM holds the uploaded bytes: the dataset can be merged and exported unfiltered */
+    stored: boolean
+  }
+  episodes: number
+  /** ticked episodes, whether the dataset is part of the selection or not */
+  selected: number
+  accepted: number
+  review: number
+  rejected: number
+  /** episodes of the dataset that still wait for a person */
+  reviewPending: number
+  /** the critics' own spread of the grasp positions (robust, horizontal) and of the start pose; null without */
+  graspSpreadCm: number | null
+  startPoseStdCm: number[] | null
+}
+
+export interface SelectionOverview {
+  skillId: string
+  datasets: SelectionOverviewRow[]
+  /** over the datasets that are part of the selection */
+  totals: Omit<EpisodeTotals, 'recordedSeconds'>
+  metrics: SelectionMetrics
 }
 
 /** One decision of the operator in the selection: only the named fields change. */

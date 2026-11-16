@@ -1,0 +1,1 @@
+ALTER TABLE "gym_datasets" ADD COLUMN "included" boolean DEFAULT true NOT NULL;

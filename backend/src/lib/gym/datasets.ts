@@ -332,3 +332,21 @@ export async function setVlmFailureAck(tenantId: string, actor: Actor, id: strin
   const eps = await getDb().select().from(episodes).where(eq(episodes.datasetId, id)).orderBy(asc(episodes.index));
   return toView(updated!, eps);
 }
+
+/**
+ * Take a recording dataset out of the skill's selection as a whole, or back
+ * in. The ticks of its episodes are not touched: they are the operator's work
+ * and come back with the dataset.
+ */
+export async function setDatasetIncluded(tenantId: string, actor: Actor, id: string, included: boolean): Promise<DatasetView> {
+  const ds = await getDatasetRow(tenantId, id);
+  const block = await getDb().select({ kind: blocks.kind }).from(blocks).where(eq(blocks.id, ds.blockId)).limit(1);
+  if (block[0]?.kind !== "recording") throw new InvalidInputError("Only the datasets of recording blocks are part of a selection");
+  const [updated] = await getDb().update(datasets).set({ included }).where(eq(datasets.id, id)).returning();
+  await recordAudit(tenantId, { skillId: ds.skillId, dayProtocolId: ds.dayProtocolId, blockId: ds.blockId }, actor, included ? "dataset.included" : "dataset.excluded", {
+    datasetId: id,
+    name: ds.name,
+  });
+  const eps = await getDb().select().from(episodes).where(eq(episodes.datasetId, id)).orderBy(asc(episodes.index));
+  return toView(updated!, eps);
+}

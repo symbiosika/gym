@@ -235,6 +235,9 @@ def _two_arm_root(root: Path, mode: str = "right") -> Path:
         hand = np.zeros((n, 4), np.float32)
         hand[int(n * 0.3) :] = 1.0
         idle_hand = np.zeros((n, 4), np.float32)
+        if mode == "alternating":
+            # a resting hand is not perfectly still: a slow drift of 2 % of the working hand's swing
+            idle_hand += (0.02 * np.sin(2 * np.pi * 0.25 * t))[:, None].astype(np.float32)
         work = "none" if mode == "parked" else ("left" if mode == "alternating" and ei % 2 else "right")
         rows: dict = {"_grip": hand[:, 0] if work != "none" else idle_hand[:, 0]}
         for side in ("left", "right"):

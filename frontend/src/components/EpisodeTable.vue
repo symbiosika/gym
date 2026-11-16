@@ -89,7 +89,7 @@ const segment = (active: boolean, tone: 'ok' | 'bad' | 'neutral') =>
       </thead>
       <tbody>
         <template v-for="d in datasets" :key="d.dataset.id">
-          <tr class="bg-surface-100/70 dark:bg-surface-800/40">
+          <tr class="bg-surface-100/70 dark:bg-surface-800/40" :class="d.dataset.included === false ? 'opacity-60' : ''">
             <td>
               <Checkbox
                 v-if="!readonly"
@@ -115,6 +115,9 @@ const segment = (active: boolean, tone: 'ok' | 'bad' | 'neutral') =>
                 · {{ fmtDate(d.dataset.date, locale) }} {{ fmtTime(d.dataset.createdAt) }} · {{ d.dataset.cellName }} ·
                 {{ t('selection.groupCount', { n: d.episodes.filter((e) => selected[e.id]).length, total: d.episodes.length }) }}
               </span>
+              <Pill v-if="d.dataset.included === false" class="ms-2" :title="t('selection.excludedHint')">{{
+                t('selection.excluded')
+              }}</Pill>
               <Pill v-if="d.dataset.analysisStatus !== 'done'" tone="warn" class="ms-2">{{
                 t(`analysisStatus.${d.dataset.analysisStatus}`)
               }}</Pill>

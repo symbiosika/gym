@@ -395,6 +395,8 @@
     "activeArm": "Aktiver Arm: {arm} (überschrieben)"
   },
   "selection": {
+    "excluded": "ausgeschlossen",
+    "excludedHint": "Auf dem Episoden-Tab des Skills aus der Auswahl genommen: Seine Episoden werden nicht exportiert, ihre Haken bleiben.",
     "title": "Episoden auswählen und herunterladen",
     "lead": "Alle Aufnahmen dieses Skills, über alle Tage und Zellen. Abgelehnte sind abgewählt. Wo du den Critics nicht folgst, setz dein Urteil mit ✓ oder ✗; es zählt sofort in allen Kennzahlen.",
     "selectedHint": "Episoden ausgewählt",
@@ -487,6 +489,50 @@
     }
   },
   "skill": {
+    "episodesTab": {
+      "datasets": "Datasets",
+      "selectedOf": "{n} von {total} Episoden ausgewählt",
+      "lead": "Eine Zeile pro aufgenommenem Dataset. Ein Dataset ohne Haken bleibt als Ganzes aus Exporten und Kennzahlen heraus; welche seiner Episoden ausgewählt sind, wird im Block entschieden.",
+      "included": "Dabei",
+      "includedHint": "Teil der Auswahl des Skills",
+      "excluded": "ausgeschlossen",
+      "reviewPending": "{n} zu prüfen",
+      "showEpisodes": "Episoden anzeigen",
+      "readOnly": "Nur lesen. Urteile und Haken werden im Auswahlschritt des Blocks geändert.",
+      "toBlock": "Block öffnen",
+      "graspSpread": "Greifstreuung",
+      "graspSpreadHint": "Die robuste horizontale Streuung der Greifpositionen in diesem Dataset, wie die Critics sie melden",
+      "export": "Export",
+      "exportHint": "Die Auswahl als Manifest: welche Episoden aus welchem Dataset",
+      "exportMerged": "Zusammengeführtes Dataset exportieren",
+      "exportMergedHint": "Die ausgewählten Episoden aller angehakten Datasets als ein LeRobot-Dataset, bereit fürs Training",
+      "merging": "Wird zusammengeführt …",
+      "nothingSelected": "In den angehakten Datasets ist keine Episode ausgewählt.",
+      "exportAll": "Alle Episoden",
+      "exportAllHint": "Dieses Dataset ungefiltert herunterladen: alle {n} Episoden, unabhängig von Urteil und Haken",
+      "notStored": "Aufgenommen, bevor GYM die Uploads aufbewahrt hat: zum Exportieren erneut hochladen.",
+      "arm": {
+        "left": "links",
+        "right": "rechts"
+      },
+      "metrics": {
+        "title": "Positionen über die Auswahl",
+        "base": "{datasets} Datasets · {episodes} Episoden",
+        "without": "{n} ohne Positionen je Arm",
+        "withoutHint": "Datasets, die analysiert wurden, bevor Positionen je Arm gemessen wurden, tragen nur ihre Greifpositionen zur Gesamtzeile bei. Ein neuer Upload wird vollständig gemessen.",
+        "noneSelected": "In den angehakten Datasets ist nichts ausgewählt.",
+        "noneMeasured": "Die Critics haben in den ausgewählten Episoden keine Positionen gemessen (kein kartesischer Handgelenkzustand).",
+        "mean": "Mittel x / y / z (cm)",
+        "std": "Std x / y / z (cm)",
+        "all": "alle",
+        "delta": "Delta links minus rechts",
+        "group": {
+          "pick": "Greifpositionen",
+          "start": "Handgelenk am Start",
+          "end": "Handgelenk am Ende"
+        }
+      }
+    },
     "cell": "Zelle",
     "name": "Name",
     "task": "Aufgabe",
@@ -839,6 +885,11 @@
     "unknown": "offen"
   },
   "info": {
+    "selectionMetrics": [
+      "Positionen über die Auswahl",
+      "Wo der Roboter gegriffen hat und wo seine Handgelenke am Start und am Ende einer Episode waren: Mittelwert und Standardabweichung je Achse, in den Koordinaten des Roboters, mit der Zahl der Positionen hinter jeder Zeile. Gerechnet über die ausgewählten Episoden der angehakten Datasets. Gemessen werden die Positionen von den Data Critics; GYM rechnet nur und bewertet nichts.",
+      "Std 0,4 / 0,6 / 0,1 cm über 150 Griffe: Das Objekt stand fast immer an derselben Stelle."
+    ],
     "wbQuestions": [
       "Fragen an das Modell",
       "Jede Frage ist ein Satz, den das Sprachmodell zu jeder Episode beantwortet. „Muss erfüllt sein“: ist die Antwort nein, wird die Episode abgelehnt. „Zählt nur mit“: die Antwort fließt in den Gesamtscore ein. Eine geänderte Frage zählt erst, wenn sie getestet ist.",

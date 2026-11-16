@@ -35,6 +35,7 @@ import type {
   SampleReport,
   SampleVideo,
   SelectionChange,
+  SelectionOverview,
   SelectionView,
   SkillListItem,
   SkillStrategy,
@@ -232,6 +233,15 @@ export const gymApi = {
    */
   createDatasetExport: (t: string, skillId: string, name?: string) =>
     zipDownload(`${base(t)}/skills/${skillId}/exports/dataset`, name, 'dataset.zip'),
+  /** the selection one row per dataset, with the position figures over what is selected */
+  selectionOverview: (t: string, skillId: string) =>
+    fetcher.get<SelectionOverview>(`${base(t)}/skills/${skillId}/selection/overview`),
+  /** take a recording dataset out of the skill's selection as a whole, or back in */
+  setDatasetIncluded: (t: string, id: string, included: boolean) =>
+    fetcher.put<DatasetView>(`${base(t)}/datasets/${id}/included`, { included }),
+  /** one dataset with all its episodes, whatever their verdict or tick; built by the data critics, so it can take a while */
+  exportUnfiltered: (t: string, id: string) =>
+    zipDownload(`${base(t)}/datasets/${id}/export-unfiltered`, undefined, 'dataset.zip'),
   exportDownloadUrl: (t: string, exportId: string) => `${base(t)}/exports/${exportId}/download`,
 
   // strategy of a skill: description, pictures and PDFs, the run sheet
