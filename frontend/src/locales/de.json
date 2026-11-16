@@ -490,6 +490,20 @@
   },
   "skill": {
     "episodesTab": {
+      "charts": {
+        "scatter": "Positionen",
+        "scatterKey": "Punkt = eine Position · Kreuz = Mittelwert · Ellipse = eine Standardabweichung",
+        "bars": "Mittelwert je Achse",
+        "barsKey": "Balken = Mittelwert · Antenne = eine Standardabweichung nach oben und unten",
+        "plane": {
+          "xy": "von oben · x / y",
+          "xz": "von der Seite · x / z",
+          "yz": "von vorn · y / z"
+        },
+        "episode": "Episode {n}",
+        "meanStd": "Mittel ± Std",
+        "none": "Keine Positionen dieser Art in der Auswahl."
+      },
       "datasets": "Datasets",
       "selectedOf": "{n} von {total} Episoden ausgewählt",
       "lead": "Eine Zeile pro aufgenommenem Dataset. Ein Dataset ohne Haken bleibt als Ganzes aus Exporten und Kennzahlen heraus; welche seiner Episoden ausgewählt sind, wird im Block entschieden.",

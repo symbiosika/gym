@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fmtAxis, metricRows, type MetricRow } from '@/utils/selectionOverview'
-import type { SelectionMetrics } from '@/types/gym'
+import type { SelectionMetrics, SelectionPoint } from '@/types/gym'
+import PositionCharts from '@/components/skill/PositionCharts.vue'
 
 /**
  * The position figures over the selected episodes of the datasets in the
@@ -11,7 +12,13 @@ import type { SelectionMetrics } from '@/types/gym'
  * what the data critics measured per episode; nothing here is judged, so
  * nothing is coloured.
  */
-const props = defineProps<{ metrics: SelectionMetrics }>()
+const props = defineProps<{
+  metrics: SelectionMetrics
+  /** the positions the figures are taken over, for the charts */
+  points: SelectionPoint[]
+  /** dataset names by id */
+  names: Record<string, string>
+}>()
 const { t, te } = useI18n()
 
 const rows = computed(() => metricRows(props.metrics))
@@ -41,6 +48,7 @@ const firstOfGroup = (i: number) => i === 0 || rows.value[i - 1]!.group !== rows
       {{ metrics.episodes ? t('skill.episodesTab.metrics.noneMeasured') : t('skill.episodesTab.metrics.noneSelected') }}
     </div>
     <template v-else>
+      <PositionCharts class="mb-4" :metrics="metrics" :points="points" :names="names" />
       <div class="gym-panel overflow-x-auto">
         <table class="gym-table">
           <thead>

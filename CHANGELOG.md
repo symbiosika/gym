@@ -34,7 +34,10 @@ Skills in the navigation, a strategy per skill, datasets instead of episodes.
   (`diversity`: `wrists`, `grasps_by_arm`, `grasp_arm`, for every arm whatever
   the spec calls active); GYM only adds them up. Datasets analysed before this
   version carry no positions per arm and show only their grasp positions until
-  they are uploaded again.
+  they are uploaded again. The positions are also drawn: a scatter plot on a
+  plane of the robot's coordinates with the mean and one standard deviation
+  per arm, and the mean per axis as bars with the standard deviation as
+  whiskers.
 - "Export merged dataset" on the Episodes tab, over the selected episodes of
   the ticked datasets, and "All episodes" per dataset: the dataset unfiltered,
   whatever the verdicts and ticks.

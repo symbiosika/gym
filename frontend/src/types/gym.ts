@@ -635,6 +635,19 @@ export interface SelectionOverview {
   /** over the datasets that are part of the selection */
   totals: Omit<EpisodeTotals, 'recordedSeconds'>
   metrics: SelectionMetrics
+  /** the positions the figures are taken over, one entry per selected episode that has any, in metres */
+  points: SelectionPoint[]
+}
+
+/** The positions the critics measured in one selected episode, with where the episode is from. */
+export interface SelectionPoint {
+  datasetId: string
+  /** the episode's index in its dataset */
+  episode: number
+  /** the arm that grasped; null without one named */
+  graspArm: string | null
+  grasps: [number, number, number][]
+  wrists: Record<string, { start: [number, number, number] | null; end: [number, number, number] | null }>
 }
 
 /** One decision of the operator in the selection: only the named fields change. */

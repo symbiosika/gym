@@ -50,6 +50,7 @@ declare module 'vue' {
     PageTitle: typeof import('./components/PageTitle.vue')['default']
     Pill: typeof import('./components/Pill.vue')['default']
     PlanEditor: typeof import('./components/PlanEditor.vue')['default']
+    PositionCharts: typeof import('./components/skill/PositionCharts.vue')['default']
     ProfileModal: typeof import('./components/ProfileModal.vue')['default']
     QrCode: typeof import('./components/QrCode.vue')['default']
     QuestionList: typeof import('./components/specwizard/workbench/QuestionList.vue')['default']

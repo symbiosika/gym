@@ -133,6 +133,17 @@ describe("The skill's episodes as datasets", () => {
     expect(o.metrics.pick.byArm).toEqual({});
   });
 
+  test("the positions behind the figures come along, one entry per selected episode, so they can be drawn", async () => {
+    const o = (await overview()) as Overview & { points: { datasetId: string; episode: number; graspArm: string | null; grasps: number[][]; wrists: Record<string, unknown> }[] };
+    expect(o.points).toHaveLength(2);
+    expect(o.points.map((p) => p.episode)).toEqual([0, 1]);
+    expect(o.points[0]).toEqual({ datasetId, episode: 0, graspArm: null, grasps: [[0.4976, -0.0101, 0.89]], wrists: {} });
+    // out of the selection, nothing to draw
+    await testFetcher.put(app, `${base}/datasets/${datasetId}/included`, token, { included: false });
+    expect(((await overview()) as unknown as { points: unknown[] }).points).toEqual([]);
+    await testFetcher.put(app, `${base}/datasets/${datasetId}/included`, token, { included: true });
+  });
+
   test("counts follow the effective verdict, and a review that is open is said so", async () => {
     const eps = await getDb().select().from(episodes).where(eq(episodes.datasetId, datasetId));
     const accepted = eps.find((e) => e.verdict === "accept")!;

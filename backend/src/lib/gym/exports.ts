@@ -403,6 +403,15 @@ export interface SelectionOverview {
   totals: SelectionTotals;
   /** the position figures over the selected episodes of the datasets that are part of the selection */
   metrics: SelectionMetrics;
+  /** the positions the figures are taken over, one entry per such episode, in metres: what a chart draws */
+  points: SelectionPoint[];
+}
+
+/** The positions the critics measured in one selected episode, with where the episode is from. */
+export interface SelectionPoint extends Omit<EpisodePositions, "measured"> {
+  datasetId: string;
+  /** the episode's index in its dataset */
+  episode: number;
 }
 
 const numberOr = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
@@ -427,6 +436,7 @@ export async function getSelectionOverview(tenantId: string, skillId: string): P
   const reportOf = new Map(reports.map((r) => [r.id, r.report]));
 
   const positions: EpisodePositions[] = [];
+  const points: SelectionPoint[] = [];
   let contributing = 0;
   const rows = selection.datasets.map((d): SelectionOverviewRow => {
     const report = reportOf.get(d.dataset.id) ?? null;
@@ -437,7 +447,9 @@ export async function getSelectionOverview(tenantId: string, skillId: string): P
       const byIndex = new Map((report?.episodes ?? []).map((e) => [e.episode, e]));
       for (const e of selected) {
         const reported = byIndex.get(e.index);
-        positions.push(reported ? positionsOf(reported) : { measured: false, graspArm: null, grasps: [], wrists: {} });
+        const { measured, ...at } = reported ? positionsOf(reported) : { measured: false, graspArm: null, grasps: [], wrists: {} };
+        positions.push({ measured, ...at });
+        if (at.grasps.length || Object.keys(at.wrists).length) points.push({ datasetId: d.dataset.id, episode: e.index, ...at });
       }
     }
     const diversity = (report?.dataset_summaries?.diversity ?? {}) as Record<string, unknown>;
@@ -468,6 +480,7 @@ export async function getSelectionOverview(tenantId: string, skillId: string): P
     datasets: rows,
     totals: totalsOf(selection.datasets.filter((d) => d.dataset.included).flatMap((d) => d.episodes)),
     metrics: aggregatePositions(positions, contributing),
+    points,
   };
 }
 

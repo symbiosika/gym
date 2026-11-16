@@ -57,6 +57,9 @@ watch(
   { immediate: true },
 )
 
+const datasetNames = computed(() =>
+  Object.fromEntries((overview.value?.datasets ?? []).map((d) => [d.dataset.id, d.dataset.name])),
+)
 const anySelected = computed(() => (overview.value?.totals.selected ?? 0) > 0)
 
 async function toggle(row: SelectionOverviewRow) {
@@ -246,6 +249,6 @@ async function exportAll(row: SelectionOverviewRow) {
       </div>
     </section>
 
-    <SelectionMetrics :metrics="overview.metrics" />
+    <SelectionMetrics :metrics="overview.metrics" :points="overview.points" :names="datasetNames" />
   </div>
 </template>

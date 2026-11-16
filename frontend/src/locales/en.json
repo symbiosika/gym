@@ -490,6 +490,20 @@
   },
   "skill": {
     "episodesTab": {
+      "charts": {
+        "scatter": "Positions",
+        "scatterKey": "dot = one position · cross = mean · ellipse = one standard deviation",
+        "bars": "Mean per axis",
+        "barsKey": "bar = mean · whisker = one standard deviation either side",
+        "plane": {
+          "xy": "from above · x / y",
+          "xz": "from the side · x / z",
+          "yz": "from the front · y / z"
+        },
+        "episode": "episode {n}",
+        "meanStd": "mean ± std",
+        "none": "No positions of this kind in the selection."
+      },
       "datasets": "Datasets",
       "selectedOf": "{n} of {total} episodes selected",
       "lead": "One row per recording dataset. Tick a dataset out to leave it out of exports and figures as a whole; which of its episodes are selected is decided in the block.",
