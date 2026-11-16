@@ -207,6 +207,17 @@ export interface PlanVariationImage {
   createdAt: string;
 }
 
+/**
+ * A person acknowledged the VLM failure of a dataset: the analysis lists it
+ * as seen, with who and when. It stays until it is taken back.
+ */
+export interface VlmFailureAck {
+  by: string | null;
+  /** the name as it was when acknowledging, so the list needs no look-up */
+  byName: string;
+  at: string;
+}
+
 /** One variation of the scene the operator should set up (a domain randomization). */
 export interface PlanVariation {
   label: string;
@@ -449,6 +460,8 @@ export const policies = pgBaseTable(
     /** the export the policy was trained from, when known */
     exportId: uuid("export_id"),
     notes: text("notes").notNull().default(""),
+    /** where the policy lives outside GYM (a model hub, a training run), http or https; null without one */
+    externalUrl: text("external_url"),
     /** when the training finished, as the operator says */
     trainedAt: timestamp("trained_at", { mode: "string" }),
     createdBy: uuid("created_by"),
@@ -597,6 +610,8 @@ export const datasets = pgBaseTable(
     /** the critics' report.json and selection.json, mirrored as they are */
     report: jsonb("report").$type<DatasetReport>(),
     selection: jsonb("selection").$type<CriticsSelection>(),
+    /** a person has seen that the language model did not judge this dataset; null while nobody has */
+    vlmFailureAck: jsonb("vlm_failure_ack").$type<VlmFailureAck>(),
     analysisError: text("analysis_error"),
     uploadedBy: uuid("uploaded_by"),
     createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),

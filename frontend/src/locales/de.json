@@ -4,6 +4,7 @@
     "sub": "Robotics Gym · Tageswerk",
     "nav": {
       "home": "Start",
+      "skills": "Skills",
       "analysis": "Analyse",
       "robots": "Roboter",
       "settings": "Einstellungen"
@@ -437,6 +438,16 @@
     "confirmTitle": "Block abschließen?",
     "confirmText": "Die Zeit des Blocks endet, der Link fürs Smartphone wird ungültig. Wieder öffnen geht jederzeit."
   },
+  "skills": {
+    "title": "Skills",
+    "sub": "Alle Skills der Organisation",
+    "search": "Suche",
+    "searchPlaceholder": "Name oder Collection",
+    "status": "Status",
+    "allStatuses": "alle",
+    "none": "Noch kein Skill. Ein Skill entsteht, wenn sein erster Block gestartet wird.",
+    "noMatch": "Kein Skill passt zum Filter."
+  },
   "skill": {
     "cell": "Zelle",
     "name": "Name",
@@ -486,6 +497,9 @@
     "trainedFromHint": "Export: {name}",
     "trainedAt": "Trainiert am",
     "policyNotes": "Notizen",
+    "policyLink": "Link",
+    "policyLinkPlaceholder": "https://…",
+    "policyLinkOpen": "Link in neuem Tab öffnen",
     "newPolicy": "Neue Policy",
     "policyPlaceholder": "z. B. v1, act-2026-09-10",
     "addPolicy": "Anlegen",
@@ -529,6 +543,11 @@
     "vlmFailedLead": "Diese Läufe wurden allein von den Hard Critics bewertet. Aufgabenerfüllung, Auffälligkeiten und Personen im Arbeitsbereich sind darin nicht geprüft, die Kennzahlen unten enthalten diesen Teil also nicht.",
     "vlmFailedColumn": "Betroffen",
     "vlmFailedError": "Fehler",
+    "vlmAck": "Quittieren",
+    "vlmAckHint": "Als gesehen markieren. Der Lauf bleibt unten in der Liste, ohne Alarm.",
+    "vlmAckUndo": "Zurücknehmen",
+    "vlmAckedTitle": "{n} quittierte VLM-Ausfälle",
+    "vlmAckedBy": "Quittiert von",
     "skills": "Skills"
   },
   "robots": {

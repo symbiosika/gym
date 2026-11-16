@@ -311,3 +311,24 @@ export async function setFindingOverrides(tenantId: string, actor: Actor, id: st
   const eps = await getDb().select().from(episodes).where(eq(episodes.datasetId, id)).orderBy(asc(episodes.index));
   return toView(refreshed, eps);
 }
+
+/**
+ * A person says they have seen that the language model did not judge this
+ * dataset, or takes that back. Nothing else changes: the failure stays in the
+ * analysis, only no longer as an open one.
+ */
+export async function setVlmFailureAck(tenantId: string, actor: Actor, id: string, acknowledged: boolean): Promise<DatasetView> {
+  const ds = await getDatasetRow(tenantId, id);
+  if (acknowledged && !ds.analysis?.softCriticsFailed) throw new ConflictError("The dataset has no VLM failure to acknowledge");
+  const vlmFailureAck = acknowledged ? { by: actor.userId, byName: actor.userName, at: new Date().toISOString() } : null;
+  const [updated] = await getDb().update(datasets).set({ vlmFailureAck }).where(eq(datasets.id, id)).returning();
+  await recordAudit(
+    tenantId,
+    { skillId: ds.skillId, dayProtocolId: ds.dayProtocolId, blockId: ds.blockId },
+    actor,
+    acknowledged ? "dataset.vlm_failure_ack" : "dataset.vlm_failure_unack",
+    { datasetId: id, name: ds.name },
+  );
+  const eps = await getDb().select().from(episodes).where(eq(episodes.datasetId, id)).orderBy(asc(episodes.index));
+  return toView(updated!, eps);
+}

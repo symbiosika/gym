@@ -44,11 +44,8 @@ const tabs = computed(() => [
     label: t('app.nav.home'),
     match: ['Home', 'StartBlock', 'Continue', 'Block', 'Day'],
   },
-  {
-    name: 'Analysis',
-    label: t('app.nav.analysis'),
-    match: ['Analysis', 'Skill'],
-  },
+  { name: 'Skills', label: t('app.nav.skills'), match: ['Skills', 'Skill'] },
+  { name: 'Analysis', label: t('app.nav.analysis'), match: ['Analysis'] },
   { name: 'Robots', label: t('app.nav.robots'), match: ['Robots'] },
   { name: 'Settings', label: t('app.nav.settings'), match: ['Settings'] },
 ])

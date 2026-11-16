@@ -4,6 +4,7 @@
     "sub": "Robotics gym · daily work",
     "nav": {
       "home": "Home",
+      "skills": "Skills",
       "analysis": "Analysis",
       "robots": "Robots",
       "settings": "Settings"
@@ -437,6 +438,16 @@
     "confirmTitle": "Close the block?",
     "confirmText": "The block's time ends and the phone link stops working. You can reopen it any time."
   },
+  "skills": {
+    "title": "Skills",
+    "sub": "Every skill of the organisation",
+    "search": "Search",
+    "searchPlaceholder": "Name or collection",
+    "status": "Status",
+    "allStatuses": "all",
+    "none": "No skill yet. A skill is created when its first block is started.",
+    "noMatch": "No skill matches the filter."
+  },
   "skill": {
     "cell": "Cell",
     "name": "Name",
@@ -486,6 +497,9 @@
     "trainedFromHint": "Export: {name}",
     "trainedAt": "Trained on",
     "policyNotes": "Notes",
+    "policyLink": "Link",
+    "policyLinkPlaceholder": "https://…",
+    "policyLinkOpen": "Open the link in a new tab",
     "newPolicy": "New policy",
     "policyPlaceholder": "e.g. v1, act-2026-09-10",
     "addPolicy": "Add",
@@ -529,6 +543,11 @@
     "vlmFailedLead": "These runs were judged by the hard critics alone. Task success, anomalies and people in the workspace are not checked in them, so the figures below are missing that part.",
     "vlmFailedColumn": "Affected",
     "vlmFailedError": "Error",
+    "vlmAck": "Acknowledge",
+    "vlmAckHint": "Mark as seen. The run stays in the list below, without the alarm.",
+    "vlmAckUndo": "Undo",
+    "vlmAckedTitle": "{n} acknowledged VLM failures",
+    "vlmAckedBy": "Acknowledged by",
     "skills": "Skills"
   },
   "robots": {

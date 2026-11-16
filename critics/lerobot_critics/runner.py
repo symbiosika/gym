@@ -218,7 +218,10 @@ def run(
         eps = sorted(set(eps) | {e for e in options.include_episodes if e in ds.episodes})
     # the arms the critics score: what the spec names, checked against what moves in the data
     spec = spec.model_copy(deep=True)
-    spec.robot.active_arms, spec_flags = resolve_active_arms(ds, spec)
+    reported_arms, spec_flags = resolve_active_arms(ds, spec)
+    # "both" is said in the report only: unset already scores all arms, and naming them in the
+    # spec would tell the VLM that both arms do the task in every episode
+    spec.robot.active_arms = [] if "ACTIVE_ARMS_BOTH" in spec_flags else reported_arms
     spec_dict = json.loads(spec.model_dump_json())
     soft_on = options.run_soft and spec.soft_critics.enabled and spec.soft_critics.vlm.provider != "none"
     composite = (
@@ -387,7 +390,7 @@ def run(
         dataset_name=ds.root.name,
         spec_name=spec.name,
         spec=spec_dict,
-        active_arms=list(spec.robot.active_arms),
+        active_arms=list(reported_arms),
         created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         robot_type=ds.robot_type,
         fps=ds.fps,

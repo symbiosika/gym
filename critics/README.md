@@ -171,7 +171,11 @@ judgement (scoring, critics, thresholds) or the robot's tuning; any other key, t
 nested, answers 422, also with `spec: null`. The stored spec is untouched, the job keeps the
 merged spec (`GET /jobs/{id}/spec`) and the overrides (`GET /jobs/{id}`, `spec_overrides`).
 With `spec: null` the generated spec takes the arms from the override; without one it leaves
-`active_arms` empty and the run defaults them from motion (`ACTIVE_ARMS_UNSET`).
+`active_arms` empty and the run defaults them from motion (`ACTIVE_ARMS_UNSET`). When no arm stands
+out and every arm works (each wrist reaches at least 5 cm inside an episode, as on a run sheet
+that alternates the arms), the report names all of them and says so with `ACTIVE_ARMS_BOTH`.
+That is a statement of the report only: the spec the critics run with keeps `active_arms`
+empty, which already scores every arm, so neither the scores nor the VLM prompt change.
 
 **The pre-roll.** An evaluation stack records from the start, but the policy takes over a few
 seconds in: until then the action topic carries zeros while the state is the resting robot.

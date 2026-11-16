@@ -1,0 +1,1 @@
+ALTER TABLE "gym_policies" ADD COLUMN "external_url" text;

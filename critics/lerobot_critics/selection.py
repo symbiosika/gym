@@ -83,6 +83,7 @@ FLAG_ACTION: dict[str, str] = {
     "MULTIGRASP": "keep it only if retries are desired behaviour",
     "REGRASP": "keep it only if re-adjusting is desired behaviour, otherwise re-record",
     "ACTIVE_ARMS_UNSET": "name the active arm in the spec to confirm what was defaulted from motion",
+    "ACTIVE_ARMS_BOTH": "nothing to do when both arms work; name one arm in the spec when only one should be scored",
     "ACTIVE_ARMS_SUSPECT": "check robot.active_arms: the other arm moves far more than the one named",
     "ACTIVE_ARMS_UNKNOWN": "fix robot.active_arms: it names an arm the dataset does not have",
     "UNFINISHED_GRASP": "trim the tail or re-record the release; the hand stayed closed at the end",

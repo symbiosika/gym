@@ -56,3 +56,31 @@ def test_auto_spec_keeps_the_arms_it_is_given(two_arm_dataset):
     from lerobot_critics.spec.autospec import auto_spec
 
     assert auto_spec(two_arm_dataset, active_arms=["left"]).robot.active_arms == ["left"]
+
+
+def test_unset_arms_that_both_work_are_named_as_both(alternating_arm_dataset, two_arm_spec):
+    arms, flags = resolve_active_arms(LeRobotDataset(alternating_arm_dataset), two_arm_spec([]))
+    assert arms == ["left", "right"]
+    assert list(flags) == ["ACTIVE_ARMS_BOTH"]
+    assert "both arms move comparably" in flags["ACTIVE_ARMS_BOTH"]
+
+
+def test_two_parked_arms_are_not_called_both(parked_arms_dataset, two_arm_spec):
+    arms, flags = resolve_active_arms(LeRobotDataset(parked_arms_dataset), two_arm_spec([]))
+    assert arms == [] and flags == {}
+
+
+def test_run_reports_both_arms_but_the_spec_stays_unset(alternating_arm_dataset, tmp_path, two_arm_spec):
+    from lerobot_critics.runner import RunOptions, run
+    from lerobot_critics.selection import FLAG_ACTION
+
+    rep = run(
+        alternating_arm_dataset,
+        two_arm_spec([]),
+        RunOptions(out_dir=str(tmp_path), run_soft=False, contact_sheets=False),
+    )
+    assert rep.active_arms == ["left", "right"]
+    assert "ACTIVE_ARMS_BOTH" in rep.dataset_flags and "ACTIVE_ARMS_UNSET" not in rep.dataset_flags
+    # report only: the critics ran with the arms unset, so scoring and the VLM prompt are as before
+    assert rep.spec["robot"]["active_arms"] == []
+    assert "ACTIVE_ARMS_BOTH" in FLAG_ACTION

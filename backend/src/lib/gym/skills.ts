@@ -341,7 +341,22 @@ export const policyInputSchema = v.object({
   notes: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(4000)), ""),
   /** ISO timestamp of the training's end; null when unknown */
   trainedAt: v.optional(v.nullable(v.string()), null),
+  /** a link to where the policy lives, http or https; empty or null for none */
+  externalUrl: v.optional(v.nullable(v.pipe(v.string(), v.trim(), v.maxLength(2000))), null),
 });
+
+/** The link of a policy as it is stored: nothing for an empty one, and only a web address is taken. */
+const externalUrlOf = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  let protocol = "";
+  try {
+    protocol = new URL(value).protocol;
+  } catch {
+    // not a URL at all: refused below
+  }
+  if (protocol !== "http:" && protocol !== "https:") throw new InvalidInputError("The link must start with http:// or https://");
+  return value;
+};
 
 const trainedAtOf = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -378,7 +393,7 @@ export async function createPolicy(tenantId: string, actor: Actor, skillId: stri
   }
   const [row] = await getDb()
     .insert(policies)
-    .values({ tenantId, skillId, name: data.name, exportId: data.exportId, notes: data.notes, trainedAt: trainedAtOf(data.trainedAt), createdBy: actor.userId })
+    .values({ tenantId, skillId, name: data.name, exportId: data.exportId, notes: data.notes, externalUrl: externalUrlOf(data.externalUrl), trainedAt: trainedAtOf(data.trainedAt), createdBy: actor.userId })
     .returning();
   await recordAudit(tenantId, { skillId }, actor, "policy.created", { policyId: row!.id, name: row!.name, exportId: data.exportId });
   return utcRow(row!);
@@ -396,6 +411,7 @@ export async function updatePolicy(tenantId: string, actor: Actor, id: string, i
   if (data.exportId !== undefined) patch.exportId = data.exportId;
   if (data.notes !== undefined) patch.notes = data.notes;
   if (data.trainedAt !== undefined) patch.trainedAt = trainedAtOf(data.trainedAt);
+  if (data.externalUrl !== undefined) patch.externalUrl = externalUrlOf(data.externalUrl);
   const [updated] = await getDb().update(policies).set(patch).where(eq(policies.id, id)).returning();
   await recordAudit(tenantId, { skillId: row.skillId }, actor, "policy.updated", { policyId: id, ...data });
   return utcRow(updated!);

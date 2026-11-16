@@ -372,6 +372,8 @@ export interface PolicyRecord {
   name: string
   exportId: string | null
   notes: string
+  /** where the policy lives outside GYM, http or https */
+  externalUrl: string | null
   trainedAt: string | null
   createdAt: string
   updatedAt: string
@@ -600,6 +602,9 @@ export interface VlmFailure {
   episodes: number
   failedEpisodes: number
   error: string | null
+  /** when a person acknowledged the failure, and who; null while it is open */
+  acknowledgedAt: string | null
+  acknowledgedBy: string | null
 }
 
 export interface KpiResult {

@@ -73,6 +73,9 @@ export interface VlmFailure {
   /** episodes the model failed on */
   failedEpisodes: number;
   error: string | null;
+  /** when a person acknowledged the failure, and who; null while it is open */
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
 }
 
 export interface KpiPerDay {
@@ -238,6 +241,8 @@ export async function getKpis(tenantId: string, filter: KpiFilter = {}): Promise
           episodes: ds.analysis.episodes,
           failedEpisodes: ds.analysis.softCriticsFailedEpisodes,
           error: ds.analysis.softCriticsError,
+          acknowledgedAt: ds.vlmFailureAck?.at ?? null,
+          acknowledgedBy: ds.vlmFailureAck?.byName ?? null,
         });
       }
       if (r.block.kind === "recording") {

@@ -10,6 +10,7 @@
  *   GET /tenant/:tenantId/gym/critics/hard-critics          the technical checks with their default parameters, for the spec editor
  *   POST /tenant/:tenantId/gym/critics/specs                multipart "file": a spec as YAML or JSON (+ name)
  *   PUT /tenant/:tenantId/gym/datasets/:id/findings        { reviewFlags, ignoreFlags }: downgrade findings, the critics replay the verdicts
+ *   PUT /tenant/:tenantId/gym/datasets/:id/vlm-failure-ack { acknowledged }: a person has seen that the language model did not judge the dataset
  *   GET /tenant/:tenantId/gym/datasets/:id/report          the mirrored report.json
  *   GET /tenant/:tenantId/gym/datasets/:id/report.html     the visual report (proxied)
  *   GET /tenant/:tenantId/gym/datasets/:id/markdown?detail the AI-readable Markdown (proxied)
@@ -24,7 +25,7 @@ import * as v from "valibot";
 import { criticsBaseUrl, criticsClient } from "../../../../lib/critics/client";
 import { deleteSpec, getSpec, hardCritics, saveSpecText, specTemplate, uploadSpec } from "../../../../lib/critics/specs";
 import { specUsage } from "../../../../lib/gym/skills";
-import { getDatasetRow, setFindingOverrides } from "../../../../lib/gym/datasets";
+import { getDatasetRow, setFindingOverrides, setVlmFailureAck } from "../../../../lib/gym/datasets";
 import { actorOf, ok, tenantIdParam, tenantParam, toHttpError } from "./_shared";
 
 /**
@@ -134,6 +135,17 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
       try {
         const { tenantId, id } = c.req.valid("param");
         return c.json(await setFindingOverrides(tenantId, await actorOf(c), id, await c.req.json()));
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.put(`${dsBase}/:id/vlm-failure-ack`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "Acknowledge that the language model did not judge a dataset, or take that back", responses: ok }),
+    validator("param", tenantIdParam), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id } = c.req.valid("param");
+        const { acknowledged } = v.parse(v.object({ acknowledged: v.boolean() }), await c.req.json());
+        return c.json(await setVlmFailureAck(tenantId, await actorOf(c), id, acknowledged));
       } catch (e) { throw toHttpError(e); }
     });
 

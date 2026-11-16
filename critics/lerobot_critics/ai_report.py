@@ -54,6 +54,7 @@ FLAG_GLOSSARY: dict[str, str] = {
     # tracking error
     "TRACKERR": "follower deviates from the commanded pose beyond the bad threshold (active arm)",
     "ACTIVE_ARMS_UNSET": "robot.active_arms was not set; the arm that moves in the data was scored",
+    "ACTIVE_ARMS_BOTH": "robot.active_arms was not set; both arms move, so both were scored",
     "ACTIVE_ARMS_SUSPECT": "an arm the spec calls inactive moves far more than the active one",
     "ACTIVE_ARMS_UNKNOWN": "robot.active_arms names an arm the features do not carry; all arms were scored",
     "INACTIVE_ARM_TRACKERR": "an arm that is not doing the task deviates from its command",

@@ -238,12 +238,12 @@ export const gymApi = {
   createPolicy: (
     t: string,
     skillId: string,
-    body: { name: string; exportId?: string | null; notes?: string; trainedAt?: string | null },
+    body: { name: string; exportId?: string | null; notes?: string; trainedAt?: string | null; externalUrl?: string | null },
   ) => fetcher.post<PolicyRecord>(`${base(t)}/skills/${skillId}/policies`, body),
   updatePolicy: (
     t: string,
     id: string,
-    body: { name?: string; exportId?: string | null; notes?: string; trainedAt?: string | null },
+    body: { name?: string; exportId?: string | null; notes?: string; trainedAt?: string | null; externalUrl?: string | null },
   ) => fetcher.put<PolicyRecord>(`${base(t)}/policies/${id}`, body),
   deletePolicy: (t: string, id: string) => fetcher.delete<void>(`${base(t)}/policies/${id}`),
 
@@ -456,6 +456,9 @@ export const gymApi = {
   datasetReportUrl: (t: string, id: string) => `${base(t)}/datasets/${id}/report.html`,
   datasetFileUrl: (t: string, id: string, path: string) => `${base(t)}/datasets/${id}/files/${path}`,
   dataset: (t: string, id: string) => fetcher.get<DatasetView>(`${base(t)}/datasets/${id}`),
+  /** a person has seen that the language model did not judge the dataset, or takes that back */
+  setVlmFailureAck: (t: string, id: string, acknowledged: boolean) =>
+    fetcher.put<DatasetView>(`${base(t)}/datasets/${id}/vlm-failure-ack`, { acknowledged }),
   /**
    * Downgrade findings of a run: `reviewFlags` only cap an episode at review
    * (a warning), `ignoreFlags` are muted, `disabledCritics` do not count at

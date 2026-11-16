@@ -16,6 +16,7 @@ const router = createRouter({
     { path: '/tenant/:tenantId/continue', name: 'Continue', component: () => import('@/views/ContinueView.vue') },
     { path: '/tenant/:tenantId/block/:blockId', name: 'Block', component: () => import('@/views/BlockWizardView.vue') },
     { path: '/tenant/:tenantId/day/:dayId', name: 'Day', component: () => import('@/views/DayView.vue') },
+    { path: '/tenant/:tenantId/skills', name: 'Skills', component: () => import('@/views/SkillsView.vue') },
     { path: '/tenant/:tenantId/skills/:skillId', name: 'Skill', component: () => import('@/views/SkillView.vue') },
     { path: '/tenant/:tenantId/analysis', name: 'Analysis', component: () => import('@/views/AnalysisView.vue') },
     {
