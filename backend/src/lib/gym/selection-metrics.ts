@@ -13,8 +13,9 @@
  * use it in their run summary, so the two can be read side by side.
  *
  * A report from before the per-arm keys carries the grasp positions of one arm
- * and no wrists per arm. Such an episode adds what it has to the overall pick
- * figure and is counted in `withoutPositions`, so the reader sees the base.
+ * and no wrists per arm, and so does a robot with one arm whose features name
+ * no side. Such an episode adds what it has to the overall pick figure and is
+ * counted in `withoutPositions`, so the reader sees the base.
  */
 import type { EpisodeReport } from "../critics/client";
 
@@ -71,6 +72,11 @@ export function positionsOf(ep: EpisodeReport): EpisodePositions {
   const wrists: EpisodePositions["wrists"] = {};
   for (const [arm, w] of Object.entries(m.wrists)) {
     if (isObject(w)) wrists[arm] = { start: xyz(w.start_pos_m), end: xyz(w.end_pos_m) };
+  }
+  if (!Object.keys(wrists).length) {
+    // one arm whose features carry no side: the critics have no arm to name, and the grasps
+    // they report for the arm of the run are the ones there are
+    return { measured: false, graspArm: null, grasps: xyzList(m.grasp_pos_m), wrists: {} };
   }
   const graspArm = typeof m.grasp_arm === "string" && m.grasp_arm ? m.grasp_arm : null;
   const byArm = isObject(m.grasps_by_arm) ? m.grasps_by_arm[graspArm ?? ""] : null;

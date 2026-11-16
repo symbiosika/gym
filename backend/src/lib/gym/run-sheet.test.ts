@@ -62,6 +62,19 @@ describe("parseRunSheet", () => {
     refused("a,b\n1,2", "nope"); // grouped by a column the sheet does not have
   });
 
+  test("empty columns at the right edge, as a spreadsheet leaves them, are dropped", () => {
+    const sheet = parseRunSheet("a;b;;\n1;2;;\n3;4\n", "s.csv", null);
+    expect(sheet.columns).toEqual(["a", "b"]);
+    expect(sheet.rows).toEqual([{ a: "1", b: "2" }, { a: "3", b: "4" }]);
+    // a surplus cell that says something is still a mistake in the sheet
+    expect(() => parseRunSheet("a;b\n1;2;x", "s.csv", null)).toThrow(/line 2/);
+  });
+
+  test("a file that is not UTF-8 is refused with what to do, not stored with broken letters", () => {
+    // what a browser hands over after reading a Windows-1252 file as UTF-8
+    expect(() => parseRunSheet("episode,target\n1,gr\uFFFDne Flasche", "s.csv", null)).toThrow(/UTF-8/);
+  });
+
   test("the limits: rows and columns", () => {
     const rows = (n: number) => ["a", ...Array.from({ length: n }, (_, i) => String(i))].join("\n");
     expect(parseRunSheet(rows(RUN_SHEET_MAX_ROWS), "s.csv", null).rows).toHaveLength(RUN_SHEET_MAX_ROWS);

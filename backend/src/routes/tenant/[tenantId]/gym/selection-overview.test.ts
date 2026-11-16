@@ -158,6 +158,13 @@ describe("The skill's episodes as datasets", () => {
     expect(out.status).toBe(200);
     expect(out.jsonResponse.included).toBe(false);
 
+    // the same "selected" everywhere: the skill's own figure and the key figures follow the overview
+    const figures = async () => ({
+      skill: (await testFetcher.get(app, `${base}/skills/${skillId}`, token)).jsonResponse.selectedEpisodes as number,
+      kpis: (await testFetcher.get(app, `${base}/kpis?skillId=${skillId}`, token)).jsonResponse.totals.selected as number,
+    });
+    expect(await figures()).toEqual({ skill: 0, kpis: 0 });
+
     const o = await overview();
     expect(o.datasets[0]!.dataset.included).toBe(false);
     // the row still says what is ticked in it
@@ -181,6 +188,7 @@ describe("The skill's episodes as datasets", () => {
 
     const back = await testFetcher.put(app, `${base}/datasets/${datasetId}/included`, token, { included: true });
     expect(back.jsonResponse.included).toBe(true);
+    expect(await figures()).toEqual({ skill: 2, kpis: 2 });
     const again = await overview();
     expect(again.metrics.episodes).toBe(2);
     expect(again.totals.selected).toBe(2);

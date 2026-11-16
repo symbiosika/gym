@@ -207,7 +207,8 @@ export async function getKpis(tenantId: string, filter: KpiFilter = {}): Promise
         if (verdict === "accept") t.accepted += 1;
         if (verdict === "review") t.review += 1;
         if (verdict === "reject") t.rejected += 1;
-        if (e.selected) t.selected += 1;
+        // ticked, and in a dataset that is part of the selection: what an export would take
+        if (e.selected && ds.included) t.selected += 1;
         if (e.durationSeconds != null) t.recordedSeconds = (t.recordedSeconds ?? 0) + e.durationSeconds;
       }
     }

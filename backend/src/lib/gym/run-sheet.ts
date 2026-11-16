@@ -82,10 +82,15 @@ function separatorOf(text: string): string {
  */
 export function parseRunSheet(csv: string, fileName: string, groupBy: string | null): RunSheet {
   const text = csv.replace(/^﻿/, "");
+  // U+FFFD is what a reader leaves where bytes were not UTF-8: a sheet saved as plain "CSV"
+  // by a spreadsheet on Windows. Stored like that, every umlaut in a plan label would be lost.
+  if (text.includes("\uFFFD")) throw new InvalidInputError('The run sheet is not UTF-8. Save it as "CSV UTF-8" and upload it again.');
   const lines = readCells(text, separatorOf(text.trimStart()));
   const header = lines.shift();
   if (!header) throw new InvalidInputError("The run sheet is empty");
   const columns = header.cells.map((c) => c.trim());
+  // a spreadsheet leaves empty columns at the right edge when cells there were touched once
+  while (columns.length && !columns[columns.length - 1]) columns.pop();
   if (columns.length > RUN_SHEET_MAX_COLUMNS) throw new InvalidInputError(`A run sheet has at most ${RUN_SHEET_MAX_COLUMNS} columns`);
   if (columns.some((c) => !c)) throw new InvalidInputError("Every column of the run sheet needs a name in the first row");
   const twice = columns.find((c, i) => columns.indexOf(c) !== i);
@@ -94,7 +99,7 @@ export function parseRunSheet(csv: string, fileName: string, groupBy: string | n
   if (lines.length > RUN_SHEET_MAX_ROWS) throw new InvalidInputError(`A run sheet has at most ${RUN_SHEET_MAX_ROWS} rows`);
   if (groupBy != null && !columns.includes(groupBy)) throw new InvalidInputError(`The run sheet has no column "${groupBy}" to group by`);
   const rows = lines.map(({ cells, line }) => {
-    if (cells.length > columns.length) throw new InvalidInputError(`The run sheet has more cells than columns in line ${line}`);
+    if (cells.slice(columns.length).some((c) => c !== "")) throw new InvalidInputError(`The run sheet has more cells than columns in line ${line}`);
     return Object.fromEntries(columns.map((c, i) => [c, cells[i] ?? ""]));
   });
   return { fileName, columns, rows, groupBy, importedAt: new Date().toISOString() };

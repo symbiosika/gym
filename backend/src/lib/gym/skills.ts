@@ -209,7 +209,8 @@ export async function listSkills(tenantId: string, filter: ListFilter = {}): Pro
       accepted: sql<number>`count(*) filter (where ${effectiveVerdictSql} = 'accept')`,
       review: sql<number>`count(*) filter (where ${effectiveVerdictSql} = 'review')`,
       rejected: sql<number>`count(*) filter (where ${effectiveVerdictSql} = 'reject')`,
-      selected: sql<number>`count(*) filter (where ${episodes.selected})`,
+      // what an export would take: ticked, and in a dataset that is part of the selection
+      selected: sql<number>`count(*) filter (where ${episodes.selected} and ${datasets.included})`,
     })
     .from(episodes)
     .innerJoin(datasets, eq(datasets.id, episodes.datasetId))

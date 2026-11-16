@@ -60,6 +60,12 @@ describe("positionsOf", () => {
     expect(positionsOf(old)).toEqual({ measured: false, graspArm: null, grasps: [[0.1, 0.2, 0.3]], wrists: {} });
   });
 
+  test("one arm without a side in its name: no arm to name, so the grasps the critics report for the run's arm are taken", () => {
+    const single = episode([critic("diversity", { grasp_pos_m: [[0.1, 0.2, 0.3]], start_pos_m: [0.3, 0.1, 0.9], wrists: {}, grasps_by_arm: {}, grasp_arm: null })]);
+    // counted as without positions per arm: the reader sees that the per-arm lines have no base here
+    expect(positionsOf(single)).toEqual({ measured: false, graspArm: null, grasps: [[0.1, 0.2, 0.3]], wrists: {} });
+  });
+
   test("no diversity result, a failed one, or values that are not positions: nothing, and no throw", () => {
     const nothing = { measured: false, graspArm: null, grasps: [], wrists: {} };
     expect(positionsOf(episode([critic("smoothness", {})]))).toEqual(nothing);
