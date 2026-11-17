@@ -1,0 +1,1 @@
+ALTER TABLE "gym_datasets" ADD COLUMN "vlm_failure_ack" jsonb;

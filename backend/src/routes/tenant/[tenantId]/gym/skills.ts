@@ -25,7 +25,7 @@ import { describeRoute, validator } from "hono-openapi";
 import * as v from "valibot";
 import { SKILL_STATUSES } from "../../../../db/schema";
 import { listAudit } from "../../../../lib/gym/audit";
-import { createExport, createMergedExport, getExportZip, getSelection, listExports, updateSelection } from "../../../../lib/gym/exports";
+import { createExport, createMergedExport, getExportZip, getSelection, getSelectionOverview, listExports, updateSelection } from "../../../../lib/gym/exports";
 import { createPolicy, createSkill, deletePolicy, deleteSkill, getSkill, listPolicies, listSkills, updatePolicy, updateSkill } from "../../../../lib/gym/skills";
 import { actorOf, ok, tenantIdParam, tenantParam, toHttpError } from "./_shared";
 
@@ -122,6 +122,16 @@ export default function defineSkillRoutes(app: SymbiosikaFrameworkHonoApp, API_B
       try {
         const { tenantId, id } = c.req.valid("param");
         return c.json(await updateSelection(tenantId, await actorOf(c), id, await c.req.json()));
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.get(`${base}/:id/selection/overview`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "The selection one row per dataset, with the position figures over what is selected", responses: ok }),
+    validator("param", tenantIdParam), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id } = c.req.valid("param");
+        return c.json(await getSelectionOverview(tenantId, id));
       } catch (e) { throw toHttpError(e); }
     });
 

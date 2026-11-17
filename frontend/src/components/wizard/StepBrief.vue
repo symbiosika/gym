@@ -5,6 +5,7 @@ import { gymApi } from '@/api/gym'
 import { useGym } from '@/stores/gym'
 import { useDialog } from '@/stores/dialog'
 import type { AccessTokenInfo, BlockKind, BlockView, Lang, PolicyRecord, SkillListItem } from '@/types/gym'
+import RunSheetImport from '@/components/wizard/RunSheetImport.vue'
 import { fmtDate } from '@/utils/time'
 import QrCode from '@/components/QrCode.vue'
 import IconCamera from '~icons/carbon/camera'
@@ -352,6 +353,15 @@ async function doImport(s: SkillListItem) {
 
     <div class="gym-stepnav">
       <SecondaryButton :label="t('brief.importFrom')" @click="openImport" />
+      <!-- the skill's run sheet as the plan: only offered when there is one, and before there is a plan -->
+      <RunSheetImport
+        v-if="!block.plan"
+        :block="block"
+        :tenant-id="tenantId"
+        :disabled="!!busy"
+        @update="(b) => emit('update', b)"
+        @error="(m) => emit('error', m)"
+      />
       <span class="grow"></span>
       <span v-if="navHint" class="text-xs text-surface-500 dark:text-surface-400">{{ navHint }}</span>
       <!-- without a plan the block runs on the target alone; with one the way on is that plan -->

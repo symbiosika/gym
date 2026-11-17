@@ -6,7 +6,7 @@ import { gymApi } from '@/api/gym'
 import { useGym } from '@/stores/gym'
 import { useUi } from '@/stores/ui'
 import { NONE } from '@/utils/select'
-import type { DayView, KpiResult, SkillListItem } from '@/types/gym'
+import type { DayView, KpiResult, SkillListItem, VlmFailure } from '@/types/gym'
 import { addDays, fmtDate, fmtMinutes, fmtPercent, fmtSecs, today } from '@/utils/time'
 import IconWarning from '~icons/carbon/warning-alt-filled'
 import KpiTile from '@/components/KpiTile.vue'
@@ -72,6 +72,22 @@ const maxDay = computed(() => Math.max(1, ...(kpis.value?.perDay.map((d) => d.ep
  * above the figures, not under them.
  */
 const vlmFailures = computed(() => kpis.value?.vlmFailures ?? [])
+/** the ones nobody has acknowledged yet: only these are loud */
+const openVlmFailures = computed(() => vlmFailures.value.filter((f) => !f.acknowledgedAt))
+const ackedVlmFailures = computed(() => vlmFailures.value.filter((f) => f.acknowledgedAt))
+const ackBusy = ref('')
+/** A person has seen the failure, or takes that back. The figures are read again, the list follows. */
+async function acknowledge(f: VlmFailure, acknowledged: boolean) {
+  ackBusy.value = f.datasetId
+  try {
+    await gymApi.setVlmFailureAck(tenantId.value, f.datasetId, acknowledged)
+    await load()
+  } catch (e) {
+    ui.showBanner('err', e instanceof Error ? e.message : String(e))
+  } finally {
+    ackBusy.value = ''
+  }
+}
 const blockLink = (f: { blockId: string }) => ({ name: 'Block', params: { tenantId: tenantId.value, blockId: f.blockId } })
 /** design.md: at least 80 % ok, at least 50 % warn, else bad. */
 const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' : r >= 50 ? 'warn' : 'bad')
@@ -102,13 +118,13 @@ const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' :
         half of the analysis, and nothing else on this page would say so.
       -->
       <section
-        v-if="vlmFailures.length"
+        v-if="openVlmFailures.length"
         class="mb-5 rounded-panel border border-s-[3px] border-bad/40 border-s-bad bg-bad-soft px-4 py-3.5"
         role="alert"
       >
         <div class="flex flex-wrap items-center gap-2">
           <IconWarning class="text-bad size-5 shrink-0" aria-hidden="true" />
-          <b class="text-bad">{{ t('analysis.vlmFailedTitle', { n: vlmFailures.length }) }}</b>
+          <b class="text-bad">{{ t('analysis.vlmFailedTitle', { n: openVlmFailures.length }) }}</b>
         </div>
         <p class="mt-1.5 text-sm text-surface-700 dark:text-surface-200">{{ t('analysis.vlmFailedLead') }}</p>
         <div class="mt-2.5 overflow-x-auto">
@@ -121,10 +137,11 @@ const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' :
                 <th>{{ t('analysis.dataset') }}</th>
                 <th class="num">{{ t('analysis.vlmFailedColumn') }}</th>
                 <th>{{ t('analysis.vlmFailedError') }}</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="f in vlmFailures" :key="f.datasetId">
+              <tr v-for="f in openVlmFailures" :key="f.datasetId">
                 <td class="font-mono text-xs whitespace-nowrap">
                   <RouterLink class="text-primary hover:underline" :to="blockLink(f)">{{ fmtDate(f.date, locale) }}</RouterLink>
                 </td>
@@ -135,11 +152,69 @@ const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' :
                 <td>{{ f.datasetName }}</td>
                 <td class="num whitespace-nowrap">{{ f.failedEpisodes }} / {{ f.episodes }}</td>
                 <td class="font-mono text-xs">{{ f.error ?? '–' }}</td>
+                <td class="text-end">
+                  <SecondaryButton
+                    size="small"
+                    :disabled="ackBusy === f.datasetId"
+                    :label="t('analysis.vlmAck')"
+                    :title="t('analysis.vlmAckHint')"
+                    @click="acknowledge(f, true)"
+                  />
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
+
+      <!-- seen by a person: still part of the record, no longer an alarm -->
+      <details v-if="ackedVlmFailures.length" class="gym-note mb-5">
+        <summary class="cursor-pointer text-sm font-medium">
+          {{ t('analysis.vlmAckedTitle', { n: ackedVlmFailures.length }) }}
+        </summary>
+        <div class="mt-2.5 overflow-x-auto">
+          <table class="gym-table">
+            <thead>
+              <tr>
+                <th>{{ t('day.date') }}</th>
+                <th>{{ t('analysis.cell') }}</th>
+                <th>{{ t('block.skill') }}</th>
+                <th>{{ t('analysis.dataset') }}</th>
+                <th class="num">{{ t('analysis.vlmFailedColumn') }}</th>
+                <th>{{ t('analysis.vlmAckedBy') }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="f in ackedVlmFailures" :key="f.datasetId">
+                <td class="font-mono text-xs whitespace-nowrap">
+                  <RouterLink class="text-primary hover:underline" :to="blockLink(f)">{{ fmtDate(f.date, locale) }}</RouterLink>
+                </td>
+                <td class="whitespace-nowrap">{{ f.cellName }}</td>
+                <td class="whitespace-nowrap">
+                  {{ f.skillName }} <Pill v-if="f.kind === 'evaluation'" tone="warn">{{ t('block.kind.evaluation') }}</Pill>
+                </td>
+                <td>{{ f.datasetName }}</td>
+                <td class="num whitespace-nowrap">{{ f.failedEpisodes }} / {{ f.episodes }}</td>
+                <td class="whitespace-nowrap">
+                  {{ f.acknowledgedBy || '–' }}
+                  <span class="font-mono text-xs text-surface-500 dark:text-surface-400">
+                    · {{ fmtDate(f.acknowledgedAt!, locale) }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <SecondaryButton
+                    size="small"
+                    :disabled="ackBusy === f.datasetId"
+                    :label="t('analysis.vlmAckUndo')"
+                    @click="acknowledge(f, false)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
 
       <!-- eight figures: two clean rows of four, one column on a phone -->
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -171,7 +171,11 @@ judgement (scoring, critics, thresholds) or the robot's tuning; any other key, t
 nested, answers 422, also with `spec: null`. The stored spec is untouched, the job keeps the
 merged spec (`GET /jobs/{id}/spec`) and the overrides (`GET /jobs/{id}`, `spec_overrides`).
 With `spec: null` the generated spec takes the arms from the override; without one it leaves
-`active_arms` empty and the run defaults them from motion (`ACTIVE_ARMS_UNSET`).
+`active_arms` empty and the run defaults them from motion (`ACTIVE_ARMS_UNSET`). When no arm stands
+out and every arm works (each wrist reaches at least 5 cm inside an episode, as on a run sheet
+that alternates the arms), the report names all of them and says so with `ACTIVE_ARMS_BOTH`.
+That is a statement of the report only: the spec the critics run with keeps `active_arms`
+empty, which already scores every arm, so neither the scores nor the VLM prompt change.
 
 **The pre-roll.** An evaluation stack records from the start, but the policy takes over a few
 seconds in: until then the action topic carries zeros while the state is the resting robot.
@@ -196,7 +200,7 @@ stays a dropout (`ZERO_FRAMES`). `preroll_min_s: null` switches the detection of
 | `grasp_cycles` | close→open cycles of the hand/gripper (hysteresis; re-grasps within 1 s merged into one attempt; closures without a ≥ 5 cm carry counted as *idle closures*, not attempts) vs `task.expected_cycles`; produces grasp/release keyframes; **grasp profile** per cycle: closing duration, wrist motion while closing, settle time before closing, gaps between cycles, active share of the episode | `NOGRASP` `CYCLE_COUNT` `MULTIGRASP` `REGRASP` `UNFINISHED_GRASP` |
 | `tremor` | **where the shaking comes from**: share of command vs robot-state velocity power above 5 Hz (Welch PSD) and the dominant tremor frequency (8–12 Hz = human hand tremor through the input device), hold-phase jitter (how much the command still moves while the hand should be still: detrended position std, RMS speed), commanded vs measured rotation speed, finger command speed | `TREMOR` `HOLD_JITTER` |
 | `normalization` | **training-statistics hygiene**: all-zero dropout frames in pose/joint features (one such frame drags the dataset min/max range to 0 and costs the policy most of its action resolution), the start-up delay before the first real command (the pre-roll, reported as `preroll_s` and not counted), constant action dimensions, drift of arms that should idle (`robot.active_arms`), actions that are copies of the state; run level: inflation of the `meta/stats.json` min/max range per dimension | `ZERO_FRAMES` `IDLE_ARM_DRIFT` `ACTION_IS_STATE` · run level `STATS_RANGE_INFLATED` `DEAD_ACTION_DIMS` |
-| `diversity` | **spatial diversity** of the demonstrations: wrist position at every grasp / release keyframe and at the start; run level: std, robust std and range across the run. Informational (weight 0): a run whose grasps all lie within a few cm teaches a fixed trajectory, not a visually guided grasp | run level `LOW_DIVERSITY` |
+| `diversity` | **spatial diversity** of the demonstrations: wrist position at every grasp / release keyframe and at the start; run level: std, robust std and range across the run. Informational (weight 0): a run whose grasps all lie within a few cm teaches a fixed trajectory, not a visually guided grasp. Per episode it also reports, for every arm whatever the spec calls active, the wrist at the start and the end (`wrists`), that arm's own grasp and release positions (`grasps_by_arm`) and the arm that grasped (`grasp_arm`), so a run whose arms take turns can be read arm by arm | run level `LOW_DIVERSITY` |
 
 `tracking_error` additionally reports the **teleop latency** as a sub-frame estimate in
 milliseconds (`lag_ms`, cross-correlation of command and state velocities with parabolic

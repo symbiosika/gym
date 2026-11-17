@@ -106,6 +106,34 @@
       "when": 1793786211456,
       "tag": "0014_robots_system_product_version",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794840210421,
+      "tag": "0015_cool_wilson_fisk",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794840300181,
+      "tag": "0016_lucky_killraven",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794840790461,
+      "tag": "0017_funny_shadowcat",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794841609962,
+      "tag": "0018_tricky_ezekiel",
+      "breakpoints": true
     }
   ]
 }

@@ -163,31 +163,58 @@ def gripper_arm_pair(rf: RobotFeatures) -> FeaturePair | None:
     return pairs[0] if pairs else None
 
 
+def _hand_pairs(ds: LeRobotDataset, rf: RobotFeatures) -> list[FeaturePair]:
+    """The dedicated hand or gripper state features, as pairs."""
+    return [p for p in rf.pairs if p.kind == "hand"] or [
+        FeaturePair(k, k, [], "hand", _arm_of(k), True)
+        for k in ds.features
+        if k.startswith("observation.state") and any(h in k.lower() for h in HAND_HINTS)
+    ]
+
+
+def _hand_signal(ds: LeRobotDataset, p: FeaturePair) -> GripperSignal:
+    f = ds.features[p.state]
+    n = f.shape[0] if f.shape else 1
+    names = [x.lower() for x in (f.names or [])]
+    # for multi-finger hands skip thumb yaw/pitch (they barely move), use the finger flexion dims
+    dims = [i for i, nm in enumerate(names) if ("thumb" not in nm)] if names else list(range(n))
+    dims = dims or list(range(n))
+    return GripperSignal(p.state, dims, True, p.action if p.action != p.state else None)
+
+
+def arm_wrist_pairs(rf: RobotFeatures) -> dict[str, FeaturePair]:
+    """The wrist pose of every arm that has one, by the side in its name, whatever the spec
+    calls active: where each arm is, not which one is scored."""
+    out: dict[str, FeaturePair] = {}
+    for p in _cartesian_pairs(rf, False):
+        if p.arm and p.arm not in out:
+            out[p.arm] = p
+    return out
+
+
+def arm_grippers(ds: LeRobotDataset, rf: RobotFeatures) -> dict[str, GripperSignal]:
+    """The hand or gripper of every arm that has a dedicated one, by the side in its name,
+    whatever the spec calls active. A gripper that is a dimension of a joint vector has no
+    side of its own and is not listed."""
+    out: dict[str, GripperSignal] = {}
+    for p in _hand_pairs(ds, rf):
+        if p.arm and p.arm not in out:
+            out[p.arm] = _hand_signal(ds, p)
+    return out
+
+
 def _auto_gripper(
     ds: LeRobotDataset, rf: RobotFeatures, active_arms: list[str], ep: EpisodeContext | None
 ) -> GripperSignal | None:
     # 1) dedicated hand/gripper state features (prefer active arm, then the one that moves most)
-    hand_pairs = [p for p in rf.pairs if p.kind == "hand"]
-    if not hand_pairs:
-        hand_pairs = [
-            FeaturePair(k, k, [], "hand", _arm_of(k), True)
-            for k in ds.features
-            if k.startswith("observation.state") and any(h in k.lower() for h in HAND_HINTS)
-        ]
+    hand_pairs = _hand_pairs(ds, rf)
     if hand_pairs:
         cands = [p for p in hand_pairs if p.active] or hand_pairs
         if len(cands) > 1 and ep is not None:
             cands.sort(
                 key=lambda p: -float(np.ptp(ep.array(p.state), axis=0).max()) if ep.has(p.state) else 0.0
             )
-        p = cands[0]
-        f = ds.features[p.state]
-        n = f.shape[0] if f.shape else 1
-        names = [x.lower() for x in (f.names or [])]
-        # for multi-finger hands skip thumb yaw/pitch (they barely move), use the finger flexion dims
-        dims = [i for i, nm in enumerate(names) if ("thumb" not in nm)] if names else list(range(n))
-        dims = dims or list(range(n))
-        return GripperSignal(p.state, dims, True, p.action if p.action != p.state else None)
+        return _hand_signal(ds, cands[0])
     # 2) a gripper dimension inside a joint vector
     for p in rf.pairs:
         idx = [i for i, nm in enumerate(p.names) if "gripper" in nm.lower()]
@@ -195,6 +222,10 @@ def _auto_gripper(
             # LeRobot SO-100 style: larger value = more open -> closed_is_high False
             return GripperSignal(p.state, idx, False, p.action)
     return None
+
+
+# an arm whose wrist stays within this extent in every sampled episode is parked, not working
+BOTH_ARMS_MIN_SPAN_M = 0.05
 
 
 def _arm_names(rf: RobotFeatures) -> set[str]:
@@ -209,13 +240,32 @@ def arm_motion(ds: LeRobotDataset, spec: CriticSpec, n_episodes: int = 5) -> dic
     average and without all-zero rows, so sensor noise on a parked arm does not add up to
     motion. Arms are keyed by the side in the feature name; pairs with no side are skipped.
     """
+    return _arm_travel(ds, spec, n_episodes)[0]
+
+
+def arm_span(ds: LeRobotDataset, spec: CriticSpec, n_episodes: int = 5) -> dict[str, float]:
+    """The widest reach per arm in metres: the largest extent of its wrist position inside one
+    of the first ``n_episodes`` episodes.
+
+    A path adds up on a parked arm too, a few centimetres of sensor noise per episode; an
+    extent does not. This is what tells an arm that works from one that only shivers.
+    """
+    return _arm_travel(ds, spec, n_episodes)[1]
+
+
+def _arm_travel(
+    ds: LeRobotDataset, spec: CriticSpec, n_episodes: int
+) -> tuple[dict[str, float], dict[str, float]]:
+    """Path and widest extent per arm, see ``arm_motion`` and ``arm_span``."""
     from ..critics.hard._util import dropout_rows, smooth
 
-    out: dict[str, float] = {}
+    path: dict[str, float] = {}
+    span: dict[str, float] = {}
     rf = detect_features(ds, spec)
     pairs = [p for p in rf.pairs if p.kind == "cartesian" and p.arm and "elbow" not in p.state.lower()]
     for arm in sorted({p.arm for p in pairs if p.arm}):
-        out[arm] = 0.0
+        path[arm] = 0.0
+        span[arm] = 0.0
     for idx in ds.episode_indices()[: max(1, n_episodes)]:
         ep = ds.episode(idx)
         drop = dropout_rows(ep, rf)
@@ -226,8 +276,9 @@ def arm_motion(ds: LeRobotDataset, spec: CriticSpec, n_episodes: int = 5) -> dic
             if len(xyz) < 3:
                 continue
             sm = np.stack([smooth(xyz[:, k], 5) for k in range(3)], 1)
-            out[p.arm] += float(np.linalg.norm(np.diff(sm, axis=0), axis=1).sum())  # type: ignore[index]
-    return out
+            path[p.arm] += float(np.linalg.norm(np.diff(sm, axis=0), axis=1).sum())  # type: ignore[index]
+            span[p.arm] = max(span[p.arm], float(np.linalg.norm(np.ptp(sm, axis=0))))  # type: ignore[index]
+    return path, span
 
 
 def resolve_active_arms(
@@ -236,7 +287,10 @@ def resolve_active_arms(
     """The arms the critics score, checked against the data, and what was found.
 
     Unset on a robot with two or more arms: the arm that moves at least ``ratio`` times as
-    much as the quietest one is the active one (``ACTIVE_ARMS_UNSET``). Set and an inactive
+    much as the quietest one is the active one (``ACTIVE_ARMS_UNSET``); when none stands out
+    and every arm reaches at least ``BOTH_ARMS_MIN_SPAN_M`` in an episode, all of them are
+    named (``ACTIVE_ARMS_BOTH``), which the runner reports without changing what is scored:
+    unset already means all arms. Set and an inactive
     arm moves clearly more than the named ones: kept, but ``ACTIVE_ARMS_SUSPECT``. Set to a
     name no feature carries: all arms are scored (``ACTIVE_ARMS_UNKNOWN``).
     """
@@ -264,6 +318,13 @@ def resolve_active_arms(
                     f"robot.active_arms is not set: the {top} arm moves {_times(motion[top], low)} as much "
                     f"as the other, so only it is scored"
                 )
+            }
+        span = arm_span(ds, spec, n_episodes)
+        if min(span.values(), default=0.0) >= BOTH_ARMS_MIN_SPAN_M:
+            arms = sorted(motion)
+            both = "both arms move" if len(arms) == 2 else f"all {len(arms)} arms move"
+            return arms, {
+                "ACTIVE_ARMS_BOTH": f"robot.active_arms is not set: {both} comparably, so both are scored"
             }
         return [], {}
     active_max = max((motion.get(a, 0.0) for a in named), default=0.0)

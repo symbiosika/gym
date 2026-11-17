@@ -223,7 +223,7 @@ def render_markdown(report: DatasetReport) -> str:
     L.append(
         f"- Spec: **{report.spec_name}** · robot `{report.robot_type}` · {report.fps:g} fps · {len(report.cameras)} cameras  "
     )
-    if "ACTIVE_ARMS_UNSET" in report.dataset_flags:
+    if "ACTIVE_ARMS_UNSET" in report.dataset_flags or "ACTIVE_ARMS_BOTH" in report.dataset_flags:
         how = "defaulted from motion"
     elif not report.active_arms:
         how = "all"

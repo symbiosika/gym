@@ -47,6 +47,8 @@ import { recordAudit, SYSTEM_ACTOR, type Actor, type AuditRefs } from "./audit";
 import { getCell } from "./cells";
 import { ensureDay, getDayRow } from "./day-protocols";
 import { ConflictError, InvalidInputError, NotFoundError, TokenError, UpstreamError } from "./errors";
+import { formatEpisodeSelection, parseEpisodeSelection } from "./episode-selection";
+import { planStepsFromRunSheet, RUN_SHEET_MAX_ROWS } from "./run-sheet";
 import { effectiveVerdictSql } from "./evaluations";
 import { getPolicyRow, getSkillRow } from "./skills";
 import { blockTimes, closeIntervals, openInterval, teleopMinutes as teleopMinutesOf, type BlockTimes } from "./teleop";
@@ -686,6 +688,57 @@ export async function generatePlan(tenantId: string, actor: Actor, id: string, l
   return toBlockView(updated!);
 }
 
+const fromRunSheetSchema = v.object({
+  /** rows of the sheet like pages for printing, counted from 1: "1-50", "1-3,6,8"; empty takes all */
+  rows: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
+});
+
+/**
+ * Take the run sheet of the skill over as the plan of a recording block: a
+ * step per group of rows, an episode per row (lib/gym/run-sheet.ts). The
+ * sheet is a guide and taking it over is the operator's choice; a block that
+ * never does works as before.
+ *
+ * It replaces the plan like a new proposal does, so it is only allowed while
+ * nothing was recorded against the plan it would replace: once the recording
+ * step is open or an episode is counted, the sheet no longer replaces it.
+ */
+export async function planFromRunSheet(tenantId: string, actor: Actor, id: string, input: unknown): Promise<BlockView> {
+  const data = v.parse(fromRunSheetSchema, input ?? {});
+  const row = await getBlockRow(tenantId, id);
+  if (row.kind !== "recording") throw new InvalidInputError("A run sheet is taken over by a recording block only");
+  const sheet = (await getSkillRow(tenantId, row.skillId)).strategy?.runSheet;
+  if (!sheet) throw new InvalidInputError("The skill has no run sheet");
+  const recorded = Object.values(row.progress?.completed ?? {}).some((n) => n > 0);
+  const windowOpen = (row.teleopIntervals ?? []).some((w) => !w.endedAt);
+  if (recorded || windowOpen) throw new ConflictError("Recording has started: the plan cannot be replaced by the run sheet");
+
+  let rowNumbers: number[] | null = null;
+  if (data.rows) {
+    rowNumbers = parseEpisodeSelection(data.rows, RUN_SHEET_MAX_ROWS);
+    const outside = rowNumbers.find((n) => n < 1 || n > sheet.rows.length);
+    if (outside !== undefined) throw new InvalidInputError(`The run sheet has the rows 1-${sheet.rows.length}, not ${outside}`);
+  }
+  const taken = rowNumbers ?? sheet.rows.map((_, i) => i + 1);
+  const rows = formatEpisodeSelection(taken);
+  const plan: RecordingPlan = {
+    summary: `Run sheet ${sheet.fileName}, rows ${rows}`.slice(0, 2000),
+    sceneSetup: [],
+    randomizations: [],
+    steps: planStepsFromRunSheet(sheet, rowNumbers).map((step) => ({ id: newStepId(), ...step })),
+    source: "manual",
+    createdAt: new Date().toISOString(),
+  };
+  const [updated] = await getDb()
+    .update(blocks)
+    .set({ plan, progress: null, step: "plan", updatedAt: new Date().toISOString() })
+    .where(eq(blocks.id, id))
+    .returning();
+  await deleteVariationImageFiles(tenantId, planImageRefs(row.plan));
+  await recordAudit(tenantId, refsOf(row), actor, "block.plan_from_run_sheet", { fileName: sheet.fileName, rows, episodes: taken.length, steps: plan.steps.length });
+  return toBlockView(updated!);
+}
+
 export const planInputSchema = v.object({
   summary: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
   sceneSetup: v.optional(v.array(v.pipe(v.string(), v.trim(), v.maxLength(500))), []),
@@ -707,6 +760,13 @@ export const planInputSchema = v.object({
              * plan, so a client can keep or drop an image but never invent one.
              */
             image: v.optional(v.nullable(v.object({ ref: v.pipe(v.string(), v.minLength(1), v.maxLength(400)) }))),
+            /** what a run sheet said about the episode: carried through an edit as it is */
+            fields: v.optional(
+              v.pipe(
+                v.array(v.object({ name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(300)), value: v.pipe(v.string(), v.trim(), v.maxLength(300)) })),
+                v.maxLength(50),
+              ),
+            ),
           }),
         ),
       }),
@@ -738,6 +798,7 @@ export async function updatePlan(tenantId: string, actor: Actor, id: string, inp
         episodes: x.episodes,
         imagePrompt: x.imagePrompt,
         image: (x.image && known.get(x.image.ref)) ?? null,
+        ...(x.fields?.length ? { fields: x.fields } : {}),
       })),
       episodes: s.variations.reduce((a, x) => a + x.episodes, 0),
     })),

@@ -9,6 +9,7 @@ import defineCriticsRoutes from "./critics";
 import defineEvaluationRoutes from "./evaluations";
 import defineSpecDraftRoutes from "./spec-drafts";
 import defineRobotRoutes from "./robots";
+import defineStrategyRoutes from "./strategy";
 
 /** All authenticated gym routes under /tenant/:tenantId/gym/… */
 export default function defineGymRoutes(app: SymbiosikaFrameworkHonoApp, API_BASE_PATH = "") {
@@ -22,4 +23,5 @@ export default function defineGymRoutes(app: SymbiosikaFrameworkHonoApp, API_BAS
   defineEvaluationRoutes(app, API_BASE_PATH);
   defineSpecDraftRoutes(app, API_BASE_PATH);
   defineRobotRoutes(app, API_BASE_PATH);
+  defineStrategyRoutes(app, API_BASE_PATH);
 }

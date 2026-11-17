@@ -93,6 +93,18 @@
   --gym-bad-bg: #fae6e4;
   --gym-info: #1f7bab;
   --gym-info-bg: #e2f2fb;
+
+  /*
+   * Series colours of charts: identity, not state. Slot 1 is the left arm,
+   * slot 2 the right one, slot 3 the delta between them; a mark without a side
+   * is drawn in the neutral surface-500. Never used for a verdict or a status
+   * (those are ok / warn / bad), and never cycled: a fourth series gets no
+   * colour of its own. Checked for colour-blind separation and contrast on the
+   * panel surface, in both modes.
+   */
+  --gym-series-1: #2a78d6;
+  --gym-series-2: #eb6834;
+  --gym-series-3: #6250d6;
 }
 
 /* Light */
@@ -124,6 +136,9 @@
 
 /* Dark */
 :root.dark {
+  --gym-series-1: #3987e5;
+  --gym-series-2: #d95926;
+  --gym-series-3: #9085e9;
   --p-primary-color: var(--p-primary-400);
   --p-primary-contrast-color: var(--p-surface-950);
   --p-primary-hover-color: var(--p-primary-300);

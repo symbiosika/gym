@@ -4,6 +4,7 @@
     "sub": "Robotics Gym · Tageswerk",
     "nav": {
       "home": "Start",
+      "skills": "Skills",
       "analysis": "Analyse",
       "robots": "Roboter",
       "settings": "Einstellungen"
@@ -171,6 +172,14 @@
     "sceneHint": "Foto und Beschreibung, hier oder mit dem Smartphone."
   },
   "plan": {
+    "runSheet": {
+      "import": "Aus Run Sheet übernehmen",
+      "rows": "Zeilen des Run Sheets",
+      "rowsHint": "Zeilen wie Seiten beim Drucken, z. B. 1-50 oder 1-3,6,8. Leer übernimmt alle {n} Zeilen.",
+      "hint": "\"{name}\" ({n} Zeilen) als Plan übernehmen: ein Schritt pro Gruppe, eine Episode pro Zeile.",
+      "confirm": "Plan durch das Run Sheet ersetzen?",
+      "confirmText": "Der aktuelle Plan und seine Referenzbilder werden ersetzt. Dagegen wurde noch nichts aufgenommen."
+    },
     "title": "Fahrplan für die nächsten Stunden",
     "lead": "Vorschlag aus Foto und Text: Aufbauten und Variationen. Alles lässt sich ändern und speichert von selbst.",
     "summary": "Zusammenfassung",
@@ -386,6 +395,8 @@
     "activeArm": "Aktiver Arm: {arm} (überschrieben)"
   },
   "selection": {
+    "excluded": "ausgeschlossen",
+    "excludedHint": "Auf dem Episoden-Tab des Skills aus der Auswahl genommen: Seine Episoden werden nicht exportiert, ihre Haken bleiben.",
     "title": "Episoden auswählen und herunterladen",
     "lead": "Alle Aufnahmen dieses Skills, über alle Tage und Zellen. Abgelehnte sind abgewählt. Wo du den Critics nicht folgst, setz dein Urteil mit ✓ oder ✗; es zählt sofort in allen Kennzahlen.",
     "selectedHint": "Episoden ausgewählt",
@@ -437,7 +448,107 @@
     "confirmTitle": "Block abschließen?",
     "confirmText": "Die Zeit des Blocks endet, der Link fürs Smartphone wird ungültig. Wieder öffnen geht jederzeit."
   },
+  "skills": {
+    "title": "Skills",
+    "sub": "Alle Skills der Organisation",
+    "search": "Suche",
+    "searchPlaceholder": "Name oder Collection",
+    "status": "Status",
+    "allStatuses": "alle",
+    "none": "Noch kein Skill. Ein Skill entsteht, wenn sein erster Block gestartet wird.",
+    "noMatch": "Kein Skill passt zum Filter."
+  },
+  "strategy": {
+    "lead": "Wie dieser Skill aufgenommen werden soll, so wie sein Team es festgehalten hat. Alles hier ist optional: Ein Block funktioniert mit und ohne.",
+    "text": {
+      "title": "Beschreibung",
+      "hint": "wird beim Verlassen des Felds gespeichert",
+      "placeholder": "Was aufgenommen wird, welche Variationen wichtig sind, worauf zu achten ist …"
+    },
+    "files": {
+      "title": "Bilder und PDFs",
+      "hint": "PNG, JPEG, WebP oder PDF, je bis 20 MB",
+      "add": "Dateien hinzufügen",
+      "none": "Noch keine Dateien.",
+      "open": "In neuem Tab öffnen",
+      "removeConfirm": "\"{name}\" entfernen?"
+    },
+    "runSheet": {
+      "title": "Run Sheet",
+      "hint": "eine CSV mit einer Zeile pro aufzunehmender Episode",
+      "upload": "CSV hochladen",
+      "replace": "CSV ersetzen",
+      "none": "Noch kein Run Sheet. Lade eine CSV mit Kopfzeile hoch; ein Block kann sie dann als Aufnahmeplan übernehmen.",
+      "groupBy": "Zu Planschritten gruppieren nach",
+      "groupByHint": "aufeinanderfolgende Zeilen mit gleichem Wert bilden einen Schritt",
+      "noGroup": "keine Gruppierung · ein Schritt",
+      "counts": "{rows} Zeilen · {groups} Schritte",
+      "more": "und {n} weitere Zeilen",
+      "removeConfirm": "Run Sheet entfernen?",
+      "removeText": "Pläne, die Blöcke bereits daraus übernommen haben, bleiben wie sie sind."
+    }
+  },
   "skill": {
+    "episodesTab": {
+      "charts": {
+        "scatter": "Positionen",
+        "scatterKey": "Punkt = eine Position · Kreuz = Mittelwert · Ellipse = eine Standardabweichung",
+        "bars": "Streuung je Achse",
+        "barsKey": "Balken = eine Standardabweichung",
+        "std": "Std",
+        "mean": "Mittel",
+        "plane": {
+          "xy": "von oben · x / y",
+          "xz": "von der Seite · x / z",
+          "yz": "von hinten · y / z"
+        },
+        "episode": "Episode {n}",
+        "meanStd": "Mittel ± Std",
+        "none": "Keine Positionen dieser Art in der Auswahl."
+      },
+      "datasets": "Datasets",
+      "selectedOf": "{n} von {total} Episoden ausgewählt",
+      "lead": "Eine Zeile pro aufgenommenem Dataset. Ein Dataset ohne Haken bleibt als Ganzes aus Exporten und Kennzahlen heraus; welche seiner Episoden ausgewählt sind, wird im Block entschieden.",
+      "included": "Dabei",
+      "includedHint": "Teil der Auswahl des Skills",
+      "excluded": "ausgeschlossen",
+      "reviewPending": "{n} zu prüfen",
+      "showEpisodes": "Episoden anzeigen",
+      "readOnly": "Nur lesen. Urteile und Haken werden im Auswahlschritt des Blocks geändert.",
+      "toBlock": "Block öffnen",
+      "graspSpread": "Greifstreuung",
+      "graspSpreadHint": "Die robuste horizontale Streuung der Greifpositionen in diesem Dataset, wie die Critics sie melden",
+      "export": "Export",
+      "exportHint": "Die Auswahl als Manifest: welche Episoden aus welchem Dataset",
+      "exportMerged": "Zusammengeführtes Dataset exportieren",
+      "exportMergedHint": "Die ausgewählten Episoden aller angehakten Datasets als ein LeRobot-Dataset, bereit fürs Training",
+      "merging": "Wird zusammengeführt …",
+      "nothingSelected": "In den angehakten Datasets ist keine Episode ausgewählt.",
+      "exportAll": "Alle Episoden",
+      "exportAllHint": "Dieses Dataset ungefiltert herunterladen: alle {n} Episoden, unabhängig von Urteil und Haken",
+      "notStored": "Aufgenommen, bevor GYM die Uploads aufbewahrt hat: zum Exportieren erneut hochladen.",
+      "arm": {
+        "left": "links",
+        "right": "rechts"
+      },
+      "metrics": {
+        "title": "Positionen über die Auswahl",
+        "base": "{datasets} Datasets · {episodes} Episoden",
+        "without": "{n} ohne Positionen je Arm",
+        "withoutHint": "Datasets, die analysiert wurden, bevor Positionen je Arm gemessen wurden, tragen nur ihre Greifpositionen zur Gesamtzeile bei. Ein neuer Upload wird vollständig gemessen.",
+        "noneSelected": "In den angehakten Datasets ist nichts ausgewählt.",
+        "noneMeasured": "Die Critics haben in den ausgewählten Episoden keine Positionen gemessen (kein kartesischer Handgelenkzustand).",
+        "mean": "Mittel x / y / z (cm)",
+        "std": "Std x / y / z (cm)",
+        "all": "alle",
+        "delta": "Delta links minus rechts",
+        "group": {
+          "pick": "Greifpositionen",
+          "start": "Handgelenk am Start",
+          "end": "Handgelenk am Ende"
+        }
+      }
+    },
     "cell": "Zelle",
     "name": "Name",
     "task": "Aufgabe",
@@ -463,6 +574,7 @@
     "deleteConfirm": "Skill mit allen Blöcken, Datasets, Exporten und Policies löschen? Die Tagesprotokolle bleiben.",
     "tabs": {
       "blocks": "Blöcke",
+      "strategy": "Strategie",
       "evaluations": "Evaluierungen",
       "policies": "Policies",
       "episodes": "Episoden",
@@ -486,6 +598,9 @@
     "trainedFromHint": "Export: {name}",
     "trainedAt": "Trainiert am",
     "policyNotes": "Notizen",
+    "policyLink": "Link",
+    "policyLinkPlaceholder": "https://…",
+    "policyLinkOpen": "Link in neuem Tab öffnen",
     "newPolicy": "Neue Policy",
     "policyPlaceholder": "z. B. v1, act-2026-09-10",
     "addPolicy": "Anlegen",
@@ -529,6 +644,11 @@
     "vlmFailedLead": "Diese Läufe wurden allein von den Hard Critics bewertet. Aufgabenerfüllung, Auffälligkeiten und Personen im Arbeitsbereich sind darin nicht geprüft, die Kennzahlen unten enthalten diesen Teil also nicht.",
     "vlmFailedColumn": "Betroffen",
     "vlmFailedError": "Fehler",
+    "vlmAck": "Quittieren",
+    "vlmAckHint": "Als gesehen markieren. Der Lauf bleibt unten in der Liste, ohne Alarm.",
+    "vlmAckUndo": "Zurücknehmen",
+    "vlmAckedTitle": "{n} quittierte VLM-Ausfälle",
+    "vlmAckedBy": "Quittiert von",
     "skills": "Skills"
   },
   "robots": {
@@ -781,6 +901,11 @@
     "unknown": "offen"
   },
   "info": {
+    "selectionMetrics": [
+      "Positionen über die Auswahl",
+      "Wo der Roboter gegriffen hat und wo seine Handgelenke am Start und am Ende einer Episode waren: Mittelwert und Standardabweichung je Achse, in den Koordinaten des Roboters, mit der Zahl der Positionen hinter jeder Zeile. Gerechnet über die ausgewählten Episoden der angehakten Datasets. Gemessen werden die Positionen von den Data Critics; GYM rechnet nur und bewertet nichts.",
+      "Std 0,4 / 0,6 / 0,1 cm über 150 Griffe: Das Objekt stand fast immer an derselben Stelle."
+    ],
     "wbQuestions": [
       "Fragen an das Modell",
       "Jede Frage ist ein Satz, den das Sprachmodell zu jeder Episode beantwortet. „Muss erfüllt sein“: ist die Antwort nein, wird die Episode abgelehnt. „Zählt nur mit“: die Antwort fließt in den Gesamtscore ein. Eine geänderte Frage zählt erst, wenn sie getestet ist.",

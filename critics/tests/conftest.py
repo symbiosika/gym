@@ -206,12 +206,15 @@ TWO_ARM_FPS = 30  # a tremor at 10 Hz needs a frame rate above 20
 TWO_ARM_LENGTH = 300
 
 
-@pytest.fixture(scope="session")
-def two_arm_dataset(tmp_path_factory) -> Path:
-    """Two arms and two hands. The right arm does the task and its hand closes at 30 % of the
-    episode and stays closed; the left arm is parked (its command offset by 19 cm from the
-    state). Episode 4 carries a 1 mm and episode 5 a 5 mm tremor at 10 Hz in the right command."""
-    root = tmp_path_factory.mktemp("lerobot_two_arm")
+def _two_arm_root(root: Path, mode: str = "right") -> Path:
+    """A robot with two arms and two hands, six episodes.
+
+    ``right``: the right arm does the task and its hand closes at 30 % of the episode and stays
+    closed; the left arm is parked (its command offset by 19 cm from the state). Episode 4
+    carries a 1 mm and episode 5 a 5 mm tremor at 10 Hz in the working arm's command.
+    ``alternating``: the same, but the working arm changes with every episode (right, left,
+    right, ...), the way a run sheet asks for it. ``parked``: neither arm works.
+    """
     rng = np.random.default_rng(1)
     cams = ["observation.images.wrist_left", "observation.images.wrist_right", "observation.images.front"]
     n = TWO_ARM_LENGTH
@@ -225,25 +228,27 @@ def two_arm_dataset(tmp_path_factory) -> Path:
         if ei in (4, 5):
             amp = 0.001 if ei == 4 else 0.005
             action[:, :3] += amp * np.sin(2 * np.pi * 10.0 * t)[:, None]
-        left_state = np.tile(np.array([0.06, 0.43, 0.45, 1, 0, 0, 0, 1, 0], float), (n, 1))
-        left_state[:, :3] += rng.normal(0, 0.0005, (n, 3))
-        left_action = left_state.copy()
-        left_action[:, 0] += 0.19
+        parked_state = np.tile(np.array([0.06, 0.43, 0.45, 1, 0, 0, 0, 1, 0], float), (n, 1))
+        parked_state[:, :3] += rng.normal(0, 0.0005, (n, 3))
+        parked_action = parked_state.copy()
+        parked_action[:, 0] += 0.19
         hand = np.zeros((n, 4), np.float32)
         hand[int(n * 0.3) :] = 1.0
-        episodes.append(
-            {
-                "action.bot.left_wrist": left_action.astype(np.float32),
-                "action.bot.right_wrist": action,
-                "observation.state.bot.left_wrist": left_state.astype(np.float32),
-                "observation.state.bot.right_wrist": state,
-                "action.bot.left_hand": np.zeros((n, 4), np.float32),
-                "action.bot.right_hand": hand,
-                "observation.state.bot.left_hand": np.zeros((n, 4), np.float32),
-                "observation.state.bot.right_hand": hand.copy(),
-                "_grip": hand[:, 0],
-            }
-        )
+        idle_hand = np.zeros((n, 4), np.float32)
+        if mode == "alternating":
+            # a resting hand is not perfectly still: a slow drift of 2 % of the working hand's swing
+            idle_hand += (0.02 * np.sin(2 * np.pi * 0.25 * t))[:, None].astype(np.float32)
+        work = "none" if mode == "parked" else ("left" if mode == "alternating" and ei % 2 else "right")
+        rows: dict = {"_grip": hand[:, 0] if work != "none" else idle_hand[:, 0]}
+        for side in ("left", "right"):
+            working = side == work
+            rows[f"action.bot.{side}_wrist"] = action if working else parked_action.astype(np.float32)
+            rows[f"observation.state.bot.{side}_wrist"] = (
+                state if working else parked_state.astype(np.float32)
+            )
+            rows[f"action.bot.{side}_hand"] = hand if working else idle_hand
+            rows[f"observation.state.bot.{side}_hand"] = hand.copy() if working else idle_hand.copy()
+        episodes.append(rows)
     finger = ["index", "middle", "ring", "pinky"]
     feats = {}
     for side in ("left", "right"):
@@ -251,6 +256,24 @@ def two_arm_dataset(tmp_path_factory) -> Path:
             feats[f"{kind}.bot.{side}_wrist"] = {"dtype": "float32", "shape": [9], "names": _POSE9}
             feats[f"{kind}.bot.{side}_hand"] = {"dtype": "float32", "shape": [4], "names": finger}
     return _write_dataset(root, episodes, feats, cams, "bot", rng, fps=TWO_ARM_FPS, task="pick the red block")
+
+
+@pytest.fixture(scope="session")
+def two_arm_dataset(tmp_path_factory) -> Path:
+    """Two arms, the right one does the task in every episode (see ``_two_arm_root``)."""
+    return _two_arm_root(tmp_path_factory.mktemp("lerobot_two_arm"))
+
+
+@pytest.fixture(scope="session")
+def alternating_arm_dataset(tmp_path_factory) -> Path:
+    """Two arms that take turns: right in the even episodes, left in the odd ones."""
+    return _two_arm_root(tmp_path_factory.mktemp("lerobot_alternating_arm"), "alternating")
+
+
+@pytest.fixture(scope="session")
+def parked_arms_dataset(tmp_path_factory) -> Path:
+    """Two arms, neither of which works: only sensor noise on both."""
+    return _two_arm_root(tmp_path_factory.mktemp("lerobot_parked_arms"), "parked")
 
 
 @pytest.fixture

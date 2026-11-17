@@ -28,11 +28,12 @@ import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
 import { blocks, cells, datasets, dayProtocols, episodes, exports, HUMAN_VERDICTS, type DatasetSelect, type EpisodeSelect, type ExportSelect, type ExportSelection } from "../../db/schema";
 import { recordAudit, type Actor } from "./audit";
-import { datasetLinks, isDatasetStored } from "./datasets";
+import { datasetLinks, getDatasetRow, isDatasetStored } from "./datasets";
 import { effectiveVerdict } from "./evaluations";
 import { criticsClient } from "../critics/client";
 import { upgradeStaleSummariesOf } from "../critics/sync";
 import { InvalidInputError, NotFoundError, UpstreamError } from "./errors";
+import { aggregatePositions, positionsOf, type EpisodePositions, type SelectionMetrics } from "./selection-metrics";
 import { getSkillRow } from "./skills";
 import { utcRows } from "./time";
 
@@ -40,7 +41,7 @@ import { utcRows } from "./time";
  * A dataset as the selection lists it. The selection is the skill's, over all
  * its recording blocks, so every dataset says which day and cell it came from.
  */
-export type SelectionDatasetInfo = Pick<DatasetSelect, "id" | "name" | "dayProtocolId" | "blockId" | "episodeCount" | "createdAt" | "analysisStatus" | "analysis" | "storageRef" | "storageParts" | "criticsDatasetName" | "criticsJobId" | "specOverrides" | "selection"> & {
+export type SelectionDatasetInfo = Pick<DatasetSelect, "id" | "name" | "dayProtocolId" | "blockId" | "episodeCount" | "createdAt" | "analysisStatus" | "analysis" | "storageRef" | "storageParts" | "criticsDatasetName" | "criticsJobId" | "specOverrides" | "selection" | "included"> & {
   date: string;
   cellName: string;
 };
@@ -94,6 +95,7 @@ export async function getSelection(tenantId: string, skillId: string): Promise<S
       criticsJobId: datasets.criticsJobId,
       specOverrides: datasets.specOverrides,
       selection: datasets.selection,
+      included: datasets.included,
       date: dayProtocols.date,
       cellName: cells.name,
     })
@@ -203,12 +205,21 @@ export function compactRanges(nums: number[]): string {
 }
 
 /** Build the export of the skill's selection and store the export record. */
+/**
+ * What a selection holds: per dataset that is part of it the episodes ticked
+ * in it. A dataset taken out as a whole (`included` false) contributes
+ * nothing, whatever is ticked in it.
+ */
+export const selectedOf = (selection: SelectionView): SelectionDataset[] =>
+  selection.datasets
+    .filter((d) => d.dataset.included)
+    .map((d) => ({ ...d, episodes: d.episodes.filter((e) => e.selected) }))
+    .filter((d) => d.episodes.length);
+
 export async function createExport(tenantId: string, actor: Actor, skillId: string, name?: string): Promise<ExportResult> {
   const skill = await getSkillRow(tenantId, skillId);
   const selection = await getSelection(tenantId, skillId);
-  const selectedSets = selection.datasets
-    .map((d) => ({ ...d, episodes: d.episodes.filter((e) => e.selected) }))
-    .filter((d) => d.episodes.length);
+  const selectedSets = selectedOf(selection);
   if (!selectedSets.length) throw new InvalidInputError("No episodes selected");
 
   const exportSelection: ExportSelection = {
@@ -266,9 +277,7 @@ export interface MergedExportResult {
 export async function createMergedExport(tenantId: string, actor: Actor, skillId: string, name?: string): Promise<MergedExportResult> {
   const skill = await getSkillRow(tenantId, skillId);
   const selection = await getSelection(tenantId, skillId);
-  const selectedSets = selection.datasets
-    .map((d) => ({ ...d, episodes: d.episodes.filter((e) => e.selected) }))
-    .filter((d) => d.episodes.length);
+  const selectedSets = selectedOf(selection);
   if (!selectedSets.length) throw new InvalidInputError("No episodes selected");
   const missing = selectedSets.filter((d) => !isDatasetStored(d.dataset));
   if (missing.length) {
@@ -361,4 +370,152 @@ export function buildZip(skillName: string, record: ExportSelect, sets: Selectio
     if (s.dataset.analysis) files[`${dir}/summary.json`] = strToU8(JSON.stringify(s.dataset.analysis, null, 1));
   }
   return zipSync(files, { level: 6 });
+}
+
+// ---------------------------------------------------------------------------
+// The selection as datasets
+// ---------------------------------------------------------------------------
+
+/** One recording dataset of a skill as the Episodes tab lists it. */
+export interface SelectionOverviewRow {
+  dataset: Pick<SelectionDatasetInfo, "id" | "name" | "date" | "cellName" | "blockId" | "dayProtocolId" | "analysisStatus" | "included"> & {
+    /** GYM holds the uploaded bytes: the dataset can be merged and exported unfiltered */
+    stored: boolean;
+  };
+  episodes: number;
+  /** ticked episodes, whether the dataset is part of the selection or not */
+  selected: number;
+  /** the ticked episodes by their effective verdict */
+  accepted: number;
+  review: number;
+  rejected: number;
+  /** episodes of the dataset, ticked or not, that still wait for a person: effective verdict "review" */
+  reviewPending: number;
+  /** the critics' own run summary of the dataset (diversity), as they report it; null without one */
+  graspSpreadCm: number | null;
+  startPoseStdCm: number[] | null;
+}
+
+export interface SelectionOverview {
+  skillId: string;
+  datasets: SelectionOverviewRow[];
+  /** over the datasets that are part of the selection */
+  totals: SelectionTotals;
+  /** the position figures over the selected episodes of the datasets that are part of the selection */
+  metrics: SelectionMetrics;
+  /** the positions the figures are taken over, one entry per such episode, in metres: what a chart draws */
+  points: SelectionPoint[];
+}
+
+/** The positions the critics measured in one selected episode, with where the episode is from. */
+export interface SelectionPoint extends Omit<EpisodePositions, "measured"> {
+  datasetId: string;
+  /** the episode's index in its dataset */
+  episode: number;
+}
+
+const numberOr = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
+const numbersOr = (value: unknown): number[] | null =>
+  Array.isArray(value) && value.length > 0 && value.every((n) => typeof n === "number" && Number.isFinite(n)) ? (value as number[]) : null;
+
+/**
+ * The skill's selection one row per dataset, with the figures over what is
+ * selected. The counts are GYM's own (effective verdicts of the episodes),
+ * the spread per dataset is the critics' run summary as mirrored, and the
+ * position figures are arithmetic over the positions the critics measured
+ * per episode (lib/gym/selection-metrics.ts).
+ */
+export async function getSelectionOverview(tenantId: string, skillId: string): Promise<SelectionOverview> {
+  const selection = await getSelection(tenantId, skillId);
+  const reports = selection.datasets.length
+    ? await getDb()
+        .select({ id: datasets.id, report: datasets.report })
+        .from(datasets)
+        .where(and(eq(datasets.tenantId, tenantId), inArray(datasets.id, selection.datasets.map((d) => d.dataset.id))))
+    : [];
+  const reportOf = new Map(reports.map((r) => [r.id, r.report]));
+
+  const positions: EpisodePositions[] = [];
+  const points: SelectionPoint[] = [];
+  let contributing = 0;
+  const rows = selection.datasets.map((d): SelectionOverviewRow => {
+    const report = reportOf.get(d.dataset.id) ?? null;
+    const selected = d.episodes.filter((e) => e.selected);
+    const counts = totalsOf(selected);
+    if (d.dataset.included && selected.length) {
+      contributing += 1;
+      const byIndex = new Map((report?.episodes ?? []).map((e) => [e.episode, e]));
+      for (const e of selected) {
+        const reported = byIndex.get(e.index);
+        const { measured, ...at } = reported ? positionsOf(reported) : { measured: false, graspArm: null, grasps: [], wrists: {} };
+        positions.push({ measured, ...at });
+        if (at.grasps.length || Object.keys(at.wrists).length) points.push({ datasetId: d.dataset.id, episode: e.index, ...at });
+      }
+    }
+    const diversity = (report?.dataset_summaries?.diversity ?? {}) as Record<string, unknown>;
+    return {
+      dataset: {
+        id: d.dataset.id,
+        name: d.dataset.name,
+        date: d.dataset.date,
+        cellName: d.dataset.cellName,
+        blockId: d.dataset.blockId,
+        dayProtocolId: d.dataset.dayProtocolId,
+        analysisStatus: d.dataset.analysisStatus,
+        included: d.dataset.included,
+        stored: isDatasetStored(d.dataset),
+      },
+      episodes: d.episodes.length,
+      selected: selected.length,
+      accepted: counts.accepted,
+      review: counts.review,
+      rejected: counts.rejected,
+      reviewPending: totalsOf(d.episodes).review,
+      graspSpreadCm: numberOr(diversity.grasp_horizontal_spread_cm),
+      startPoseStdCm: numbersOr(diversity.start_pose_std_cm),
+    };
+  });
+  return {
+    skillId,
+    datasets: rows,
+    totals: totalsOf(selection.datasets.filter((d) => d.dataset.included).flatMap((d) => d.episodes)),
+    metrics: aggregatePositions(positions, contributing),
+    points,
+  };
+}
+
+export interface UnfilteredExportResult {
+  body: ReadableStream<Uint8Array>;
+  fileName: string;
+  episodes: number;
+}
+
+/**
+ * One dataset as it was recorded: every episode, whatever the critics or a
+ * person said about it and whether it is part of the selection or not.
+ *
+ * It goes through the critics' merge with this one dataset as the only
+ * source, so a chunked upload (whose parts GYM never assembles) comes out as
+ * one LeRobot dataset too. A download, not an export of the skill: nothing is
+ * saved beside the audit entry.
+ */
+export async function createUnfilteredExport(tenantId: string, actor: Actor, datasetId: string): Promise<UnfilteredExportResult> {
+  const ds = await getDatasetRow(tenantId, datasetId);
+  if (!isDatasetStored(ds)) {
+    throw new InvalidInputError(`The dataset "${ds.name}" was recorded before GYM kept the uploads, so it cannot be exported. Upload it again to export it.`);
+  }
+  const rows = await getDb().select({ index: episodes.index }).from(episodes).where(eq(episodes.datasetId, datasetId)).orderBy(asc(episodes.index));
+  if (!rows.length) throw new InvalidInputError("The dataset has no episodes yet");
+  const name = safeName(ds.name);
+  const response = await criticsClient.merge({
+    name,
+    sources: [{ ...(await datasetLinks(tenantId, ds)), episodes: rows.map((e) => e.index), name: ds.criticsDatasetName }],
+  });
+  if (!response.body) throw new UpstreamError("The data critics returned an empty dataset");
+  await recordAudit(tenantId, { skillId: ds.skillId, dayProtocolId: ds.dayProtocolId, blockId: ds.blockId }, actor, "export.unfiltered", {
+    datasetId,
+    name: ds.name,
+    episodes: rows.length,
+  });
+  return { body: response.body, fileName: `${name}.zip`, episodes: rows.length };
 }

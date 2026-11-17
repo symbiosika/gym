@@ -4,6 +4,7 @@
     "sub": "Robotics gym · daily work",
     "nav": {
       "home": "Home",
+      "skills": "Skills",
       "analysis": "Analysis",
       "robots": "Robots",
       "settings": "Settings"
@@ -171,6 +172,14 @@
     "sceneHint": "Photo and description, here or with the phone."
   },
   "plan": {
+    "runSheet": {
+      "import": "Import from run sheet",
+      "rows": "Rows of the run sheet",
+      "rowsHint": "Rows like pages for printing, e.g. 1-50 or 1-3,6,8. Empty takes all {n} rows.",
+      "hint": "Take \"{name}\" ({n} rows) over as the plan: a step per group, an episode per row.",
+      "confirm": "Replace the plan with the run sheet?",
+      "confirmText": "The current plan and its reference images are replaced. Nothing has been recorded against it yet."
+    },
     "title": "Plan for the next hours",
     "lead": "Proposal from photo and text: setups and variations. Everything can be changed and saves itself.",
     "summary": "Summary",
@@ -386,6 +395,8 @@
     "activeArm": "Active arm: {arm} (override)"
   },
   "selection": {
+    "excluded": "excluded",
+    "excludedHint": "Taken out of the selection on the skill's Episodes tab: its episodes are not exported, their ticks stay.",
     "title": "Select episodes and download",
     "lead": "Every recording of this skill, over all days and cells. Rejected ones are deselected. Where you disagree with the critics, set your verdict with ✓ or ✗; it counts in every figure at once.",
     "selectedHint": "episodes selected",
@@ -437,7 +448,107 @@
     "confirmTitle": "Close the block?",
     "confirmText": "The block's time ends and the phone link stops working. You can reopen it any time."
   },
+  "skills": {
+    "title": "Skills",
+    "sub": "Every skill of the organisation",
+    "search": "Search",
+    "searchPlaceholder": "Name or collection",
+    "status": "Status",
+    "allStatuses": "all",
+    "none": "No skill yet. A skill is created when its first block is started.",
+    "noMatch": "No skill matches the filter."
+  },
+  "strategy": {
+    "lead": "How this skill is to be recorded, as its people wrote it down. All of it is optional: a block works with or without it.",
+    "text": {
+      "title": "Description",
+      "hint": "saved when you leave the field",
+      "placeholder": "What is recorded, which variations matter, what to watch out for …"
+    },
+    "files": {
+      "title": "Pictures and PDFs",
+      "hint": "PNG, JPEG, WebP or PDF, up to 20 MB each",
+      "add": "Add files",
+      "none": "No files yet.",
+      "open": "Open in a new tab",
+      "removeConfirm": "Remove \"{name}\"?"
+    },
+    "runSheet": {
+      "title": "Run sheet",
+      "hint": "a CSV with one row per episode to record",
+      "upload": "Upload CSV",
+      "replace": "Replace CSV",
+      "none": "No run sheet yet. Upload a CSV with a header row; a block can then take it over as its recording plan.",
+      "groupBy": "Group into plan steps by",
+      "groupByHint": "consecutive rows with the same value form one step",
+      "noGroup": "no grouping · one step",
+      "counts": "{rows} rows · {groups} steps",
+      "more": "and {n} more rows",
+      "removeConfirm": "Remove the run sheet?",
+      "removeText": "Plans that blocks already took over from it stay as they are."
+    }
+  },
   "skill": {
+    "episodesTab": {
+      "charts": {
+        "scatter": "Positions",
+        "scatterKey": "dot = one position · cross = mean · ellipse = one standard deviation",
+        "bars": "Spread per axis",
+        "barsKey": "bar = one standard deviation",
+        "std": "std",
+        "mean": "mean",
+        "plane": {
+          "xy": "from above · x / y",
+          "xz": "from the side · x / z",
+          "yz": "from behind · y / z"
+        },
+        "episode": "episode {n}",
+        "meanStd": "mean ± std",
+        "none": "No positions of this kind in the selection."
+      },
+      "datasets": "Datasets",
+      "selectedOf": "{n} of {total} episodes selected",
+      "lead": "One row per recording dataset. Tick a dataset out to leave it out of exports and figures as a whole; which of its episodes are selected is decided in the block.",
+      "included": "In",
+      "includedHint": "Part of the skill's selection",
+      "excluded": "excluded",
+      "reviewPending": "{n} to review",
+      "showEpisodes": "Show the episodes",
+      "readOnly": "Read only. Verdicts and ticks are changed in the block's selection step.",
+      "toBlock": "Open the block",
+      "graspSpread": "Grasp spread",
+      "graspSpreadHint": "The critics' robust horizontal spread of the grasp positions in this dataset",
+      "export": "Export",
+      "exportHint": "The selection as a manifest: which episodes of which dataset",
+      "exportMerged": "Export merged dataset",
+      "exportMergedHint": "The selected episodes of all ticked datasets as one LeRobot dataset, ready for training",
+      "merging": "Merging …",
+      "nothingSelected": "No episode is selected in the ticked datasets.",
+      "exportAll": "All episodes",
+      "exportAllHint": "Download this dataset unfiltered: all {n} episodes, whatever their verdict or tick",
+      "notStored": "Recorded before GYM kept the uploads: upload it again to export it.",
+      "arm": {
+        "left": "left",
+        "right": "right"
+      },
+      "metrics": {
+        "title": "Positions over the selection",
+        "base": "{datasets} datasets · {episodes} episodes",
+        "without": "{n} without positions per arm",
+        "withoutHint": "Datasets analysed before positions per arm were measured only add their grasp positions to the overall line. A new upload is measured in full.",
+        "noneSelected": "Nothing is selected in the ticked datasets.",
+        "noneMeasured": "The critics measured no positions in the selected episodes (no cartesian wrist state).",
+        "mean": "Mean x / y / z (cm)",
+        "std": "Std x / y / z (cm)",
+        "all": "all",
+        "delta": "delta left minus right",
+        "group": {
+          "pick": "Pick positions",
+          "start": "Wrist at the start",
+          "end": "Wrist at the end"
+        }
+      }
+    },
     "cell": "Cell",
     "name": "Name",
     "task": "Task",
@@ -463,6 +574,7 @@
     "deleteConfirm": "Delete the skill with all blocks, datasets, exports and policies? The day protocols stay.",
     "tabs": {
       "blocks": "Blocks",
+      "strategy": "Strategy",
       "evaluations": "Evaluations",
       "policies": "Policies",
       "episodes": "Episodes",
@@ -486,6 +598,9 @@
     "trainedFromHint": "Export: {name}",
     "trainedAt": "Trained on",
     "policyNotes": "Notes",
+    "policyLink": "Link",
+    "policyLinkPlaceholder": "https://…",
+    "policyLinkOpen": "Open the link in a new tab",
     "newPolicy": "New policy",
     "policyPlaceholder": "e.g. v1, act-2026-09-10",
     "addPolicy": "Add",
@@ -529,6 +644,11 @@
     "vlmFailedLead": "These runs were judged by the hard critics alone. Task success, anomalies and people in the workspace are not checked in them, so the figures below are missing that part.",
     "vlmFailedColumn": "Affected",
     "vlmFailedError": "Error",
+    "vlmAck": "Acknowledge",
+    "vlmAckHint": "Mark as seen. The run stays in the list below, without the alarm.",
+    "vlmAckUndo": "Undo",
+    "vlmAckedTitle": "{n} acknowledged VLM failures",
+    "vlmAckedBy": "Acknowledged by",
     "skills": "Skills"
   },
   "robots": {
@@ -781,6 +901,11 @@
     "unknown": "open"
   },
   "info": {
+    "selectionMetrics": [
+      "Positions over the selection",
+      "Where the robot picked and where its wrists were at the start and at the end of an episode: mean and standard deviation per axis, in the robot's coordinates, with the number of positions behind each line. Taken over the selected episodes of the ticked datasets. The positions are measured by the data critics; GYM only does the arithmetic and judges nothing.",
+      "Std 0.4 / 0.6 / 0.1 cm over 150 picks: the object was nearly always in the same place."
+    ],
     "wbQuestions": [
       "Questions to the model",
       "Each question is one sentence the language model answers for every episode. “Must hold”: if the answer is no, the episode is rejected. “Only counts”: the answer goes into the total score. A changed question counts only once it is tested.",

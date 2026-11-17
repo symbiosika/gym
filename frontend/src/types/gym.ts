@@ -120,6 +120,47 @@ export interface PlanVariation {
   /** English edit instruction the image is generated with */
   imagePrompt?: string
   image?: PlanVariationImage | null
+  /** what a run sheet says about this episode beyond its label; GYM gives the values no meaning */
+  fields?: PlanVariationField[]
+}
+
+/** One labelled value of a run sheet row: the column's name and the cell. */
+export interface PlanVariationField {
+  name: string
+  value: string
+}
+
+/** A picture or a PDF of a skill's strategy. */
+export interface StrategyFile {
+  id: string
+  ref: string
+  name: string
+  mime: string
+  size: number
+  createdAt: string
+}
+
+/**
+ * The run sheet of a skill: a CSV a person keeps, one row per episode to
+ * record. A guide for the operator; a block may take it over as its plan.
+ */
+export interface RunSheet {
+  fileName: string
+  /** header names in file order */
+  columns: string[]
+  /** one object per row, every value a string as in the file */
+  rows: Record<string, string>[]
+  /** the column whose value groups rows into plan steps, null = one step */
+  groupBy: string | null
+  importedAt: string
+}
+
+/** How a skill is to be recorded, as its people wrote it down. Optional in every part. */
+export interface SkillStrategy {
+  text: string
+  files: StrategyFile[]
+  runSheet: RunSheet | null
+  updatedAt: string
 }
 
 export interface PlanStep {
@@ -372,6 +413,8 @@ export interface PolicyRecord {
   name: string
   exportId: string | null
   notes: string
+  /** where the policy lives outside GYM, http or https */
+  externalUrl: string | null
   trainedAt: string | null
   createdAt: string
   updatedAt: string
@@ -531,6 +574,80 @@ export interface SelectionDatasetInfo {
   /** the day and the cell the dataset was recorded on: the selection spans every recording block of the skill */
   date: string
   cellName: string
+  /** part of the skill's selection; taken out, none of its episodes are exported or counted, their ticks stay */
+  included: boolean
+}
+
+/** A mean and a spread per axis (x, y, z) in centimetres over `n` positions. */
+export interface AxisStat {
+  n: number
+  meanCm: [number, number, number]
+  stdCm: [number, number, number]
+}
+
+/**
+ * The position figures over the selected episodes of the datasets in the
+ * selection: arithmetic over what the critics measured per episode.
+ */
+export interface SelectionMetrics {
+  datasets: number
+  episodes: number
+  /** episodes among them whose report has no positions per arm (analysed before those were measured) */
+  withoutPositions: number
+  pick: { all: AxisStat | null; byArm: Record<string, AxisStat> }
+  wristStart: Record<string, AxisStat>
+  wristEnd: Record<string, AxisStat>
+  /** left minus right, over the episodes where both have a position */
+  deltaStart: AxisStat | null
+  deltaEnd: AxisStat | null
+}
+
+/** One recording dataset of a skill as the Episodes tab lists it. */
+export interface SelectionOverviewRow {
+  dataset: {
+    id: string
+    name: string
+    date: string
+    cellName: string
+    blockId: string
+    dayProtocolId: string
+    analysisStatus: AnalysisStatus
+    included: boolean
+    /** GYM holds the uploaded bytes: the dataset can be merged and exported unfiltered */
+    stored: boolean
+  }
+  episodes: number
+  /** ticked episodes, whether the dataset is part of the selection or not */
+  selected: number
+  accepted: number
+  review: number
+  rejected: number
+  /** episodes of the dataset that still wait for a person */
+  reviewPending: number
+  /** the critics' own spread of the grasp positions (robust, horizontal) and of the start pose; null without */
+  graspSpreadCm: number | null
+  startPoseStdCm: number[] | null
+}
+
+export interface SelectionOverview {
+  skillId: string
+  datasets: SelectionOverviewRow[]
+  /** over the datasets that are part of the selection */
+  totals: Omit<EpisodeTotals, 'recordedSeconds'>
+  metrics: SelectionMetrics
+  /** the positions the figures are taken over, one entry per selected episode that has any, in metres */
+  points: SelectionPoint[]
+}
+
+/** The positions the critics measured in one selected episode, with where the episode is from. */
+export interface SelectionPoint {
+  datasetId: string
+  /** the episode's index in its dataset */
+  episode: number
+  /** the arm that grasped; null without one named */
+  graspArm: string | null
+  grasps: [number, number, number][]
+  wrists: Record<string, { start: [number, number, number] | null; end: [number, number, number] | null }>
 }
 
 /** One decision of the operator in the selection: only the named fields change. */
@@ -600,6 +717,9 @@ export interface VlmFailure {
   episodes: number
   failedEpisodes: number
   error: string | null
+  /** when a person acknowledged the failure, and who; null while it is open */
+  acknowledgedAt: string | null
+  acknowledgedBy: string | null
 }
 
 export interface KpiResult {

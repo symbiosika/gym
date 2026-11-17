@@ -781,6 +781,18 @@ describe("Gym operator flow", () => {
     expect(policy.jsonResponse.exportId).toBe(exportId);
     expect((await testFetcher.post(app, `${base}/skills/${skillId}/policies`, token, { name: "x", exportId: "00000000-0000-0000-0000-000000000000" })).status).toBe(400);
     const policyId = policy.jsonResponse.id as string;
+    // a policy may say where it lives: a link, http or https only, and an empty one is none
+    expect(policy.jsonResponse.externalUrl).toBeNull();
+    const linked = await testFetcher.put(app, `${base}/policies/${policyId}`, token, { externalUrl: " https://huggingface.co/acme/pick-v4 " });
+    expect(linked.jsonResponse.externalUrl).toBe("https://huggingface.co/acme/pick-v4");
+    expect((await testFetcher.put(app, `${base}/policies/${policyId}`, token, { notes: "kept" })).jsonResponse.externalUrl).toBe("https://huggingface.co/acme/pick-v4");
+    expect((await testFetcher.put(app, `${base}/policies/${policyId}`, token, { externalUrl: "" })).jsonResponse.externalUrl).toBeNull();
+    for (const externalUrl of ["javascript:alert(1)", "ftp://example.org/policy", "not a link"]) {
+      expect((await testFetcher.post(app, `${base}/skills/${skillId}/policies`, token, { name: "x", externalUrl })).status).toBe(400);
+    }
+    const withLink = await testFetcher.post(app, `${base}/skills/${skillId}/policies`, token, { name: "linked", externalUrl: "http://models.local/pick" });
+    expect(withLink.jsonResponse.externalUrl).toBe("http://models.local/pick");
+    expect((await testFetcher.delete(app, `${base}/policies/${withLink.jsonResponse.id}`, token)).status).toBeLessThan(300);
     // a policy is only for evaluations
     expect((await testFetcher.post(app, `${base}/blocks`, token, { cellId, skillId, kind: "recording", policyId, date: "2026-09-10" })).status).toBe(400);
 
@@ -1135,6 +1147,39 @@ describe("Gym operator flow", () => {
     expect((await testFetcher.get(app, `${base}/blocks/${again.jsonResponse.block.id}`, token)).status).toBe(404);
     expect(critics.deleted).toContain(up2.jsonResponse.criticsJobId);
     expect((await testFetcher.get(app, `${base}/skills/${skill2Id}`, token)).jsonResponse.days).toBe(1);
+  });
+
+  test("a VLM failure is acknowledged by a person: it stays listed, with who and when, until the ack is taken back", async () => {
+    type Failure = { datasetId: string; skillId: string; acknowledgedAt: string | null; acknowledgedBy: string | null };
+    const failures = async () => (await testFetcher.get(app, `${base}/kpis?from=2026-09-01&to=2026-09-30`, token)).jsonResponse.vlmFailures as Failure[];
+    const open = await failures();
+    expect(open.length).toBeGreaterThan(0);
+    expect(open.every((f) => f.acknowledgedAt === null && f.acknowledgedBy === null)).toBe(true);
+    const target = open[0]!;
+
+    expect((await testFetcher.put(app, `${base}/datasets/${target.datasetId}/vlm-failure-ack`, token, {})).status).toBe(400);
+    const acked = await testFetcher.put(app, `${base}/datasets/${target.datasetId}/vlm-failure-ack`, token, { acknowledged: true });
+    expect(acked.status).toBe(200);
+    expect(acked.jsonResponse.vlmFailureAck.at).toBeTruthy();
+    const listed = (await failures()).find((f) => f.datasetId === target.datasetId)!;
+    expect(listed.acknowledgedAt).toBe(acked.jsonResponse.vlmFailureAck.at);
+    expect(listed.acknowledgedBy).toBe(acked.jsonResponse.vlmFailureAck.byName);
+    expect(listed.acknowledgedBy).toBeTruthy();
+
+    const undone = await testFetcher.put(app, `${base}/datasets/${target.datasetId}/vlm-failure-ack`, token, { acknowledged: false });
+    expect(undone.jsonResponse.vlmFailureAck).toBeNull();
+    expect((await failures()).find((f) => f.datasetId === target.datasetId)!.acknowledgedAt).toBeNull();
+    const actions = (await testFetcher.get(app, `${base}/skills/${target.skillId}/audit`, token)).jsonResponse.map((a: { action: string }) => a.action);
+    expect(actions).toContain("dataset.vlm_failure_ack");
+    expect(actions).toContain("dataset.vlm_failure_unack");
+
+    // nothing to acknowledge on a dataset the model did judge
+    const [row] = await getDb().select().from(datasets).where(eq(datasets.id, target.datasetId));
+    await getDb().update(datasets).set({ analysis: { ...row!.analysis!, softCriticsFailed: false } }).where(eq(datasets.id, target.datasetId));
+    expect((await testFetcher.put(app, `${base}/datasets/${target.datasetId}/vlm-failure-ack`, token, { acknowledged: true })).status).toBe(409);
+    await getDb().update(datasets).set({ analysis: row!.analysis }).where(eq(datasets.id, target.datasetId));
+    // and not from another organisation
+    expect((await testFetcher.put(app, `${base}/datasets/${target.datasetId}/vlm-failure-ack`, token2, { acknowledged: true })).status).toBe(403);
   });
 
   test("print view, kpis, audit, close", async () => {

@@ -7,10 +7,12 @@ import { useGym } from '@/stores/gym'
 import { useDialog } from '@/stores/dialog'
 import { useUi } from '@/stores/ui'
 import { NONE } from '@/utils/select'
-import type { AuditEntry, EvaluationReportRecord, PolicyRecord, SelectionView, SkillView as SkillData } from '@/types/gym'
+import type { AuditEntry, EvaluationReportRecord, PolicyRecord, SkillView as SkillData } from '@/types/gym'
 import { fmtDate, fmtDateTime, fmtMinutes, fmtPercent } from '@/utils/time'
 import SectionHeader from '@/components/SectionHeader.vue'
-import EpisodeTable from '@/components/EpisodeTable.vue'
+import SelectionOverview from '@/components/skill/SelectionOverview.vue'
+import IconLaunch from '~icons/carbon/launch'
+import StrategyTab from '@/components/skill/StrategyTab.vue'
 import SpecPicker from '@/components/SpecPicker.vue'
 
 /**
@@ -27,7 +29,6 @@ const tenantId = computed(() => String(route.params.tenantId))
 const skillId = computed(() => String(route.params.skillId))
 
 const skill = ref<SkillData | null>(null)
-const selection = ref<SelectionView | null>(null)
 const audit = ref<AuditEntry[]>([])
 const reports = ref<EvaluationReportRecord[]>([])
 const tab = ref('blocks')
@@ -41,7 +42,10 @@ const form = ref<{ name: string; taskDescription: string; collectionId: string; 
 const fail = (e: unknown) => ui.showBanner('err', e instanceof Error ? e.message : String(e))
 
 const tabs = computed(() =>
-  (['blocks', 'evaluations', 'policies', 'episodes', 'audit'] as const).map((v) => ({ value: v, label: t(`skill.tabs.${v}`) })),
+  (['blocks', 'strategy', 'evaluations', 'policies', 'episodes', 'audit'] as const).map((v) => ({
+    value: v,
+    label: t(`skill.tabs.${v}`),
+  })),
 )
 const collectionOptions = computed(() => [
   { label: t('start.noCollection'), value: NONE },
@@ -57,7 +61,6 @@ async function load() {
       collectionId: skill.value.collectionId ?? NONE,
       criticSpecName: skill.value.criticSpecName,
     }
-    selection.value = await gymApi.selection(tenantId.value, skillId.value)
     audit.value = await gymApi.skillAudit(tenantId.value, skillId.value)
     reports.value = await gymApi.evaluationReports(tenantId.value, skillId.value)
   } catch (e) {
@@ -67,11 +70,6 @@ async function load() {
 onMounted(load)
 watch(skillId, load)
 
-const selectedMap = computed(() => {
-  const map: Record<string, boolean> = {}
-  for (const d of selection.value?.datasets ?? []) for (const e of d.episodes) map[e.id] = e.selected
-  return map
-})
 /** the evaluations oldest first, so the success rate reads as a course over time */
 const evaluationsByDate = computed(() => [...(skill.value?.evaluations ?? [])].sort((a, b) => a.date.localeCompare(b.date)))
 const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' : r >= 50 ? 'warn' : 'bad')
@@ -139,11 +137,12 @@ async function remove() {
 }
 
 // policies
-const newPolicy = ref<{ name: string; exportId: string; trainedAt: string; notes: string }>({
+const newPolicy = ref<{ name: string; exportId: string; trainedAt: string; notes: string; externalUrl: string }>({
   name: '',
   exportId: NONE,
   trainedAt: '',
   notes: '',
+  externalUrl: '',
 })
 const exportOptions = computed(() => [
   { label: t('skill.noExport'), value: NONE },
@@ -161,8 +160,9 @@ async function addPolicy() {
       exportId: newPolicy.value.exportId === NONE ? null : newPolicy.value.exportId,
       trainedAt: newPolicy.value.trainedAt ? new Date(newPolicy.value.trainedAt).toISOString() : null,
       notes: newPolicy.value.notes.trim(),
+      externalUrl: newPolicy.value.externalUrl.trim() || null,
     })
-    newPolicy.value = { name: '', exportId: NONE, trainedAt: '', notes: '' }
+    newPolicy.value = { name: '', exportId: NONE, trainedAt: '', notes: '', externalUrl: '' }
     await load()
   } catch (e) {
     fail(e)
@@ -170,7 +170,12 @@ async function addPolicy() {
 }
 async function savePolicy(p: PolicyRecord) {
   try {
-    await gymApi.updatePolicy(tenantId.value, p.id, { name: p.name, notes: p.notes, exportId: p.exportId })
+    await gymApi.updatePolicy(tenantId.value, p.id, {
+      name: p.name,
+      notes: p.notes,
+      exportId: p.exportId,
+      externalUrl: p.externalUrl?.trim() || null,
+    })
   } catch (e) {
     fail(e)
   }
@@ -349,6 +354,10 @@ async function removePolicy(p: PolicyRecord) {
         </div>
       </section>
 
+      <section v-else-if="tab === 'strategy'" class="mt-4">
+        <StrategyTab :tenant-id="tenantId" :skill-id="skillId" />
+      </section>
+
       <section v-else-if="tab === 'evaluations'" class="mt-4">
         <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">{{ t('skill.evaluationsLead') }}</p>
         <div v-if="!evaluationsByDate.length" class="gym-empty">{{ t('skill.noEvaluations') }}</div>
@@ -465,7 +474,7 @@ async function removePolicy(p: PolicyRecord) {
           <div
             v-for="p in skill.policies_"
             :key="p.id"
-            class="gym-panel grid items-center gap-3 p-3 sm:grid-cols-[1fr_1fr_1fr_auto]"
+            class="gym-panel grid items-center gap-3 p-3 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]"
           >
             <FormField :label="t('skill.name')">
               <InputText v-model="p.name" fluid @change="savePolicy(p)" />
@@ -483,10 +492,32 @@ async function removePolicy(p: PolicyRecord) {
             <FormField :label="t('skill.policyNotes')" :hint="p.trainedAt ? fmtDate(p.trainedAt, locale) : undefined">
               <InputText v-model="p.notes" fluid @change="savePolicy(p)" />
             </FormField>
+            <FormField :label="t('skill.policyLink')">
+              <div class="flex items-center gap-1.5">
+                <InputText
+                  v-model="p.externalUrl"
+                  fluid
+                  type="url"
+                  :placeholder="t('skill.policyLinkPlaceholder')"
+                  @change="savePolicy(p)"
+                />
+                <a
+                  v-if="p.externalUrl"
+                  class="shrink-0 text-primary hover:text-primary-600"
+                  :href="p.externalUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :title="t('skill.policyLinkOpen')"
+                  :aria-label="t('skill.policyLinkOpen')"
+                >
+                  <IconLaunch />
+                </a>
+              </div>
+            </FormField>
             <SecondaryButton size="small" class="text-bad! self-end" :label="t('app.delete')" @click="removePolicy(p)" />
           </div>
         </div>
-        <div class="gym-panel mt-3 grid items-end gap-3 border-dashed p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+        <div class="gym-panel mt-3 grid items-end gap-3 border-dashed p-3 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]">
           <FormField :label="t('skill.newPolicy')" required>
             <InputText v-model="newPolicy.name" fluid :placeholder="t('skill.policyPlaceholder')" @keyup.enter="addPolicy" />
           </FormField>
@@ -496,6 +527,9 @@ async function removePolicy(p: PolicyRecord) {
           <FormField :label="t('skill.trainedAt')">
             <InputText v-model="newPolicy.trainedAt" type="date" fluid />
           </FormField>
+          <FormField :label="t('skill.policyLink')">
+            <InputText v-model="newPolicy.externalUrl" fluid type="url" :placeholder="t('skill.policyLinkPlaceholder')" />
+          </FormField>
           <Button :disabled="!newPolicy.name.trim()" :label="t('skill.addPolicy')" @click="addPolicy" />
         </div>
         <p class="mt-2 text-xs text-surface-500 dark:text-surface-400">
@@ -504,8 +538,7 @@ async function removePolicy(p: PolicyRecord) {
       </section>
 
       <section v-else-if="tab === 'episodes'" class="mt-4">
-        <div v-if="!selection || !selection.datasets.length" class="gym-empty">{{ t('skill.noEpisodes') }}</div>
-        <EpisodeTable v-else :selection="selection" :selected="selectedMap" readonly />
+        <SelectionOverview :tenant-id="tenantId" :skill-id="skillId" @exported="load" />
       </section>
 
       <section v-else class="mt-4">
