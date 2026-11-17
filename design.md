@@ -230,7 +230,8 @@ mean, a standard deviation and a count, never a flag or a verdict.
 
 The positions are also drawn (`skill/PositionCharts`): a scatter plot of every
 measured position on a plane of the robot's coordinates (from above, from the
-side, from the front; both axes on one scale), with the mean as a cross and one
+side, from behind; both axes on one scale, laid out as the robot frame has it:
+from above x is up the side and y along the bottom, growing to the left), with the mean as a cross and one
 standard deviation as a dashed ellipse per arm, and beside it the spread
 itself as bars: one standard deviation per axis and arm, from zero. A switch picks
 what is drawn: pick positions, the wrists at the start, the wrists at the end

@@ -500,7 +500,7 @@
         "plane": {
           "xy": "von oben · x / y",
           "xz": "von der Seite · x / z",
-          "yz": "von vorn · y / z"
+          "yz": "von hinten · y / z"
         },
         "episode": "Episode {n}",
         "meanStd": "Mittel ± Std",

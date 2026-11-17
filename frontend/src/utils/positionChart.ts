@@ -12,7 +12,7 @@ import type { AxisStat, SelectionMetrics, SelectionPoint } from '@/types/gym'
 
 /** pick positions, or the wrists at the start or at the end of the episode */
 export type PositionGroup = 'pick' | 'start' | 'end'
-/** the two axes looked at: from above (x / y), from the side (x / z), from the front (y / z) */
+/** the two axes looked at: from above (x / y), from the side (x / z), from behind the robot (y / z) */
 export type Plane = 'xy' | 'xz' | 'yz'
 /**
  * The colour slot of a mark. It follows the arm, never what else is on
@@ -23,10 +23,16 @@ export type Series = 'left' | 'right' | 'delta' | 'other'
 
 export const seriesOf = (arm: string | null | undefined): Series => (arm === 'left' || arm === 'right' ? arm : 'other')
 
-const PLANES: Record<Plane, { a: 0 | 1 | 2; b: 0 | 1 | 2; labels: [string, string] }> = {
-  xy: { a: 0, b: 1, labels: ['x', 'y'] },
-  xz: { a: 0, b: 2, labels: ['x', 'z'] },
-  yz: { a: 1, b: 2, labels: ['y', 'z'] },
+/**
+ * How a plane is laid out on the chart, following the robot frame (x forward,
+ * y to the left, z up): `a` is the axis along the bottom, `b` the one up the
+ * side, and `leftward` says that the bottom axis grows to the left, as the
+ * robot's y does when it is looked at from above or from behind.
+ */
+const PLANES: Record<Plane, { a: 0 | 1 | 2; b: 0 | 1 | 2; labels: [string, string]; leftward: boolean }> = {
+  xy: { a: 1, b: 0, labels: ['y', 'x'], leftward: true },
+  xz: { a: 0, b: 2, labels: ['x', 'z'], leftward: false },
+  yz: { a: 1, b: 2, labels: ['y', 'z'], leftward: true },
 }
 export const planeOf = (plane: Plane) => PLANES[plane]
 

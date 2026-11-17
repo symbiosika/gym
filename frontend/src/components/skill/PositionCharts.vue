@@ -64,7 +64,11 @@ const domain = computed(() =>
     ...ellipses.value.map((e) => ({ x: e.cx, y: e.cy, rx: e.rx, ry: e.ry })),
   ]),
 )
-const sx = (v: number) => S.left + ((v - domain.value.x[0]) / (domain.value.x[1] - domain.value.x[0])) * plot.w
+/** the bottom axis grows to the left where the robot frame does (its y, seen from above or behind) */
+const sx = (v: number) => {
+  const along = (v - domain.value.x[0]) / (domain.value.x[1] - domain.value.x[0])
+  return S.left + (planeOf(plane.value).leftward ? 1 - along : along) * plot.w
+}
 const sy = (v: number) => S.top + plot.h - ((v - domain.value.y[0]) / (domain.value.y[1] - domain.value.y[0])) * plot.h
 /** a length in centimetres as pixels: both axes share one scale */
 const len = (v: number) => (v / (domain.value.x[1] - domain.value.x[0])) * plot.w

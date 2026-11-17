@@ -50,31 +50,36 @@ describe('the dots of the scatter plot', () => {
   it('draws every grasp in centimetres on the chosen plane, with the arm that grasped and where it is from', () => {
     const dots = scatterDots(points, 'pick', 'xy')
     expect(dots).toHaveLength(4)
-    expect(dots[0]).toEqual({ x: 10, y: 20, series: 'left', arm: 'left', datasetId: 'a', episode: 0 })
-    expect(dots[3]).toMatchObject({ x: 20, y: 0, series: 'other', arm: null, datasetId: 'b', episode: 4 })
+    // from above the robot's x runs up the chart and its y along the bottom
+    expect(dots[0]).toEqual({ x: 20, y: 10, series: 'left', arm: 'left', datasetId: 'a', episode: 0 })
+    expect(dots[3]).toMatchObject({ x: 0, y: 20, series: 'other', arm: null, datasetId: 'b', episode: 4 })
     expect(scatterDots(points, 'pick', 'xz')[0]).toMatchObject({ x: 10, y: 30 })
     expect(scatterDots(points, 'pick', 'yz')[0]).toMatchObject({ x: 20, y: 30 })
   })
 
   it('draws each wrist of an episode at the start or the end, and leaves out what has no position', () => {
     expect(scatterDots(points, 'start', 'xy').map((d) => [d.arm, d.x, d.y])).toEqual([
-      ['left', 0, 10],
-      ['right', 0, -10],
+      ['left', 10, 0],
+      ['right', -10, 0],
     ])
     expect(scatterDots(points, 'end', 'xy').map((d) => d.arm)).toEqual(['left'])
   })
 
-  it('names the two axes of a plane', () => {
-    expect(planeOf('xy')).toEqual({ a: 0, b: 1, labels: ['x', 'y'] })
-    expect(planeOf('yz')).toEqual({ a: 1, b: 2, labels: ['y', 'z'] })
+  it('lays a plane out as the robot frame has it: x forward is up, y grows to the left, z is up', () => {
+    // from above: y along the bottom, growing to the robot's left, x up the side
+    expect(planeOf('xy')).toEqual({ a: 1, b: 0, labels: ['y', 'x'], leftward: true })
+    // from the side: x along the bottom, z up
+    expect(planeOf('xz')).toEqual({ a: 0, b: 2, labels: ['x', 'z'], leftward: false })
+    // from behind the robot: y along the bottom, growing to the left as from above, z up
+    expect(planeOf('yz')).toEqual({ a: 1, b: 2, labels: ['y', 'z'], leftward: true })
   })
 })
 
 describe('the spread drawn around the mean', () => {
   it('is one ellipse per arm: the mean as its centre, one standard deviation per axis as its radii', () => {
     expect(spreadEllipses(metrics, 'pick', 'xy')).toEqual([
-      { series: 'left', arm: 'left', cx: 10, cy: 20, rx: 1, ry: 2, n: 1 },
-      { series: 'right', arm: 'right', cx: 30.5, cy: -20, rx: 0.5, ry: 0, n: 2 },
+      { series: 'left', arm: 'left', cx: 20, cy: 10, rx: 2, ry: 1, n: 1 },
+      { series: 'right', arm: 'right', cx: -20, cy: 30.5, rx: 0, ry: 0.5, n: 2 },
     ])
   })
 
