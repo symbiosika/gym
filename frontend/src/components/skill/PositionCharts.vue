@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, toRefs } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   barSeries,
   niceTicks,
   planeOf,
+  positionView,
   scatterDots,
   spreadEllipses,
   squareDomain,
@@ -33,8 +34,8 @@ const props = defineProps<{
 }>()
 const { t, te } = useI18n()
 
-const group = ref<PositionGroup>('pick')
-const plane = ref<Plane>('xy')
+/** the reader's choice lives outside the component, so it stays when the chart is rebuilt after a change of the selection */
+const { group, plane } = toRefs(positionView)
 const groupTabs = computed(() =>
   (['pick', 'start', 'end'] as const).map((value) => ({ value, label: t(`skill.episodesTab.metrics.group.${value}`) })),
 )

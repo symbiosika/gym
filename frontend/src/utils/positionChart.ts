@@ -1,3 +1,4 @@
+import { reactive } from 'vue'
 import type { AxisStat, SelectionMetrics, SelectionPoint } from '@/types/gym'
 
 /**
@@ -20,6 +21,14 @@ export type Plane = 'xy' | 'xz' | 'yz'
  * them has its own, and everything without a side is neutral.
  */
 export type Series = 'left' | 'right' | 'delta' | 'other'
+
+/**
+ * What the reader chose to look at in the position charts. Kept here and not
+ * in the chart: the chart is taken down whenever the selection has nothing to
+ * draw (a dataset ticked out, the figures being read again) and put up again
+ * after, and the choice has to outlive that, as it outlives a change of tab.
+ */
+export const positionView = reactive<{ group: PositionGroup; plane: Plane }>({ group: 'pick', plane: 'xy' })
 
 export const seriesOf = (arm: string | null | undefined): Series => (arm === 'left' || arm === 'right' ? arm : 'other')
 

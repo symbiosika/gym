@@ -135,3 +135,17 @@ describe('the scales', () => {
     expect(niceTicks(3, 3, 5)).toEqual([3])
   })
 })
+
+describe('what the reader chose to look at', () => {
+  it('is kept outside the chart, so it outlives the chart being taken down and put up again', async () => {
+    const { positionView } = await import('./positionChart')
+    expect(positionView).toMatchObject({ group: 'pick', plane: 'xy' })
+    positionView.group = 'end'
+    positionView.plane = 'xz'
+    // a dataset is taken out of the selection, the chart has nothing to draw and goes; then it comes back
+    const again = (await import('./positionChart')).positionView
+    expect(again).toMatchObject({ group: 'end', plane: 'xz' })
+    positionView.group = 'pick'
+    positionView.plane = 'xy'
+  })
+})
