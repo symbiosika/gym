@@ -493,8 +493,10 @@
       "charts": {
         "scatter": "Positionen",
         "scatterKey": "Punkt = eine Position · Kreuz = Mittelwert · Ellipse = eine Standardabweichung",
-        "bars": "Mittelwert je Achse",
-        "barsKey": "Balken = Mittelwert · Antenne = eine Standardabweichung nach oben und unten",
+        "bars": "Streuung je Achse",
+        "barsKey": "Balken = eine Standardabweichung",
+        "std": "Std",
+        "mean": "Mittel",
         "plane": {
           "xy": "von oben · x / y",
           "xz": "von der Seite · x / z",

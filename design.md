@@ -231,10 +231,10 @@ mean, a standard deviation and a count, never a flag or a verdict.
 The positions are also drawn (`skill/PositionCharts`): a scatter plot of every
 measured position on a plane of the robot's coordinates (from above, from the
 side, from the front; both axes on one scale), with the mean as a cross and one
-standard deviation as a dashed ellipse per arm, and beside it the mean per axis
-as bars with one standard deviation either side as whiskers. A switch picks
+standard deviation as a dashed ellipse per arm, and beside it the spread
+itself as bars: one standard deviation per axis and arm, from zero. A switch picks
 what is drawn: pick positions, the wrists at the start, the wrists at the end
-(the last two with the delta between the sides as a third bar). Colour says
+(the last two with the spread of the delta between the sides as a third bar). Colour says
 which arm, never how good: left is `--gym-series-1`, right `--gym-series-2`,
 the delta `--gym-series-3`, a mark without a side neutral; these tokens are not
 status colours and are never reused for one. Every mark has a tooltip, and the

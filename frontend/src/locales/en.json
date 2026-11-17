@@ -493,8 +493,10 @@
       "charts": {
         "scatter": "Positions",
         "scatterKey": "dot = one position · cross = mean · ellipse = one standard deviation",
-        "bars": "Mean per axis",
-        "barsKey": "bar = mean · whisker = one standard deviation either side",
+        "bars": "Spread per axis",
+        "barsKey": "bar = one standard deviation",
+        "std": "std",
+        "mean": "mean",
         "plane": {
           "xy": "from above · x / y",
           "xz": "from the side · x / z",

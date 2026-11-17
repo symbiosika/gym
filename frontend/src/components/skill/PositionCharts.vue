@@ -17,8 +17,9 @@ import type { SelectionMetrics, SelectionPoint } from '@/types/gym'
 /**
  * The positions over the selection, drawn: a scatter plot of every measured
  * position on a plane of the robot's coordinates, with the mean (a cross) and
- * one standard deviation (an ellipse) per arm, and beside it the mean per
- * axis as bars with the standard deviation as whiskers.
+ * one standard deviation (an ellipse) per arm, and beside it the spread
+ * itself: one standard deviation per axis as a bar, so the axes and the arms
+ * can be compared at a glance.
  *
  * Colour says which arm, never how good: left and right keep their colour in
  * both charts, the delta between them has its own, a mark without a side is
@@ -77,12 +78,10 @@ const B = { w: 380, h: 340, left: 46, right: 12, top: 12, bottom: 38 }
 const bplot = { w: B.w - B.left - B.right, h: B.h - B.top - B.bottom }
 const series = computed(() => barSeries(props.metrics, group.value))
 const AXES = ['x', 'y', 'z'] as const
+/** the bars are the spread itself: from zero up to the widest standard deviation, with a little room */
 const bDomain = computed<[number, number]>(() => {
-  const ends = series.value.flatMap((s) => s.stat.meanCm.flatMap((m, k) => [m - s.stat.stdCm[k]!, m + s.stat.stdCm[k]!]))
-  const lo = Math.min(0, ...ends)
-  const hi = Math.max(0, ...ends)
-  const pad = (hi - lo || 1) * 0.08
-  return [lo < 0 ? lo - pad : 0, hi > 0 ? hi + pad : 0]
+  const widest = Math.max(0, ...series.value.flatMap((s) => s.stat.stdCm))
+  return [0, (widest || 1) * 1.08]
 })
 const by = (v: number) => B.top + bplot.h - ((v - bDomain.value[0]) / (bDomain.value[1] - bDomain.value[0])) * bplot.h
 const bTicks = computed(() => niceTicks(bDomain.value[0], bDomain.value[1], 6))
@@ -134,7 +133,8 @@ const meanTip = (event: MouseEvent, e: (typeof ellipses.value)[number]) =>
   ])
 const barTip = (event: MouseEvent, s: (typeof series.value)[number], k: number) =>
   show(event, `${s.key === 'delta' ? t('skill.episodesTab.metrics.delta') : armName(s.arm)} · ${AXES[k]}`, [
-    `${fmt(s.stat.meanCm[k]!)} ± ${fmt(s.stat.stdCm[k]!)} cm`,
+    `${t('skill.episodesTab.charts.std')} ${fmt(s.stat.stdCm[k]!)} cm`,
+    `${t('skill.episodesTab.charts.mean')} ${fmt(s.stat.meanCm[k]!)} cm`,
     `n = ${s.stat.n}`,
   ])
 </script>
@@ -252,26 +252,9 @@ const barTip = (event: MouseEvent, s: (typeof series.value)[number], k: number) 
           </g>
           <template v-for="(a, k) in AXES" :key="`b${a}`">
             <g v-for="(s, i) in series" :key="s.key" @mousemove="barTip($event, s, k)" @mouseleave="tip = null">
-              <!-- the whole column is the target, not only the bar: a mean near zero is a sliver -->
+              <!-- the whole column is the target, not only the bar: a spread near zero is a sliver -->
               <rect :x="bx(k, i) - 1" :y="B.top" :width="barWidth + 2" :height="bplot.h" fill="transparent" />
-              <path :d="barPath(bx(k, i), s.stat.meanCm[k]!)" :fill="COLOURS[s.series]" />
-              <!-- one standard deviation either side of the mean, in ink -->
-              <g class="stroke-surface-900 dark:stroke-surface-0" stroke-width="1.5" stroke-linecap="round">
-                <line
-                  :x1="bx(k, i) + barWidth / 2"
-                  :x2="bx(k, i) + barWidth / 2"
-                  :y1="by(s.stat.meanCm[k]! - s.stat.stdCm[k]!)"
-                  :y2="by(s.stat.meanCm[k]! + s.stat.stdCm[k]!)"
-                />
-                <line
-                  v-for="end in [-1, 1]"
-                  :key="end"
-                  :x1="bx(k, i) + barWidth / 2 - 4"
-                  :x2="bx(k, i) + barWidth / 2 + 4"
-                  :y1="by(s.stat.meanCm[k]! + end * s.stat.stdCm[k]!)"
-                  :y2="by(s.stat.meanCm[k]! + end * s.stat.stdCm[k]!)"
-                />
-              </g>
+              <path :d="barPath(bx(k, i), s.stat.stdCm[k]!)" :fill="COLOURS[s.series]" />
             </g>
           </template>
           <!-- the zero line on top: every bar stands on it -->

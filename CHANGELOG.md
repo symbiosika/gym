@@ -36,8 +36,7 @@ Skills in the navigation, a strategy per skill, datasets instead of episodes.
   version carry no positions per arm and show only their grasp positions until
   they are uploaded again. The positions are also drawn: a scatter plot on a
   plane of the robot's coordinates with the mean and one standard deviation
-  per arm, and the mean per axis as bars with the standard deviation as
-  whiskers.
+  per arm, and the spread per axis as bars (one standard deviation).
 - "Export merged dataset" on the Episodes tab, over the selected episodes of
   the ticked datasets, and "All episodes" per dataset: the dataset unfiltered,
   whatever the verdicts and ticks.
