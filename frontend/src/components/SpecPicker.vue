@@ -76,6 +76,6 @@ const chosen = computed(() => gym.critics.specs.find((sp) => sp.name === model.v
     <p v-if="!model" class="text-xs text-surface-500 dark:text-surface-400">{{ t('spec.autoHint') }}</p>
     <p v-else-if="!chosen" class="text-warn text-xs">{{ t('spec.chosen', { name: model }) }}</p>
 
-    <SpecManager v-model:visible="manageOpen" :tenant-id="tenantId" @picked="model = $event" />
+    <SpecManager v-model:visible="manageOpen" :tenant-id="tenantId" :current="model" @picked="model = $event" />
   </div>
 </template>

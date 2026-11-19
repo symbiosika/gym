@@ -396,9 +396,9 @@
   },
   "selection": {
     "excluded": "excluded",
-    "excludedHint": "Taken out of the selection on the skill's Episodes tab: its episodes are not exported, their ticks stay.",
+    "excludedHint": "Taken out of the selection on the skill's Pre-Train tab: its episodes are not exported, their ticks stay.",
     "title": "Select episodes and download",
-    "lead": "Every recording of this skill, over all days and cells. Rejected ones are deselected. Where you disagree with the critics, set your verdict with ✓ or ✗; it counts in every figure at once.",
+    "lead": "The recordings of this block. Rejected ones are deselected. Where you disagree with the critics, set your verdict with ✓ or ✗; it counts in every figure at once. The export here takes the selected episodes of this block; the selection over the whole skill is exported on the skill's Pre-Train tab.",
     "selectedHint": "episodes selected",
     "selectedShort": "Selected",
     "all": "All",
@@ -425,7 +425,7 @@
     "criticsSaid": "critics: {verdict}",
     "thisBlock": "this block",
     "exportTitle": "Export",
-    "exportCount": "{n} episodes selected",
+    "exportCount": "{n} episodes of this block selected",
     "exportShort": "Export",
     "exportHead": "Does the episode go into the export?",
     "exportEpisode": "Export episode {n}",
@@ -434,7 +434,10 @@
     "iAccept": "I accept the episode",
     "iReject": "I reject the episode",
     "criticError": "Check incomplete",
-    "groupCount": "{n} of {total} in the export"
+    "groupCount": "{n} of {total} in the export",
+    "noneInBlock": "This block has no analysed dataset yet.",
+    "exportName": "Name of the export",
+    "exportNameHint": "names the zip file and the folder of the merged dataset"
   },
   "closed": {
     "title": "Block closed",
@@ -478,14 +481,18 @@
       "hint": "a CSV with one row per episode to record",
       "upload": "Upload CSV",
       "replace": "Replace CSV",
-      "none": "No run sheet yet. Upload a CSV with a header row; a block can then take it over as its recording plan.",
+      "none": "No run sheet yet. Download the CSV template, fill it in and upload it; a block can then take it over as its recording plan.",
       "groupBy": "Group into plan steps by",
       "groupByHint": "consecutive rows with the same value form one step",
       "noGroup": "no grouping · one step",
       "counts": "{rows} rows · {groups} steps",
       "more": "and {n} more rows",
       "removeConfirm": "Remove the run sheet?",
-      "removeText": "Plans that blocks already took over from it stay as they are."
+      "removeText": "Plans that blocks already took over from it stay as they are.",
+      "template": "CSV template",
+      "templateHint": "A template in the shape of the plan steps: one row per episode, layout makes the steps, episode and prompt are read by name, every other column becomes a value of the episode",
+      "templateFile": "run-sheet-template.csv",
+      "download": "Download CSV"
     }
   },
   "skill": {
@@ -547,7 +554,11 @@
           "start": "Wrist at the start",
           "end": "Wrist at the end"
         }
-      }
+      },
+      "toSelection": "To the block's selection step: set the ticks and resolve open reviews",
+      "selectionStep": "Selection",
+      "includeAll": "Take every dataset into the selection, or every one out",
+      "exportCount": "{n} episodes selected over the skill"
     },
     "cell": "Cell",
     "name": "Name",
@@ -575,9 +586,9 @@
     "tabs": {
       "blocks": "Blocks",
       "strategy": "Strategy",
-      "evaluations": "Evaluations",
+      "pretrain": "Pre-Train",
       "policies": "Policies",
-      "episodes": "Episodes",
+      "evaluations": "Evaluations",
       "audit": "Audit log"
     },
     "when": "When",
@@ -614,6 +625,7 @@
     "sub": "Volumes, quality, duration",
     "from": "From",
     "to": "To",
+    "skill": "Skill",
     "cell": "Cell",
     "collection": "Collection",
     "all": "all",

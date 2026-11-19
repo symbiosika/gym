@@ -183,6 +183,14 @@ export interface ExportResult {
 
 const safeName = (s: string) => s.replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "") || "dataset";
 
+/**
+ * The file name of an export, and the folder name of a merged dataset: the
+ * name the person gave it, else the skill and the day. Only characters a file
+ * system and the critics accept in a dataset name are kept.
+ */
+export const exportFileStem = (name: string | undefined, skillName: string, createdAt: string): string =>
+  (name?.trim() ? safeName(name.trim()) : `${safeName(skillName)}-${createdAt.slice(0, 10)}`).slice(0, 120);
+
 /** `[0,1,2,4,7,8]` → `"0-2,4,7-8"`, the form a `--episodes` filter takes (lerobot_critics.selection.compact_ranges). */
 export function compactRanges(nums: number[]): string {
   const out: string[] = [];
@@ -216,11 +224,28 @@ export const selectedOf = (selection: SelectionView): SelectionDataset[] =>
     .map((d) => ({ ...d, episodes: d.episodes.filter((e) => e.selected) }))
     .filter((d) => d.episodes.length);
 
-export async function createExport(tenantId: string, actor: Actor, skillId: string, name?: string): Promise<ExportResult> {
+/**
+ * What an export takes: the selection of the whole skill (the skill's
+ * Pre-Train tab), or with `blockId` only the selected episodes of that one
+ * block's datasets (the block's selection step). A dataset taken out of the
+ * skill's selection gives nothing either way.
+ */
+async function selectedSetsOf(tenantId: string, skillId: string, blockId?: string): Promise<SelectionDataset[]> {
+  if (blockId) {
+    const [block] = await getDb()
+      .select({ id: blocks.id })
+      .from(blocks)
+      .where(and(eq(blocks.id, blockId), eq(blocks.tenantId, tenantId), eq(blocks.skillId, skillId)));
+    if (!block) throw new NotFoundError("Block");
+  }
+  const sets = selectedOf(await getSelection(tenantId, skillId)).filter((d) => !blockId || d.dataset.blockId === blockId);
+  if (!sets.length) throw new InvalidInputError(blockId ? "No episodes of this block are selected" : "No episodes selected");
+  return sets;
+}
+
+export async function createExport(tenantId: string, actor: Actor, skillId: string, name?: string, blockId?: string): Promise<ExportResult> {
   const skill = await getSkillRow(tenantId, skillId);
-  const selection = await getSelection(tenantId, skillId);
-  const selectedSets = selectedOf(selection);
-  if (!selectedSets.length) throw new InvalidInputError("No episodes selected");
+  const selectedSets = await selectedSetsOf(tenantId, skillId, blockId);
 
   const exportSelection: ExportSelection = {
     datasets: selectedSets.map((d) => ({
@@ -240,8 +265,8 @@ export async function createExport(tenantId: string, actor: Actor, skillId: stri
     .returning();
 
   const zip = buildZip(skill.name, record!, selectedSets);
-  await recordAudit(tenantId, { skillId }, actor, "export.created", { exportId: record!.id, episodes: exportSelection.episodes, datasets: exportSelection.datasets.length });
-  return { record: record!, zip, fileName: `${safeName(skill.name)}-${record!.createdAt.slice(0, 10)}.zip` };
+  await recordAudit(tenantId, { skillId, blockId: blockId ?? null }, actor, "export.created", { exportId: record!.id, episodes: exportSelection.episodes, datasets: exportSelection.datasets.length });
+  return { record: record!, zip, fileName: `${exportFileStem(name, skill.name, record!.createdAt)}.zip` };
 }
 
 export async function listExports(tenantId: string, skillId: string): Promise<ExportSelect[]> {
@@ -274,11 +299,9 @@ export interface MergedExportResult {
  * there and are relayed as they are: the operator has to see which upload is
  * the odd one out.
  */
-export async function createMergedExport(tenantId: string, actor: Actor, skillId: string, name?: string): Promise<MergedExportResult> {
+export async function createMergedExport(tenantId: string, actor: Actor, skillId: string, name?: string, blockId?: string): Promise<MergedExportResult> {
   const skill = await getSkillRow(tenantId, skillId);
-  const selection = await getSelection(tenantId, skillId);
-  const selectedSets = selectedOf(selection);
-  if (!selectedSets.length) throw new InvalidInputError("No episodes selected");
+  const selectedSets = await selectedSetsOf(tenantId, skillId, blockId);
   const missing = selectedSets.filter((d) => !isDatasetStored(d.dataset));
   if (missing.length) {
     throw new InvalidInputError(
@@ -303,7 +326,8 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
     .values({ tenantId, skillId, name: exportName, selection: exportSelection, createdBy: actor.userId })
     .returning();
 
-  const datasetName = `${safeName(skill.name)}-${record!.createdAt.slice(0, 10)}`;
+  // the name the person gave the export is the name of the merged dataset, its folder and its zip
+  const datasetName = exportFileStem(name, skill.name, record!.createdAt);
   // one fresh link per dataset: the critics fetch them for this one merge and
   // keep nothing, so a link is only ever as old as the request
   const sources = await Promise.all(
@@ -317,7 +341,7 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
   );
   const response = await criticsClient.merge({ name: datasetName, sources });
   if (!response.body) throw new UpstreamError("The data critics returned an empty merged dataset");
-  await recordAudit(tenantId, { skillId }, actor, "export.merged", {
+  await recordAudit(tenantId, { skillId, blockId: blockId ?? null }, actor, "export.merged", {
     exportId: record!.id,
     episodes: exportSelection.episodes,
     datasets: exportSelection.datasets.length,
@@ -376,7 +400,7 @@ export function buildZip(skillName: string, record: ExportSelect, sets: Selectio
 // The selection as datasets
 // ---------------------------------------------------------------------------
 
-/** One recording dataset of a skill as the Episodes tab lists it. */
+/** One recording dataset of a skill as the Pre-Train tab lists it. */
 export interface SelectionOverviewRow {
   dataset: Pick<SelectionDatasetInfo, "id" | "name" | "date" | "cellName" | "blockId" | "dayProtocolId" | "analysisStatus" | "included"> & {
     /** GYM holds the uploaded bytes: the dataset can be merged and exported unfiltered */

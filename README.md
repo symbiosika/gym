@@ -187,6 +187,7 @@ success; everything else has a working default baked into the image
 | `OPENROUTER_API_KEY` | critics | alternative to Gemini: any OpenAI-compatible endpoint, selected per spec. |
 | `CRITICS_API_KEY` | critics + app | set it to require `X-API-Key` on every route but `/health`. Leave empty on a trusted network. |
 | `CRITICS_URL` | app | only to move the service elsewhere; the default is the compose service. |
+| `CRITICS_LINK_BASE_URL` | app | the address the critics reach the API by, when it is not `BASE_URL`: the links to the datasets GYM hands them are rewritten to it. Local development with the critics in Docker needs `http://host.docker.internal:3000`, since `localhost` in the container is the container. |
 
 To run the critics on their own, on a second machine or a Jetson, there is a
 lightweight sample stack:

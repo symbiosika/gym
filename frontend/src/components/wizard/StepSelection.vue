@@ -5,15 +5,20 @@ import { gymApi } from '@/api/gym'
 import { useDialog } from '@/stores/dialog'
 import type { BlockView, Episode, HumanVerdict, SelectionChange, SelectionView } from '@/types/gym'
 import { downloadBlob } from '@/utils/download'
+import { defaultExportName, narrowToBlock } from '@/utils/selectionOverview'
+import { today } from '@/utils/time'
 import EpisodeTable from '@/components/EpisodeTable.vue'
 import IconCheck from '~icons/carbon/checkmark'
 import IconDownload from '~icons/carbon/download'
 
 /**
- * Step 6: the episodes of the whole skill, over all its recording blocks, in
- * one table. Bad ones start unchecked; the operator decides.
+ * Step 6: the episodes of this block, its datasets in one table. Bad ones
+ * start unchecked; the operator decides. The episodes of the skill's other
+ * blocks are decided in their own selection step.
  *
- * Two downloads, and the difference matters. The **dataset** is the one to
+ * The export takes the selected episodes of this block, under a name the
+ * operator may change; the selection of the whole skill is exported from the
+ * skill's Pre-Train tab. Two downloads, and the difference matters. The **dataset** is the one to
  * take: the selected episodes of every upload merged into one LeRobot dataset,
  * renumbered, that goes straight into training. The **manifest** is the small
  * one: the episode lists and the critics' files, for a pipeline that reads the
@@ -31,7 +36,11 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const dialog = useDialog()
 
+/** the selection of the whole skill, as the server has it */
 const selection = ref<SelectionView | null>(null)
+/** what this step shows and decides: the datasets of this block */
+const shown = computed(() => (selection.value ? narrowToBlock(selection.value, props.block.id) : null))
+/** the ticks of this block's episodes */
 const selected = ref<Record<string, boolean>>({})
 const initial = ref<Record<string, boolean>>({})
 const busy = ref<'' | 'dl' | 'ds' | 'close'>('')
@@ -50,7 +59,7 @@ async function load() {
 function show(view: SelectionView, keep: SelectionChange[] = []) {
   selection.value = view
   const map: Record<string, boolean> = {}
-  for (const d of view.datasets) for (const e of d.episodes) map[e.id] = e.selected
+  for (const d of narrowToBlock(view, props.block.id).datasets) for (const e of d.episodes) map[e.id] = e.selected
   initial.value = { ...map }
   for (const c of keep) if (c.episodeId in map && c.selected !== undefined) map[c.episodeId] = c.selected
   selected.value = map
@@ -58,6 +67,17 @@ function show(view: SelectionView, keep: SelectionChange[] = []) {
 
 const count = computed(() => Object.values(selected.value).filter(Boolean).length)
 const total = computed(() => Object.keys(selected.value).length)
+/** what the export takes: the ticked episodes of this block's datasets that are still in the skill's selection */
+const exportCount = computed(() => {
+  let n = 0
+  for (const d of shown.value?.datasets ?? []) {
+    if (d.dataset.included === false) continue
+    for (const e of d.episodes) if (selected.value[e.id]) n++
+  }
+  return n
+})
+/** the name of the export, the merged dataset's folder and the zip; starts as the skill and the day */
+const exportName = ref(defaultExportName(props.block.skill.name, today()))
 const changes = computed(() =>
   Object.entries(selected.value)
     .filter(([id, v]) => initial.value[id] !== v)
@@ -87,10 +107,10 @@ function setAll(v: boolean) {
 }
 const effective = (e: Episode) => e.humanVerdict ?? e.verdict
 function onlyAccepted() {
-  for (const d of selection.value?.datasets ?? []) for (const e of d.episodes) selected.value[e.id] = effective(e) === 'accept'
+  for (const d of shown.value?.datasets ?? []) for (const e of d.episodes) selected.value[e.id] = effective(e) === 'accept'
 }
 function withReview() {
-  for (const d of selection.value?.datasets ?? []) for (const e of d.episodes) selected.value[e.id] = effective(e) !== 'reject'
+  for (const d of shown.value?.datasets ?? []) for (const e of d.episodes) selected.value[e.id] = effective(e) !== 'reject'
 }
 
 let inflight: Promise<void> | null = null
@@ -131,7 +151,7 @@ async function download() {
   busy.value = 'dl'
   try {
     await saveChanges()
-    const { blob, fileName } = await gymApi.createExport(props.tenantId, props.block.skillId)
+    const { blob, fileName } = await gymApi.createExport(props.tenantId, props.block.skillId, exportName.value, props.block.id)
     downloadBlob(fileName, blob)
     emit('update', await gymApi.block(props.tenantId, props.block.id))
   } catch (e) {
@@ -150,7 +170,12 @@ async function downloadDataset() {
   busy.value = 'ds'
   try {
     await saveChanges()
-    const { blob, fileName } = await gymApi.createDatasetExport(props.tenantId, props.block.skillId)
+    const { blob, fileName } = await gymApi.createDatasetExport(
+      props.tenantId,
+      props.block.skillId,
+      exportName.value,
+      props.block.id,
+    )
     downloadBlob(fileName, blob)
     emit('update', await gymApi.block(props.tenantId, props.block.id))
   } catch (e) {
@@ -190,7 +215,7 @@ async function back() {
       {{ t('selection.lead') }}
     </p>
 
-    <div v-if="!selection" class="py-10 text-center font-mono text-xs text-surface-500">{{ t('app.loading') }} …</div>
+    <div v-if="!shown" class="py-10 text-center font-mono text-xs text-surface-500">{{ t('app.loading') }} …</div>
     <template v-else>
       <div class="mb-3 flex flex-wrap items-center gap-2">
         <span class="font-display text-2xl leading-none font-semibold tabular-nums"
@@ -204,10 +229,11 @@ async function back() {
         <SecondaryButton size="small" :label="t('selection.none')" @click="setAll(false)" />
       </div>
 
+      <div v-if="!shown.datasets.length" class="gym-empty">{{ t('selection.noneInBlock') }}</div>
       <EpisodeTable
-        :selection="selection"
+        v-else
+        :selection="shown"
         :selected="selected"
-        :current-block-id="block.id"
         :busy="verdictBusy"
         @toggle="toggle"
         @toggle-many="toggleMany"
@@ -218,16 +244,20 @@ async function back() {
       <section class="mt-5 rounded-panel border border-surface-300 p-4 dark:border-surface-800">
         <div class="flex flex-wrap items-center gap-2">
           <b class="font-display text-base font-semibold">{{ t('selection.exportTitle') }}</b>
-          <span class="text-sm text-surface-500 dark:text-surface-400">{{ t('selection.exportCount', { n: count }) }}</span>
-          <span class="grow"></span>
+          <span class="text-sm text-surface-500 dark:text-surface-400">{{ t('selection.exportCount', { n: exportCount }) }}</span>
+        </div>
+        <div class="mt-3 flex flex-wrap items-end gap-2">
+          <FormField class="min-w-56 grow" :label="t('selection.exportName')" :hint="t('selection.exportNameHint')">
+            <InputText v-model="exportName" fluid :disabled="!!busy" maxlength="120" />
+          </FormField>
           <SecondaryButton
-            :disabled="!count || !!busy"
+            :disabled="!exportCount || !!busy"
             :loading="busy === 'dl'"
             :label="busy === 'dl' ? t('selection.downloading') : t('selection.download')"
             @click="download"
           />
           <Button
-            :disabled="!count || !!busy"
+            :disabled="!exportCount || !!busy"
             :loading="busy === 'ds'"
             :label="busy === 'ds' ? t('selection.datasetBuilding') : t('selection.datasetExport')"
             @click="downloadDataset"

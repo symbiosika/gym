@@ -14,6 +14,7 @@ import log from "@framework/lib/log";
 import { datasets, episodes, type DatasetSelect, type EpisodeVerdict } from "../../db/schema";
 import { recordAudit, SYSTEM_ACTOR } from "../gym/audit";
 import { criticsClient, CriticsError, type CriticsJob } from "./client";
+import { keepReportCopy } from "./report-copy";
 import { defaultSelected, episodeRows, SUMMARY_VERSION, summarize } from "./summary";
 
 const OPEN_STATUSES = ["queued", "running"] as const;
@@ -116,6 +117,8 @@ async function mirrorResult(row: DatasetSelect, progress: Record<string, { done:
     })
     .where(eq(datasets.id, row.id))
     .returning();
+  // the report link must outlive the critics' job directory
+  const reportHtmlRef = await keepReportCopy(updated!);
   await recordAudit(
     row.tenantId,
     { skillId: row.skillId, dayProtocolId: row.dayProtocolId, blockId: row.blockId },
@@ -123,7 +126,7 @@ async function mirrorResult(row: DatasetSelect, progress: Record<string, { done:
     action,
     { datasetId: row.id, name: row.name, jobId: row.criticsJobId, episodes: rows.length, ...summary.counts, spec: summary.specName },
   );
-  return updated!;
+  return reportHtmlRef ? { ...updated!, reportHtmlRef } : updated!;
 }
 
 /**

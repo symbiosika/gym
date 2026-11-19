@@ -13,7 +13,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
 import { putFile, readFile, removeFile } from "../storage";
-import { DATASET_BUCKET, SCENE_IMAGE_BUCKET, UPLOAD_CHUNK_BUCKET, VARIATION_IMAGE_BUCKET } from "./buckets";
+import { DATASET_BUCKET, REPORT_BUCKET, SCENE_IMAGE_BUCKET, UPLOAD_CHUNK_BUCKET, VARIATION_IMAGE_BUCKET } from "./buckets";
 import {
   BLOCK_KINDS,
   BLOCK_STEPS,
@@ -43,6 +43,7 @@ import { fallbackPlan, plainPlan, proposeFollowUp, proposeRecordingPlan, newStep
 import type { CriticsSummary } from "../critics/summary";
 import { criticsClient, type SpecOverrides } from "../critics/client";
 import { blocksWithOpenDatasets, syncOpenDatasets, upgradeStaleSummariesOf } from "../critics/sync";
+import { reportMarkdownOf } from "../critics/report-copy";
 import { recordAudit, SYSTEM_ACTOR, type Actor, type AuditRefs } from "./audit";
 import { getCell } from "./cells";
 import { ensureDay, getDayRow } from "./day-protocols";
@@ -477,12 +478,13 @@ export async function deleteBlockFiles(row: BlockSelect): Promise<void> {
   for (const chunk of chunks) await removeFile(row.tenantId, UPLOAD_CHUNK_BUCKET, chunk.storageRef).catch(() => undefined);
   // the dataset rows go with the block through the cascade as well
   const stored = await getDb()
-    .select({ storageRef: datasets.storageRef, storageParts: datasets.storageParts })
+    .select({ storageRef: datasets.storageRef, storageParts: datasets.storageParts, reportHtmlRef: datasets.reportHtmlRef })
     .from(datasets)
     .where(eq(datasets.blockId, row.id));
   for (const ds of stored) {
     if (ds.storageRef) await removeFile(row.tenantId, DATASET_BUCKET, ds.storageRef).catch(() => undefined);
     for (const ref of ds.storageParts ?? []) await removeFile(row.tenantId, UPLOAD_CHUNK_BUCKET, ref).catch(() => undefined);
+    if (ds.reportHtmlRef) await removeFile(row.tenantId, REPORT_BUCKET, ds.reportHtmlRef).catch(() => undefined);
   }
 }
 
@@ -1071,7 +1073,7 @@ export async function suggestFollowUp(tenantId: string, actor: Actor, id: string
   const row = await getBlockRow(tenantId, id);
   await syncOpenDatasets([id]);
   const ds = await getDb()
-    .select({ analysis: datasets.analysis, criticsJobId: datasets.criticsJobId })
+    .select({ analysis: datasets.analysis, criticsJobId: datasets.criticsJobId, report: datasets.report })
     .from(datasets)
     .where(and(eq(datasets.blockId, id), eq(datasets.analysisStatus, "done")));
   const analyses = ds.map((d) => d.analysis).filter((a): a is CriticsSummary => !!a);
@@ -1080,7 +1082,7 @@ export async function suggestFollowUp(tenantId: string, actor: Actor, id: string
   const reports: string[] = [];
   for (const d of ds) {
     if (!d.criticsJobId) continue;
-    const text = await criticsClient.markdown(d.criticsJobId, "summary").catch(() => null);
+    const text = await reportMarkdownOf(d, "summary").catch(() => null);
     if (text) reports.push(text);
   }
   const followUp = await proposeFollowUp({ language, targetEpisodes: row.targetEpisodes, plan: row.plan, analyses, reports });

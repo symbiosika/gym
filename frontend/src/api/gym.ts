@@ -57,11 +57,11 @@ const query = (params: Record<string, string | number | boolean | undefined | nu
 }
 
 /** A zip download that also carries the export id (and the episode count) in headers. */
-async function zipDownload(url: string, name: string | undefined, fallback: string) {
+async function zipDownload(url: string, name: string | undefined, fallback: string, blockId?: string) {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(name ? { name } : {}),
+    body: JSON.stringify({ ...(name ? { name } : {}), ...(blockId ? { blockId } : {}) }),
   })
   if (!res.ok) throw new FetcherError(res.status, await res.text())
   const disposition = res.headers.get('Content-Disposition') ?? ''
@@ -223,16 +223,17 @@ export const gymApi = {
     fetcher.put<SelectionView>(`${base(t)}/skills/${skillId}/selection`, { changes }),
   exports: (t: string, skillId: string) => fetcher.get<ExportRecord[]>(`${base(t)}/skills/${skillId}/exports`),
   /** Saves the selection and returns the manifest zip; the export id comes back in a header. */
-  createExport: (t: string, skillId: string, name?: string) =>
-    zipDownload(`${base(t)}/skills/${skillId}/exports`, name, 'export.zip'),
+  /** with `blockId` the selected episodes of that block only (its selection step); without, the whole skill's (Pre-Train) */
+  createExport: (t: string, skillId: string, name?: string, blockId?: string) =>
+    zipDownload(`${base(t)}/skills/${skillId}/exports`, name, 'export.zip', blockId),
   /**
    * Saves the selection and returns the whole thing as one merged LeRobot
    * dataset: the selected episodes of every recording upload of the skill in
    * one folder, renumbered, ready to hand to training. Built by the data
    * critics, so it can take a while and is far larger than the manifest.
    */
-  createDatasetExport: (t: string, skillId: string, name?: string) =>
-    zipDownload(`${base(t)}/skills/${skillId}/exports/dataset`, name, 'dataset.zip'),
+  createDatasetExport: (t: string, skillId: string, name?: string, blockId?: string) =>
+    zipDownload(`${base(t)}/skills/${skillId}/exports/dataset`, name, 'dataset.zip', blockId),
   /** the selection one row per dataset, with the position figures over what is selected */
   selectionOverview: (t: string, skillId: string) =>
     fetcher.get<SelectionOverview>(`${base(t)}/skills/${skillId}/selection/overview`),

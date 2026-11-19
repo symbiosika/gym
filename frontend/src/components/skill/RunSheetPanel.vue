@@ -4,18 +4,22 @@ import { useI18n } from 'vue-i18n'
 import { gymApi } from '@/api/gym'
 import { useDialog } from '@/stores/dialog'
 import { NONE } from '@/utils/select'
-import { defaultGroupColumn, groupCount, sheetToCsv } from '@/utils/runSheet'
+import { defaultGroupColumn, groupCount, runSheetTemplate, sheetToCsv } from '@/utils/runSheet'
+import { downloadBlob } from '@/utils/download'
 import { fmtDate } from '@/utils/time'
 import type { SkillStrategy } from '@/types/gym'
+import IconDownload from '~icons/carbon/download'
 import IconUpload from '~icons/carbon/upload'
 
 /**
  * The run sheet of a skill: a CSV with one row per episode to record. It is
  * read once and kept as rows; the person picks the column that groups the
  * rows into plan steps. A block may take the sheet over as its recording
- * plan, nothing more: the sheet is a guide.
+ * plan, nothing more: the sheet is a guide. A template laid out the way a
+ * sheet becomes plan steps is there to download, fill in elsewhere and upload
+ * again; so is the sheet that is in, to change it outside GYM.
  */
-const props = defineProps<{ tenantId: string; skillId: string; strategy: SkillStrategy }>()
+const props = defineProps<{ tenantId: string; skillId: string; strategy: SkillStrategy; task?: string }>()
 const emit = defineEmits<{ update: [strategy: SkillStrategy]; error: [message: string] }>()
 const { t, locale } = useI18n()
 const dialog = useDialog()
@@ -61,6 +65,21 @@ async function chosen(event: Event) {
   if (group) await send(file.name, csv, group)
 }
 
+/** The template, with the skill's task as the prompt; semicolons for a German spreadsheet. */
+function downloadTemplate() {
+  const csv = runSheetTemplate(props.task ?? '', locale.value === 'de' ? ';' : ',')
+  downloadBlob(t('strategy.runSheet.templateFile'), new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+}
+
+/** The sheet as it is in, to change it outside GYM and upload it again. */
+function downloadSheet() {
+  if (!sheet.value) return
+  downloadBlob(
+    sheet.value.fileName || 'run-sheet.csv',
+    new Blob(['\uFEFF' + sheetToCsv(sheet.value)], { type: 'text/csv;charset=utf-8' }),
+  )
+}
+
 /** The server keeps the rows, not the file: the same rows go back with the other column. */
 async function regroup(group: string | null) {
   if (!sheet.value || group === sheet.value.groupBy) return
@@ -90,6 +109,17 @@ async function remove() {
 <template>
   <section>
     <SectionHeader :title="t('strategy.runSheet.title')" :hint="t('strategy.runSheet.hint')">
+      <SecondaryButton
+        size="small"
+        :label="t('strategy.runSheet.template')"
+        :title="t('strategy.runSheet.templateHint')"
+        @click="downloadTemplate"
+      >
+        <template #icon><IconDownload /></template>
+      </SecondaryButton>
+      <SecondaryButton v-if="sheet" size="small" :label="t('strategy.runSheet.download')" @click="downloadSheet">
+        <template #icon><IconDownload /></template>
+      </SecondaryButton>
       <SecondaryButton
         size="small"
         :disabled="busy"

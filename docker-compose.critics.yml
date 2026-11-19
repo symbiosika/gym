@@ -15,6 +15,12 @@ services:
       context: .
       dockerfile: Dockerfile.critics-service
     ports: ["${CRITICS_PORT:-8080}:8080"]
+    # GYM hands the critics links to the datasets (BASE_URL plus a token). The
+    # API runs on the host, and inside the container localhost is the
+    # container itself, so set CRITICS_LINK_BASE_URL=http://host.docker.internal:3000
+    # in backend/.env; this line makes that name reach the host on Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}

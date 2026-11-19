@@ -23,7 +23,8 @@ import { HTTPException } from "hono/http-exception";
 import { describeRoute, validator } from "hono-openapi";
 import * as v from "valibot";
 import { criticsBaseUrl, criticsClient } from "../../../../lib/critics/client";
-import { deleteSpec, getSpec, hardCritics, saveSpecText, specTemplate, uploadSpec } from "../../../../lib/critics/specs";
+import { reportHtmlOf, reportMarkdownOf } from "../../../../lib/critics/report-copy";
+import { deleteSpec, getSpec, hardCritics, listSpecs, saveSpecText, specTemplate, uploadSpec } from "../../../../lib/critics/specs";
 import { specUsage } from "../../../../lib/gym/skills";
 import { getDatasetRow, setFindingOverrides, setVlmFailureAck } from "../../../../lib/gym/datasets";
 import { actorOf, ok, tenantIdParam, tenantParam, toHttpError } from "./_shared";
@@ -48,7 +49,7 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
     async (c) => {
       try {
         const health = await criticsClient.health();
-        const specs = await criticsClient.specs().catch(() => []);
+        const specs = await listSpecs(c.req.valid("param").tenantId).catch(() => []);
         return c.json({ reachable: true, url: criticsBaseUrl(), health, specs });
       } catch (error) {
         return c.json({ reachable: false, url: criticsBaseUrl(), health: null, specs: [], error: error instanceof Error ? error.message : String(error) });
@@ -74,7 +75,9 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
     async (c) => {
       try {
         const { tenantId } = c.req.valid("param");
-        const [specs, usage] = await Promise.all([criticsClient.specs(), specUsage(tenantId)]);
+        // one after the other: both read the database, which may serve one query at a time (PGlite)
+        const specs = await listSpecs(tenantId);
+        const usage = await specUsage(tenantId);
         return c.json(specs.map((spec) => ({ ...spec, usedBy: usage[spec.name] ?? [] })));
       } catch (e) { throw toHttpError(e); }
     });
@@ -85,7 +88,7 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
     async (c) => {
       try {
         const { tenantId, name } = c.req.valid("param");
-        return c.json({ ...(await getSpec(name)), usedBy: (await specUsage(tenantId))[name] ?? [] });
+        return c.json({ ...(await getSpec(tenantId, name)), usedBy: (await specUsage(tenantId))[name] ?? [] });
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -94,8 +97,8 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
     validator("param", specParam), validator("json", v.object({ text: v.pipe(v.string(), v.maxLength(1_000_000)) })), isTenantMember,
     async (c) => {
       try {
-        const { name } = c.req.valid("param");
-        return c.json(await saveSpecText(name, c.req.valid("json").text));
+        const { tenantId, name } = c.req.valid("param");
+        return c.json(await saveSpecText(tenantId, name, c.req.valid("json").text));
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -104,7 +107,8 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
     validator("param", specParam), isTenantMember,
     async (c) => {
       try {
-        await deleteSpec(c.req.valid("param").name);
+        const { tenantId, name } = c.req.valid("param");
+        await deleteSpec(tenantId, name);
         return c.json({ ok: true });
       } catch (e) { throw toHttpError(e); }
     });
@@ -118,7 +122,7 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
         const file = body["file"];
         if (!(file instanceof File)) throw new HTTPException(400, { message: "Multipart field 'file' (a YAML or JSON spec) is required" });
         const name = typeof body["name"] === "string" ? body["name"] : undefined;
-        return c.json(await uploadSpec(file, name), 201);
+        return c.json(await uploadSpec(c.req.valid("param").tenantId, file, name), 201);
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -169,7 +173,7 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
         const { tenantId, id } = c.req.valid("param");
         const ds = await jobOf(tenantId, id);
         const top = Number(c.req.valid("query").top ?? 5) || 5;
-        return c.html(gymReportLinks(await criticsClient.reportHtml(ds.criticsJobId!, top)));
+        return c.html(gymReportLinks(await reportHtmlOf(ds, top)));
       } catch (e) { throw toHttpError(e); }
     });
 
@@ -180,7 +184,7 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
       try {
         const { tenantId, id } = c.req.valid("param");
         const ds = await jobOf(tenantId, id);
-        return c.text(await criticsClient.markdown(ds.criticsJobId!, c.req.valid("query").detail), 200, { "Content-Type": "text/markdown; charset=utf-8" });
+        return c.text(await reportMarkdownOf(ds, c.req.valid("query").detail), 200, { "Content-Type": "text/markdown; charset=utf-8" });
       } catch (e) { throw toHttpError(e); }
     });
 

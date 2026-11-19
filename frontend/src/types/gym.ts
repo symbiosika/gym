@@ -602,7 +602,7 @@ export interface SelectionMetrics {
   deltaEnd: AxisStat | null
 }
 
-/** One recording dataset of a skill as the Episodes tab lists it. */
+/** One recording dataset of a skill as the Pre-Train tab lists it. */
 export interface SelectionOverviewRow {
   dataset: {
     id: string

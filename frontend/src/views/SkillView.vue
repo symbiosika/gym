@@ -42,7 +42,7 @@ const form = ref<{ name: string; taskDescription: string; collectionId: string; 
 const fail = (e: unknown) => ui.showBanner('err', e instanceof Error ? e.message : String(e))
 
 const tabs = computed(() =>
-  (['blocks', 'strategy', 'evaluations', 'policies', 'episodes', 'audit'] as const).map((v) => ({
+  (['blocks', 'strategy', 'pretrain', 'policies', 'evaluations', 'audit'] as const).map((v) => ({
     value: v,
     label: t(`skill.tabs.${v}`),
   })),
@@ -355,7 +355,7 @@ async function removePolicy(p: PolicyRecord) {
       </section>
 
       <section v-else-if="tab === 'strategy'" class="mt-4">
-        <StrategyTab :tenant-id="tenantId" :skill-id="skillId" />
+        <StrategyTab :tenant-id="tenantId" :skill-id="skillId" :task="skill.taskDescription" />
       </section>
 
       <section v-else-if="tab === 'evaluations'" class="mt-4">
@@ -537,8 +537,8 @@ async function removePolicy(p: PolicyRecord) {
         </p>
       </section>
 
-      <section v-else-if="tab === 'episodes'" class="mt-4">
-        <SelectionOverview :tenant-id="tenantId" :skill-id="skillId" @exported="load" />
+      <section v-else-if="tab === 'pretrain'" class="mt-4">
+        <SelectionOverview :tenant-id="tenantId" :skill-id="skillId" :skill-name="skill.name" @exported="load" />
       </section>
 
       <section v-else class="mt-4">

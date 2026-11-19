@@ -10,8 +10,8 @@
  *   GET    /tenant/:tenantId/gym/skills/:id/selection      every episode of the skill's recording datasets
  *   PUT    /tenant/:tenantId/gym/skills/:id/selection      { changes: [{ episodeId, selected }] }
  *   GET    /tenant/:tenantId/gym/skills/:id/exports
- *   POST   /tenant/:tenantId/gym/skills/:id/exports        { name? } → zip download
- *   POST   /tenant/:tenantId/gym/skills/:id/exports/dataset  { name? } → the selection as one merged LeRobot dataset
+ *   POST   /tenant/:tenantId/gym/skills/:id/exports        { name?, blockId? } → zip download (blockId: that block's episodes only)
+ *   POST   /tenant/:tenantId/gym/skills/:id/exports/dataset  { name?, blockId? } → the selection as one merged LeRobot dataset
  *   GET    /tenant/:tenantId/gym/exports/:id/download
  *   GET    /tenant/:tenantId/gym/skills/:id/policies
  *   POST   /tenant/:tenantId/gym/skills/:id/policies       { name, exportId?, notes?, trainedAt? }
@@ -151,8 +151,8 @@ export default function defineSkillRoutes(app: SymbiosikaFrameworkHonoApp, API_B
     async (c) => {
       try {
         const { tenantId, id } = c.req.valid("param");
-        const body = ((await c.req.json().catch(() => ({}))) ?? {}) as { name?: string };
-        const result = await createExport(tenantId, await actorOf(c), id, body.name);
+        const body = ((await c.req.json().catch(() => ({}))) ?? {}) as { name?: string; blockId?: string };
+        const result = await createExport(tenantId, await actorOf(c), id, body.name, typeof body.blockId === "string" ? body.blockId : undefined);
         c.header("X-Export-Id", result.record.id);
         return zipResponse(c, result.zip, result.fileName);
       } catch (e) { throw toHttpError(e); }
@@ -164,8 +164,8 @@ export default function defineSkillRoutes(app: SymbiosikaFrameworkHonoApp, API_B
     async (c) => {
       try {
         const { tenantId, id } = c.req.valid("param");
-        const body = ((await c.req.json().catch(() => ({}))) ?? {}) as { name?: string };
-        const result = await createMergedExport(tenantId, await actorOf(c), id, body.name);
+        const body = ((await c.req.json().catch(() => ({}))) ?? {}) as { name?: string; blockId?: string };
+        const result = await createMergedExport(tenantId, await actorOf(c), id, body.name, typeof body.blockId === "string" ? body.blockId : undefined);
         // streamed through: a merged dataset with videos is far too big to hold in memory
         return new Response(result.body, {
           status: 200,

@@ -20,10 +20,11 @@ import { getDb } from "@framework/lib/db/db-connection";
 import { blocks, datasets, dayProtocols, episodes, skills, type BlockSelect, type DatasetSelect, type EpisodeSelect } from "../../db/schema";
 import { criticsClient, CriticsError, type CriticsPurpose, type SpecOverrides } from "../critics/client";
 import { refreshDataset, syncDataset, upgradeStaleSummaries } from "../critics/sync";
+import { ensureSpec, specNameOf } from "../critics/specs";
 import { putFile, removeFile, shareFile, storageDriver } from "../storage";
 import { recordAudit, type Actor } from "./audit";
 import { getBlockRow } from "./blocks";
-import { DATASET_BUCKET, UPLOAD_CHUNK_BUCKET } from "./buckets";
+import { DATASET_BUCKET, REPORT_BUCKET, UPLOAD_CHUNK_BUCKET } from "./buckets";
 import { ConflictError, InvalidInputError, NotFoundError, UpstreamError } from "./errors";
 import { closeIntervals } from "./teleop";
 import { utcRow, utcRows } from "./time";
@@ -49,6 +50,24 @@ const shareTtlSeconds = (): number => {
   return Number.isInteger(configured) && configured > 0 ? configured : 3600;
 };
 
+/**
+ * A link of GYM's own as the critics reach it. A link to a file in the
+ * database or on the disc is GYM's address (`BASE_URL`) plus a token; where
+ * the critics reach GYM by another address, `CRITICS_LINK_BASE_URL` takes its
+ * place. That is the case in local development, where the critics run in a
+ * container and `localhost` is the container itself
+ * (`http://host.docker.internal:3000`, docker-compose.critics.yml). A link
+ * that is not GYM's own (a presigned object store URL) is left as it is: its
+ * signature covers its host.
+ */
+export function linkForCritics(url: string, baseUrl = process.env.BASE_URL, criticsBaseUrl = process.env.CRITICS_LINK_BASE_URL): string {
+  const from = baseUrl?.trim().replace(/\/+$/, "");
+  const to = criticsBaseUrl?.trim().replace(/\/+$/, "");
+  if (!from || !to || !url.startsWith(from)) return url;
+  const rest = url.slice(from.length);
+  return rest === "" || rest.startsWith("/") || rest.startsWith("?") ? to + rest : url;
+}
+
 /** A temporary link to a stored dataset, for the critics. */
 export const shareDataset = (tenantId: string, ref: string) =>
   shareFile(tenantId, DATASET_BUCKET, ref, { expiresInSeconds: shareTtlSeconds() });
@@ -70,9 +89,11 @@ export const isDatasetStored = (ds: StoredDataset): boolean => !!ds.storageRef |
 export async function datasetLinks(tenantId: string, ds: StoredDataset): Promise<DatasetLinks> {
   if (ds.storageParts?.length) {
     const ttl = { expiresInSeconds: shareTtlSeconds() };
-    return { dataset_parts: await Promise.all(ds.storageParts.map(async (ref) => (await shareFile(tenantId, UPLOAD_CHUNK_BUCKET, ref, ttl)).url)) };
+    return {
+      dataset_parts: await Promise.all(ds.storageParts.map(async (ref) => linkForCritics((await shareFile(tenantId, UPLOAD_CHUNK_BUCKET, ref, ttl)).url))),
+    };
   }
-  if (ds.storageRef) return { dataset: (await shareDataset(tenantId, ds.storageRef)).url };
+  if (ds.storageRef) return { dataset: linkForCritics((await shareDataset(tenantId, ds.storageRef)).url) };
   throw new ConflictError("GYM does not hold the data of this dataset");
 }
 
@@ -80,9 +101,10 @@ export async function datasetLinks(tenantId: string, ds: StoredDataset): Promise
  * Remove the stored bytes of a dataset, the zip or its parts. Never fails the
  * caller: a file that cannot be removed must not keep a deleted dataset alive.
  */
-export async function removeDatasetFiles(tenantId: string, ds: StoredDataset): Promise<void> {
+export async function removeDatasetFiles(tenantId: string, ds: StoredDataset & { reportHtmlRef?: string | null }): Promise<void> {
   if (ds.storageRef) await removeFile(tenantId, DATASET_BUCKET, ds.storageRef).catch(() => undefined);
   for (const ref of ds.storageParts ?? []) await removeFile(tenantId, UPLOAD_CHUNK_BUCKET, ref).catch(() => undefined);
+  if (ds.reportHtmlRef) await removeFile(tenantId, REPORT_BUCKET, ds.reportHtmlRef).catch(() => undefined);
 }
 
 /**
@@ -160,12 +182,13 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
           driver: f.driver,
         }));
   // a spec that was deleted since the skill named it must not fail the upload:
-  // the run falls back to the auto spec, as deleting a spec promises
+  // the run falls back to the auto spec, as deleting a spec promises. One the
+  // critics merely lost (a redeploy) is put back from GYM's copy first.
   const wantedSpec = skill.criticSpecName ?? null;
   let specName: string | null = null;
   let jobId: string;
   try {
-    specName = wantedSpec && (await criticsClient.specExists(wantedSpec)) ? wantedSpec : null;
+    specName = wantedSpec && (await ensureSpec(tenantId, wantedSpec)) ? specNameOf(wantedSpec) : null;
     const links = await datasetLinks(tenantId, stored);
     // the skill's spec says what the task is; the kind of the block says what the
     // episodes are: demonstrations for training or rollouts of a policy

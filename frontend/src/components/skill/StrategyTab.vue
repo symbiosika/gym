@@ -16,7 +16,7 @@ import IconUpload from '~icons/carbon/upload'
  * down. A description, pictures and PDFs, and the run sheet. All of it is
  * optional and none of it binds a block.
  */
-const props = defineProps<{ tenantId: string; skillId: string }>()
+const props = defineProps<{ tenantId: string; skillId: string; task?: string }>()
 const { t } = useI18n()
 const ui = useUi()
 const dialog = useDialog()
@@ -134,6 +134,7 @@ async function removeFile(f: StrategyFile) {
       :tenant-id="tenantId"
       :skill-id="skillId"
       :strategy="strategy"
+      :task="task"
       @update="adopt"
       @error="(m) => ui.showBanner('err', m)"
     />

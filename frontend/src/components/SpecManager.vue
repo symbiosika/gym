@@ -23,7 +23,11 @@ import IconTrash from '~icons/carbon/trash-can'
  * of only in the critics service. The list says which skills work with which
  * spec, so removing one is never a surprise.
  */
-const props = defineProps<{ tenantId: string }>()
+const props = defineProps<{
+  tenantId: string
+  /** the spec chosen where the manager was opened from: it opens in the editor at once */
+  current?: string | null
+}>()
 const visible = defineModel<boolean>('visible', { required: true })
 /** the name the picker should select after the dialog closes, when one was written */
 const emit = defineEmits<{ picked: [name: string] }>()
@@ -57,7 +61,10 @@ const tabs = computed(() => [
   { value: 'yaml', label: t('spec.tabYaml') },
 ])
 const stateOf = () => JSON.stringify({ name: name.value, form: form.value })
-const dirty = computed(() => (view.value === 'presets' ? false : isNew.value || stateOf() !== snapshot.value))
+/** edited and not saved; nothing open is nothing to lose, so picking the first spec asks nothing */
+const dirty = computed(() =>
+  view.value === 'presets' || (form.value === null && !isNew.value) ? false : isNew.value || stateOf() !== snapshot.value,
+)
 const open = computed(() => form.value !== null || view.value === 'presets')
 const fail = (e: unknown) => ui.showBanner('err', e instanceof Error ? e.message : String(e))
 
@@ -75,15 +82,17 @@ async function loadList() {
   }
 }
 
-watch(visible, (on) => {
+watch(visible, async (on) => {
   if (!on) return
   closeEditor()
-  loadList()
   // the parameters of the technical checks; without the service the form still lists every check
   gymApi.hardCritics(props.tenantId).then(
     (rows) => (critics.value = rows),
     () => (critics.value = []),
   )
+  await loadList()
+  const chosen = specs.value.find((s) => s.name === props.current)
+  if (chosen && visible.value && !open.value) await openSpec(chosen)
 })
 
 function closeEditor() {

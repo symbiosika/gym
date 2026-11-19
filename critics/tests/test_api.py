@@ -704,3 +704,36 @@ def test_apply_overrides_allows_only_the_run_facts():
     for bad in ({"robot": {"preroll_min_s": 0.0}}, {"task": {"scene": "x"}}, {"robot": "left"}):
         with pytest.raises(ValueError):
             apply_overrides(base, bad)
+
+
+def test_a_report_is_rendered_from_report_json_without_its_job(client, synthetic_dataset):
+    """An app that mirrored report.json still gets the report after the job directory is gone."""
+    r = client.post(
+        "/jobs",
+        json={
+            "dataset": str(synthetic_dataset),
+            "spec": {
+                "name": "r",
+                "task": {"instruction": "put the red block in the box"},
+                "soft_critics": {"enabled": False},
+            },
+            "options": {"workers": 1, "contact_sheets": False},
+        },
+    )
+    job_id = r.json()["job_id"]
+    for _ in range(120):
+        st = client.get(f"/jobs/{job_id}").json()
+        if st["status"] in ("done", "failed"):
+            break
+        time.sleep(0.5)
+    assert st["status"] == "done", st
+    report = client.get(f"/jobs/{job_id}/report").json()
+    assert client.delete(f"/jobs/{job_id}").status_code == 204
+    assert client.get(f"/jobs/{job_id}/report.html").status_code == 404
+
+    html = client.post("/render/report.html?top=3", json=report)
+    assert html.status_code == 200 and html.text.startswith("<!doctype html>")
+    assert report["dataset_name"] in html.text
+    md = client.post("/render/markdown?detail=summary", json=report)
+    assert md.status_code == 200 and md.headers["content-type"].startswith("text/markdown")
+    assert client.post("/render/report.html", json={"not": "a report"}).status_code == 422
