@@ -75,7 +75,9 @@ export default function defineCriticsRoutes(app: SymbiosikaFrameworkHonoApp, API
     async (c) => {
       try {
         const { tenantId } = c.req.valid("param");
-        const [specs, usage] = await Promise.all([listSpecs(tenantId), specUsage(tenantId)]);
+        // one after the other: both read the database, which may serve one query at a time (PGlite)
+        const specs = await listSpecs(tenantId);
+        const usage = await specUsage(tenantId);
         return c.json(specs.map((spec) => ({ ...spec, usedBy: usage[spec.name] ?? [] })));
       } catch (e) { throw toHttpError(e); }
     });
