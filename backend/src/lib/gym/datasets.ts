@@ -50,6 +50,24 @@ const shareTtlSeconds = (): number => {
   return Number.isInteger(configured) && configured > 0 ? configured : 3600;
 };
 
+/**
+ * A link of GYM's own as the critics reach it. A link to a file in the
+ * database or on the disc is GYM's address (`BASE_URL`) plus a token; where
+ * the critics reach GYM by another address, `CRITICS_LINK_BASE_URL` takes its
+ * place. That is the case in local development, where the critics run in a
+ * container and `localhost` is the container itself
+ * (`http://host.docker.internal:3000`, docker-compose.critics.yml). A link
+ * that is not GYM's own (a presigned object store URL) is left as it is: its
+ * signature covers its host.
+ */
+export function linkForCritics(url: string, baseUrl = process.env.BASE_URL, criticsBaseUrl = process.env.CRITICS_LINK_BASE_URL): string {
+  const from = baseUrl?.trim().replace(/\/+$/, "");
+  const to = criticsBaseUrl?.trim().replace(/\/+$/, "");
+  if (!from || !to || !url.startsWith(from)) return url;
+  const rest = url.slice(from.length);
+  return rest === "" || rest.startsWith("/") || rest.startsWith("?") ? to + rest : url;
+}
+
 /** A temporary link to a stored dataset, for the critics. */
 export const shareDataset = (tenantId: string, ref: string) =>
   shareFile(tenantId, DATASET_BUCKET, ref, { expiresInSeconds: shareTtlSeconds() });
@@ -71,9 +89,11 @@ export const isDatasetStored = (ds: StoredDataset): boolean => !!ds.storageRef |
 export async function datasetLinks(tenantId: string, ds: StoredDataset): Promise<DatasetLinks> {
   if (ds.storageParts?.length) {
     const ttl = { expiresInSeconds: shareTtlSeconds() };
-    return { dataset_parts: await Promise.all(ds.storageParts.map(async (ref) => (await shareFile(tenantId, UPLOAD_CHUNK_BUCKET, ref, ttl)).url)) };
+    return {
+      dataset_parts: await Promise.all(ds.storageParts.map(async (ref) => linkForCritics((await shareFile(tenantId, UPLOAD_CHUNK_BUCKET, ref, ttl)).url))),
+    };
   }
-  if (ds.storageRef) return { dataset: (await shareDataset(tenantId, ds.storageRef)).url };
+  if (ds.storageRef) return { dataset: linkForCritics((await shareDataset(tenantId, ds.storageRef)).url) };
   throw new ConflictError("GYM does not hold the data of this dataset");
 }
 
