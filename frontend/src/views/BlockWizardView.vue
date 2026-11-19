@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { gymApi } from '@/api/gym'
 import { useUi } from '@/stores/ui'
+import { useTour } from '@/stores/tour'
 import type { BlockStep, BlockView } from '@/types/gym'
 import { fmtDateLong, today } from '@/utils/time'
 import WizardSteps from '@/components/WizardSteps.vue'
@@ -23,6 +24,8 @@ import StepClosed from '@/components/wizard/StepClosed.vue'
 const route = useRoute()
 const { t, locale } = useI18n()
 const ui = useUi()
+/** while the guided tour looks at the block, every step is read-only, the block's own one too */
+const tour = useTour()
 const tenantId = computed(() => String(route.params.tenantId))
 const blockId = computed(() => String(route.params.blockId))
 
@@ -128,8 +131,15 @@ async function lookAtLinkedStep() {
   const b = block.value
   if (typeof step === 'string' && b && step !== b.step && reachable.value.includes(step as BlockStep)) {
     viewing.value = step as BlockStep
+  } else if (typeof step === 'string' && b && step === b.step) {
+    viewing.value = null
   }
 }
+// another step of the same block named by the link (the tour moves on like that)
+watch(
+  () => route.query.step,
+  () => void lookAtLinkedStep(),
+)
 
 function look(step: BlockStep) {
   viewing.value = step === block.value?.step ? null : step
@@ -195,7 +205,14 @@ async function moveHere() {
         >
       </div>
 
-      <WizardSteps :current="block.step" :viewing="viewing" :reachable="reachable" :kind="block.kind" @go="look" />
+      <WizardSteps
+        data-tour="wizard-steps"
+        :current="block.step"
+        :viewing="viewing"
+        :reachable="reachable"
+        :kind="block.kind"
+        @go="look"
+      />
 
       <!-- looking at another step: said plainly, with the way back and the explicit move -->
       <div
@@ -213,12 +230,12 @@ async function moveHere() {
       </div>
 
       <!-- a step that is only looked at is read-only: its buttons and fields are off -->
-      <fieldset :disabled="!!viewing" class="m-0 min-w-0 border-0 p-0" :class="viewing ? 'opacity-80' : ''">
+      <fieldset :disabled="!!viewing || tour.active" class="m-0 min-w-0 border-0 p-0" :class="viewing ? 'opacity-80' : ''">
         <StepBrief v-if="shown === 'brief'" :block="block" :tenant-id="tenantId" @update="onUpdate" @error="onError" />
         <StepPlan v-else-if="shown === 'plan'" :block="block" :tenant-id="tenantId" @update="onUpdate" @error="onError" />
         <StepRecording
           v-else-if="shown === 'recording' && block.plan"
-          :readonly="!!viewing"
+          :readonly="!!viewing || tour.active"
           :block="block"
           :tenant-id="tenantId"
           @update="onUpdate"

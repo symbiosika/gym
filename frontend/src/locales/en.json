@@ -849,7 +849,11 @@
     "noSpecs": "No spec in the critics service yet.",
     "moveRobot": "Move \"{robot}\" to {cell}?",
     "moveRobotHint": "The robot is in {from} right now. {from} is left with an undefined robot.",
-    "manageRobots": "Manage robots"
+    "manageRobots": "Manage robots",
+    "tourSkill": "Tour skill",
+    "tourSkillHint": "The guided tour shows this skill. Best one with recorded, exported and evaluated data.",
+    "tourSkillNone": "none",
+    "tourSkillSaved": "Tour skill saved"
   },
   "mobile": {
     "invalid": "This link is no longer valid. Scan the QR code on the cell's screen again.",
@@ -1897,6 +1901,235 @@
       "low": "Rejected: total score {total} is below {review}.",
       "noScore": "Review: there is no score yet.",
       "error": "Review: the run of this episode had an error."
+    },
+    "howTitle": "How the wizard goes",
+    "how": {
+      "sample": "Upload a sample dataset, kept only for the time of the wizard.",
+      "analysis": "The critics analyse a few episodes with an automatic spec.",
+      "task": "Set the task and its objects.",
+      "robot": "Confirm the robot, its arms and cameras.",
+      "workbench": "Compare video, critics and your judgement per episode and tune the spec.",
+      "save": "Test on the same episodes and store it."
+    }
+  },
+  "tour": {
+    "open": "Guided tour",
+    "title": "Guided tour",
+    "lead": "One complete iteration on real data, in chapters",
+    "skill": "The tour shows the skill “{name}”. It changes nothing, it only shows.",
+    "noSkill": "No tour skill has been chosen for this organisation yet.",
+    "toSettings": "Choose one in Settings",
+    "askAdmin": "Ask an admin to choose a tour skill.",
+    "unavailable": "The tour skill has no data for this yet.",
+    "start": "Start",
+    "whole": "Whole tour",
+    "next": "Next",
+    "prev": "Back",
+    "done": "Done",
+    "nothing": "The tour skill has nothing to show for this yet.",
+    "chapters": {
+      "skill": {
+        "title": "The skill",
+        "lead": "What a skill is and what belongs to it"
+      },
+      "specs": {
+        "title": "Critic specs",
+        "lead": "How the critics know what to check"
+      },
+      "recording": {
+        "title": "Recording a block",
+        "lead": "From the brief to the selection of episodes"
+      },
+      "pretrain": {
+        "title": "Pre-Train",
+        "lead": "Pick and export the training data of the skill"
+      },
+      "evaluation": {
+        "title": "Policy and evaluation",
+        "lead": "Register a trained policy and test it"
+      },
+      "analysis": {
+        "title": "Analysis",
+        "lead": "Key figures over time, cells and skills"
+      }
+    },
+    "steps": {
+      "skill": {
+        "header": {
+          "title": "The skill",
+          "text": "This is the skill: the task the robot learns. Everything below belongs to it."
+        },
+        "kpis": {
+          "title": "Key figures",
+          "text": "The figures across all blocks: recorded and accepted episodes, datasets, policies, the last evaluation."
+        },
+        "tabs": {
+          "title": "The work in tabs",
+          "text": "The tabs follow the work: plan the strategy, record blocks, pick the training data, train, evaluate."
+        },
+        "spec": {
+          "title": "The critic spec",
+          "text": "The spec says what the critics check for this skill. The Critic specs chapter opens it."
+        }
+      },
+      "specs": {
+        "skillSpec": {
+          "title": "One spec per skill",
+          "text": "Each skill names one spec. Without one, the critics derive a spec from the dataset itself."
+        },
+        "list": {
+          "title": "All specs",
+          "text": "The specs of the organisation, each with the skills that use it."
+        },
+        "task": {
+          "title": "The task",
+          "text": "The task in one sentence and its objects. The language model judges every episode against it."
+        },
+        "indicators": {
+          "title": "How success is recognised",
+          "text": "Statements the model checks. A gate must hold, or the episode is rejected."
+        },
+        "hard": {
+          "title": "Technical checks",
+          "text": "Checks on signals and videos, each with a weight and thresholds."
+        },
+        "scoring": {
+          "title": "Scoring",
+          "text": "Where accept, review and reject begin, and findings that are only warnings."
+        },
+        "yaml": {
+          "title": "As YAML",
+          "text": "The same spec as YAML, for copying or editing by hand."
+        },
+        "wizardNew": {
+          "title": "The spec wizard",
+          "text": "A new spec is best made in the wizard, from a sample dataset."
+        },
+        "wizardSteps": {
+          "title": "Step by step",
+          "text": "The critics analyse the sample, then come the task, the robot and the cameras. In the workbench you compare video, critics and your own judgement until they agree."
+        },
+        "wizardOpen": {
+          "title": "Open drafts",
+          "text": "A draft you started waits here. Tested and stored, it is assigned to the skill right away."
+        }
+      },
+      "recording": {
+        "runSheet": {
+          "title": "Strategy and run sheet",
+          "text": "Optional: the strategy and a run sheet with one row per episode. A block can take it over as its plan."
+        },
+        "blocks": {
+          "title": "Blocks",
+          "text": "Every recording happens in a block: one stretch of work in a cell on a day."
+        },
+        "wizard": {
+          "title": "The block wizard",
+          "text": "The wizard leads through a block step by step and saves every input at once."
+        },
+        "brief": {
+          "title": "Brief",
+          "text": "The target and the scene, photographed and dictated on the phone if you like."
+        },
+        "plan": {
+          "title": "Plan",
+          "text": "Steps and variations, proposed by the AI or taken from the run sheet."
+        },
+        "recording": {
+          "title": "Recording",
+          "text": "While recording, the operator ticks off the episodes per step; the clock counts the teleoperation time."
+        },
+        "upload": {
+          "title": "Upload",
+          "text": "The recorded LeRobot dataset is uploaded here. GYM keeps it and hands it to the critics."
+        },
+        "summary": {
+          "title": "The critics' answer",
+          "text": "In one sentence: how many episodes are good and how many are still missing."
+        },
+        "dataset": {
+          "title": "Per dataset",
+          "text": "Verdicts, findings and what should go differently next time."
+        },
+        "report": {
+          "title": "The report",
+          "text": "The full visual report of the run, printable."
+        },
+        "selection": {
+          "title": "Selection",
+          "text": "Which episodes of this block go into training. Rejected ones start unticked; your verdict counts over the critics'."
+        },
+        "export": {
+          "title": "The block's export",
+          "text": "The selected episodes of this block, as a manifest or as one merged dataset."
+        }
+      },
+      "pretrain": {
+        "table": {
+          "title": "The training data",
+          "text": "All recorded datasets of the skill, one per row, with what is selected of each."
+        },
+        "included": {
+          "title": "In or out",
+          "text": "Unticked, a dataset stays out of the export and the figures as a whole. The tick in the head takes them all."
+        },
+        "review": {
+          "title": "To the block",
+          "text": "Open reviews and ticks are settled in the block's selection step; the link leads there."
+        },
+        "positions": {
+          "title": "Positions",
+          "text": "Where was picked and how much it spreads: the variety of the training data."
+        },
+        "export": {
+          "title": "Export",
+          "text": "Export the selection under a name: as a manifest, or as one LeRobot dataset ready for training."
+        },
+        "exports": {
+          "title": "Saved exports",
+          "text": "Every export stays with the skill and can be downloaded again."
+        }
+      },
+      "evaluation": {
+        "policies": {
+          "title": "Policies",
+          "text": "A trained policy is registered here, with the export it was trained from and where it lives."
+        },
+        "course": {
+          "title": "Evaluations",
+          "text": "Each evaluation block tests a policy; the success rate over time shows the progress."
+        },
+        "tiles": {
+          "title": "Rollouts",
+          "text": "The success rate with its uncertainty, and what still waits for a person."
+        },
+        "table": {
+          "title": "Human review",
+          "text": "A person confirms or overrules each rollout and names the failure mode. That word counts."
+        },
+        "report": {
+          "title": "Evaluation report",
+          "text": "Several evaluations read together, with your conclusions, shareable as a link."
+        }
+      },
+      "analysis": {
+        "filters": {
+          "title": "Filters",
+          "text": "Filter by period, skill, cell and collection; the tour has chosen the tour skill."
+        },
+        "totals": {
+          "title": "At a glance",
+          "text": "Recording and evaluation: episodes, accept rate, time."
+        },
+        "perDay": {
+          "title": "Per day and cell",
+          "text": "Day by day and cell by cell, to see where the data quality moves."
+        },
+        "flags": {
+          "title": "Most frequent findings",
+          "text": "The findings of the critics that came up most often."
+        }
+      }
     }
   }
 }

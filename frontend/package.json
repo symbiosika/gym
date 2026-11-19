@@ -1,6 +1,6 @@
 {
   "name": "symbiosika-gym-frontend",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
@@ -20,6 +20,7 @@
   "dependencies": {
     "@simplewebauthn/browser": "^13.0.0",
     "@tailwindcss/vite": "^4",
+    "driver.js": "1.3.1",
     "nanoid": "^5.1.6",
     "pinia": "^3.0.3",
     "primevue": "^4",

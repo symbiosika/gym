@@ -10,6 +10,29 @@ raises it, and its merge is tagged `v<version>`:
 
 The versions before 0.9.0 were given afterwards, one per merged pull request.
 
+## 0.13.0
+
+A guided tour through one skill.
+
+- A help button in the header opens the guided tour: six chapters, each
+  startable on its own or all as "Whole tour" (the skill, critic specs,
+  recording a block, Pre-Train, policy and evaluation, analysis), with a short
+  title and one or two sentences per step, in German and English.
+- The tour walks over the tour skill of the organisation, which an owner or
+  admin picks in Settings (`skills.tour_skill`, one per organisation,
+  `GET/PUT tour`). It finds its material there by itself (the newest
+  recording block with judged data, its largest dataset, the newest export,
+  the policy, the newest evaluation with reviewed rollouts, the newest report)
+  and skips what the skill does not have.
+- The tour only looks: it opens pages and highlights elements, the
+  highlighted element cannot be clicked, the block wizard and the spec
+  manager it opens are read-only, and nothing is written.
+- The skill page keeps its tab in the address (`?tab=`), the analysis takes
+  its skill from it (`?skillId=`), and the spec wizard's start page shows the
+  six steps of the wizard.
+- Looking at the brief or the recording step of a closed block no longer asks
+  for a phone access token, which a closed block refuses with a red banner.
+
 ## 0.12.0
 
 Specs and reports survive a redeploy of the critics; the selection step is the block's.

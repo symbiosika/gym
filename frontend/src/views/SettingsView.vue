@@ -8,7 +8,8 @@ import { useDialog } from '@/stores/dialog'
 import { useGym } from '@/stores/gym'
 import { useOrg, type MemberRole } from '@/stores/org'
 import { useUi } from '@/stores/ui'
-import type { Cell, Collection, CriticsSpecInfo } from '@/types/gym'
+import type { Cell, Collection, CriticsSpecInfo, SkillListItem } from '@/types/gym'
+import { NONE } from '@/utils/select'
 import { robotFullLabel } from '@/utils/robots'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SpecManager from '@/components/SpecManager.vue'
@@ -62,9 +63,36 @@ onMounted(async () => {
   if (app.isAdmin) {
     await org.loadMembers(tenantId.value, true).catch(fail)
     await org.loadInvitations(tenantId.value).catch(fail)
+    await loadTour().catch(fail)
   }
   await loadSpecs()
 })
+
+/* the skill the guided tour walks through: one per organisation, chosen here */
+const tourSkillId = ref(NONE)
+const tourSkills = ref<SkillListItem[]>([])
+const tourOptions = computed(() => [
+  { label: t('settings.tourSkillNone'), value: NONE },
+  ...tourSkills.value.map((s) => ({
+    label: s.status === 'archived' ? `${s.name} (${t('skill.status.archived')})` : s.name,
+    value: s.id,
+  })),
+])
+async function loadTour() {
+  tourSkills.value = await gymApi.skills(tenantId.value, { limit: 500 })
+  tourSkillId.value = (await gymApi.tour(tenantId.value)).skill?.id ?? NONE
+}
+async function setTourSkill(value: string) {
+  const previous = tourSkillId.value
+  tourSkillId.value = value
+  try {
+    await gymApi.setTourSkill(tenantId.value, value === NONE ? null : value)
+    ui.showBanner('ok', t('settings.tourSkillSaved'), 2500)
+  } catch (e) {
+    tourSkillId.value = previous
+    fail(e)
+  }
+}
 
 const robotChoice = (c: Cell) => c.robotId ?? (c.noRobot ? NO_ROBOT : UNDEFINED_ROBOT)
 const robotFields = (choice: string): Pick<Cell, 'robotId' | 'noRobot'> =>
@@ -403,6 +431,17 @@ const rowBox = 'rounded-panel border border-surface-300 bg-surface-0 px-2.5 py-2
       <p class="mt-2 text-xs text-surface-500 dark:text-surface-400">
         {{ t('settings.rolesHint') }}
       </p>
+      <FormField class="mt-5 max-w-md" :label="t('settings.tourSkill')" :hint="t('settings.tourSkillHint')">
+        <Select
+          :model-value="tourSkillId"
+          fluid
+          filter
+          :options="tourOptions"
+          option-label="label"
+          option-value="value"
+          @update:model-value="setTourSkill"
+        />
+      </FormField>
     </section>
 
     <section class="mt-8">

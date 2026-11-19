@@ -169,7 +169,7 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
 <template>
   <div class="flex flex-col gap-6">
     <!-- 1 · the task -->
-    <section v-if="show('task')">
+    <section v-if="show('task')" data-tour="spec-task">
       <header class="mb-2 flex items-center gap-2">
         <span
           v-if="numbered"
@@ -269,7 +269,7 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
     </section>
 
     <!-- 2 · success indicators -->
-    <section v-if="show('soft')">
+    <section v-if="show('soft')" data-tour="spec-indicators">
       <header class="mb-2 flex flex-wrap items-center gap-2">
         <span
           v-if="numbered"
@@ -410,7 +410,7 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
     </section>
 
     <!-- 3 · technical checks -->
-    <section v-if="show('hard')">
+    <section v-if="show('hard')" data-tour="spec-hard">
       <details class="group" :open="hardOpen" @toggle="hardOpen = ($event.target as HTMLDetailsElement).open">
         <summary class="flex cursor-pointer flex-wrap items-center gap-2 select-none">
           <span
@@ -519,7 +519,7 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
     </section>
 
     <!-- 4 · scoring -->
-    <section v-if="show('scoring')">
+    <section v-if="show('scoring')" data-tour="spec-scoring">
       <details class="group" :open="scoringOpen" @toggle="scoringOpen = ($event.target as HTMLDetailsElement).open">
         <summary class="flex cursor-pointer flex-wrap items-center gap-2 select-none">
           <span

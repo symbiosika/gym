@@ -11,6 +11,9 @@ import AppBanner from './AppBanner.vue'
 import InfoPopover from './InfoPopover.vue'
 import ConfirmModal from './ConfirmModal.vue'
 import ProfileModal from './ProfileModal.vue'
+import TourHost from './TourHost.vue'
+import { useTour } from '@/stores/tour'
+import IconHelp from '~icons/carbon/help'
 import IconMoon from '~icons/carbon/moon'
 import IconSun from '~icons/carbon/sun'
 import IconChevronDown from '~icons/carbon/chevron-down'
@@ -23,6 +26,7 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const profile = useProfile()
+const tour = useTour()
 const appVersion = __APP_VERSION__
 const profileOpen = ref(false)
 onMounted(() => {
@@ -125,6 +129,17 @@ const menuItem =
         </div>
 
         <SecondaryButton
+          v-if="tenantId"
+          variant="text"
+          rounded
+          :aria-label="t('tour.open')"
+          v-tooltip.bottom="t('tour.open')"
+          @click="tour.openDialog()"
+        >
+          <template #icon><IconHelp /></template>
+        </SecondaryButton>
+
+        <SecondaryButton
           variant="text"
           rounded
           :aria-label="t('app.theme.label')"
@@ -216,4 +231,5 @@ const menuItem =
   <InfoPopover />
   <ConfirmModal />
   <ProfileModal v-model:visible="profileOpen" />
+  <TourHost v-if="tenantId" />
 </template>

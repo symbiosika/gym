@@ -34,7 +34,8 @@ const runUrl = computed(() => (token.value ? `${window.location.origin}${token.v
 const day = ref<DayView | null>(null)
 onMounted(async () => {
   try {
-    token.value = await gymApi.accessToken(props.tenantId, props.block.id)
+    // a closed block has no phone link: looking at it (or the guided tour) must not ask for one
+    if (props.block.step !== 'closed') token.value = await gymApi.accessToken(props.tenantId, props.block.id)
     day.value = await gymApi.day(props.tenantId, props.block.dayProtocolId)
   } catch (e) {
     emit('error', e instanceof Error ? e.message : String(e))
@@ -218,7 +219,7 @@ async function finish() {
 </script>
 
 <template>
-  <div class="gym-stepbox">
+  <div class="gym-stepbox" data-tour="wizard-recording">
     <h2 class="font-display text-xl font-semibold tracking-tight">
       {{ isEvaluation ? t('recording.titleEvaluation') : t('recording.title') }}
     </h2>

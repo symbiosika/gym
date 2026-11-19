@@ -1144,3 +1144,20 @@ export interface SampleReport {
   flag_docs?: Record<string, string>
   episodes: SampleEpisode[]
 }
+
+/** What the guided tour shows of the tour skill (GET tour); every field but `skill` may be null. */
+export interface TourMaterial {
+  skill: { id: string; name: string; criticSpecName: string | null; status: string } | null
+  /** the newest recording block with a dataset the critics finished, a closed one first */
+  recordingBlockId: string | null
+  /** the finished dataset of that block with the most episodes */
+  datasetId: string | null
+  exportId: string | null
+  /** the newest policy, one trained from an export first */
+  policyId: string | null
+  /** the newest evaluation block with a finished dataset, one with reviewed rollouts first */
+  evaluationBlockId: string | null
+  reportId: string | null
+  /** the skill names a spec that is stored, so the spec manager can open it */
+  specStored: boolean
+}

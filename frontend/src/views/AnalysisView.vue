@@ -25,7 +25,12 @@ const tenantId = computed(() => String(route.params.tenantId))
 
 const from = ref(addDays(today(), -30))
 const to = ref(today())
-const skillId = ref(NONE)
+/** a link may name the skill (`?skillId=`, the guided tour) */
+const skillId = ref(typeof route.query.skillId === 'string' ? route.query.skillId : NONE)
+watch(
+  () => route.query.skillId,
+  (q) => (skillId.value = typeof q === 'string' ? q : NONE),
+)
 const cellId = ref(NONE)
 const collectionId = ref(NONE)
 /** every skill of the organisation, for the skill filter; read once */
@@ -124,7 +129,7 @@ const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' :
   <div class="gym-wrap">
     <PageTitle :title="t('analysis.title')" :sub="t('analysis.sub')" />
 
-    <div class="mt-4 mb-5 flex flex-wrap items-end gap-3">
+    <div class="mt-4 mb-5 flex flex-wrap items-end gap-3" data-tour="analysis-filters">
       <FormField class="w-36" :label="t('analysis.from')">
         <InputText v-model="from" type="date" fluid />
       </FormField>
@@ -247,7 +252,7 @@ const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' :
       </details>
 
       <!-- eight figures: two clean rows of four, one column on a phone -->
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-tour="analysis-totals">
         <KpiTile
           :label="t('analysis.totals.episodes')"
           :value="String(kpis.totals.episodes)"
@@ -299,7 +304,7 @@ const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' :
         />
       </div>
 
-      <div class="mt-6 grid gap-6 lg:grid-cols-2">
+      <div class="mt-6 grid gap-6 lg:grid-cols-2" data-tour="analysis-perday">
         <section>
           <SectionHeader n="" :title="t('analysis.perDay')" />
           <div v-if="!kpis.perDay.length" class="gym-empty">
@@ -366,7 +371,7 @@ const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' :
               </tbody>
             </table>
           </div>
-          <div v-if="kpis.flags.length" class="mt-3 flex flex-wrap gap-1.5">
+          <div v-if="kpis.flags.length" class="mt-3 flex flex-wrap gap-1.5" data-tour="analysis-flags">
             <Pill v-for="f in kpis.flags" :key="f.flag">{{ f.count }} × {{ f.flag }}</Pill>
           </div>
         </section>

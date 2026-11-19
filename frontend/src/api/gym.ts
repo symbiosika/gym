@@ -44,6 +44,7 @@ import type {
   SpecDraftStep,
   SpecDraftView,
   SpecOverrides,
+  TourMaterial,
 } from '@/types/gym'
 
 const base = (tenantId: string) => `/api/v1/tenant/${tenantId}/gym`
@@ -244,6 +245,9 @@ export const gymApi = {
   exportUnfiltered: (t: string, id: string) =>
     zipDownload(`${base(t)}/datasets/${id}/export-unfiltered`, undefined, 'dataset.zip'),
   exportDownloadUrl: (t: string, exportId: string) => `${base(t)}/exports/${exportId}/download`,
+  /** the guided tour: what it shows of the tour skill, and (owners and admins) which skill that is */
+  tour: (t: string) => fetcher.get<TourMaterial>(`${base(t)}/tour`),
+  setTourSkill: (t: string, skillId: string | null) => fetcher.put<TourMaterial>(`${base(t)}/tour`, { skillId }),
 
   // strategy of a skill: description, pictures and PDFs, the run sheet
   strategy: (t: string, skillId: string) => fetcher.get<SkillStrategy>(`${base(t)}/skills/${skillId}/strategy`),

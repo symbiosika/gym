@@ -163,13 +163,20 @@ async function exportAll(row: SelectionOverviewRow) {
         :hint="t('skill.episodesTab.selectedOf', { n: overview.totals.selected, total: overview.totals.episodes })"
       />
       <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">{{ t('skill.episodesTab.lead') }}</p>
-      <SelectionExportBar v-model:name="exportName" class="mb-3" :count="selectedCount" :busy="busy" @export="exportSelection" />
+      <SelectionExportBar
+        v-model:name="exportName"
+        data-tour="pretrain-export"
+        class="mb-3"
+        :count="selectedCount"
+        :busy="busy"
+        @export="exportSelection"
+      />
 
-      <div class="gym-panel overflow-x-auto">
+      <div class="gym-panel overflow-x-auto" data-tour="pretrain-table">
         <table class="gym-table">
           <thead>
             <tr>
-              <th :title="t('skill.episodesTab.includedHint')">
+              <th :title="t('skill.episodesTab.includedHint')" data-tour="pretrain-included">
                 <span class="flex items-center gap-2">
                   <Checkbox
                     binary
@@ -194,7 +201,7 @@ async function exportAll(row: SelectionOverviewRow) {
             </tr>
           </thead>
           <tbody>
-            <template v-for="row in overview.datasets" :key="row.dataset.id">
+            <template v-for="(row, rowIndex) in overview.datasets" :key="row.dataset.id">
               <tr :class="row.dataset.included ? '' : 'opacity-60'">
                 <td>
                   <Checkbox
@@ -250,6 +257,7 @@ async function exportAll(row: SelectionOverviewRow) {
                 <td class="text-end whitespace-nowrap">
                   <RouterLink
                     :to="selectionStepOf(row)"
+                    :data-tour="rowIndex === 0 ? 'pretrain-review' : undefined"
                     class="me-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                     :title="t('skill.episodesTab.toSelection')"
                     ><IconLaunch class="size-3.5" aria-hidden="true" />{{ t('skill.episodesTab.selectionStep') }}</RouterLink
@@ -291,7 +299,12 @@ async function exportAll(row: SelectionOverviewRow) {
       </div>
     </section>
 
-    <SelectionMetrics :metrics="overview.metrics" :points="overview.points" :names="datasetNames" />
+    <SelectionMetrics
+      data-tour="pretrain-positions"
+      :metrics="overview.metrics"
+      :points="overview.points"
+      :names="datasetNames"
+    />
 
     <SelectionExportBar v-model:name="exportName" :count="selectedCount" :busy="busy" @export="exportSelection" />
   </div>

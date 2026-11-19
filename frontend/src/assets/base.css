@@ -315,6 +315,83 @@ img {
   }
 }
 
+/* -------------------------------------------------------------- guided tour */
+/* The popover of the guided tour (driver.js, components/TourHost.vue), in the
+   colours of the app, light and dark. */
+.driver-popover.gym-tour {
+  background: var(--p-surface-0);
+  color: var(--p-text-color);
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 10px;
+  max-width: 340px;
+  padding: 16px 18px 14px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+}
+.dark .driver-popover.gym-tour {
+  background: var(--p-surface-900);
+}
+.driver-popover.gym-tour .driver-popover-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.driver-popover.gym-tour .driver-popover-description {
+  color: var(--p-text-color);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.driver-popover.gym-tour .gym-tour-progress {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--p-text-muted-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+}
+.driver-popover.gym-tour .driver-popover-footer button {
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--p-text-color);
+  font-size: 0.8125rem;
+  padding: 4px 10px;
+  text-shadow: none;
+}
+.driver-popover.gym-tour .driver-popover-footer .driver-popover-next-btn {
+  background: var(--p-primary-color);
+  border-color: var(--p-primary-color);
+  color: var(--p-primary-contrast-color);
+}
+.driver-popover.gym-tour .driver-popover-footer button:disabled {
+  opacity: 0.4;
+}
+.driver-popover.gym-tour .driver-popover-close-btn {
+  color: var(--p-text-muted-color);
+}
+.driver-popover.gym-tour .driver-popover-arrow-side-top {
+  border-top-color: var(--p-surface-0);
+}
+.driver-popover.gym-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--p-surface-0);
+}
+.driver-popover.gym-tour .driver-popover-arrow-side-left {
+  border-left-color: var(--p-surface-0);
+}
+.driver-popover.gym-tour .driver-popover-arrow-side-right {
+  border-right-color: var(--p-surface-0);
+}
+.dark .driver-popover.gym-tour .driver-popover-arrow-side-top {
+  border-top-color: var(--p-surface-900);
+}
+.dark .driver-popover.gym-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--p-surface-900);
+}
+.dark .driver-popover.gym-tour .driver-popover-arrow-side-left {
+  border-left-color: var(--p-surface-900);
+}
+.dark .driver-popover.gym-tour .driver-popover-arrow-side-right {
+  border-right-color: var(--p-surface-900);
+}
+
 /* ------------------------------------------------------------------- print */
 @media print {
   body {

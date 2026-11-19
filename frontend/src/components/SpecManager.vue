@@ -27,6 +27,10 @@ const props = defineProps<{
   tenantId: string
   /** the spec chosen where the manager was opened from: it opens in the editor at once */
   current?: string | null
+  /** shown by the guided tour: nothing can be written, removed or uploaded */
+  readonly?: boolean
+  /** the editor's view, when the caller decides it (the tour) */
+  view?: 'form' | 'yaml'
 }>()
 const visible = defineModel<boolean>('visible', { required: true })
 /** the name the picker should select after the dialog closes, when one was written */
@@ -243,9 +247,17 @@ async function onFile(ev: Event) {
 }
 
 async function close() {
-  if (dirty.value && !(await confirmDiscard())) return
+  if (!props.readonly && dirty.value && !(await confirmDiscard())) return
   visible.value = false
 }
+
+// the caller's view (the tour), once a spec is open
+watch(
+  () => [props.view, form.value !== null] as const,
+  ([wanted, loaded]) => {
+    if (wanted && loaded && view.value !== 'presets' && view.value !== wanted) switchView(wanted)
+  },
+)
 </script>
 
 <template>
@@ -262,9 +274,9 @@ async function close() {
     </Message>
 
     <div class="grid gap-5 lg:grid-cols-[16rem_1fr]">
-      <div class="flex min-w-0 flex-col gap-2">
+      <div class="flex min-w-0 flex-col gap-2" data-tour="spec-list">
         <span class="gym-field mb-0">{{ t('spec.list') }} · {{ specs.length }}</span>
-        <div class="flex flex-wrap gap-2">
+        <div v-if="!readonly" class="flex flex-wrap gap-2">
           <Button
             class="whitespace-nowrap"
             size="small"
@@ -315,6 +327,7 @@ async function close() {
               </span>
             </button>
             <button
+              v-if="!readonly"
               type="button"
               class="cursor-pointer p-1.5 text-surface-500 hover:text-bad"
               :title="t('app.delete')"
@@ -342,7 +355,7 @@ async function close() {
 
       <SpecPresetPicker v-else-if="view === 'presets'" @pick="pickPreset" />
 
-      <div v-else-if="form" class="flex min-w-0 flex-col gap-4">
+      <fieldset v-else-if="form" :disabled="readonly" class="m-0 flex min-w-0 flex-col gap-4 border-0 p-0">
         <div class="flex flex-wrap items-end gap-3">
           <FormField class="min-w-0 grow" :label="t('spec.name')" :hint="t('spec.nameHint')" required>
             <InputText v-model="name" fluid :placeholder="t('spec.namePlaceholder')" />
@@ -355,7 +368,7 @@ async function close() {
 
         <SpecForm_ v-if="view === 'form'" v-model="form" :critics="critics" />
 
-        <FormField v-else :label="t('spec.yaml')" :hint="t('spec.yamlHint')">
+        <FormField v-else data-tour="spec-yaml" :label="t('spec.yaml')" :hint="t('spec.yamlHint')">
           <Textarea v-model="yamlText" rows="24" fluid class="font-mono! text-xs!" spellcheck="false" @blur="applyYaml" />
           <span v-if="yamlError" class="text-bad mt-1 font-mono text-xs">{{ yamlError }}</span>
         </FormField>
@@ -366,14 +379,14 @@ async function close() {
             <li v-for="err in errors" :key="err">{{ t(`spec.error.${err}`) }}</li>
           </ul>
         </div>
-      </div>
+      </fieldset>
     </div>
 
     <template #footer>
       <SecondaryButton :label="t('app.close')" @click="close" />
       <span class="grow"></span>
-      <span v-if="dirty && form" class="text-warn font-mono text-xs">{{ t('app.unsaved') }}</span>
-      <Button v-if="form" :label="t('app.save')" :loading="busy === 'save'" :disabled="!canSave" @click="save" />
+      <span v-if="dirty && form && !readonly" class="text-warn font-mono text-xs">{{ t('app.unsaved') }}</span>
+      <Button v-if="form && !readonly" :label="t('app.save')" :loading="busy === 'save'" :disabled="!canSave" @click="save" />
     </template>
   </Modal>
 </template>
