@@ -42,6 +42,9 @@ Specs and reports survive a redeploy of the critics; the selection step is the b
   block ("Selection", and the "to review" pill), to set ticks and resolve open
   reviews there. The wizard opens the step to look at; "continue here" moves
   the block there.
+- The spec manager no longer asks to discard changes when the first spec is
+  opened with nothing open yet, and it opens the spec chosen in the picker it
+  was opened from.
 - The Analysis view filters by skill as well, between the period and the
   cell: the key figures, the day protocols and the skills list follow it, and
   the skills offered follow the collection.
