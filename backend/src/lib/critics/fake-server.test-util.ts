@@ -145,6 +145,14 @@ export function startFakeCritics(): FakeCritics {
         state.specs = [...state.specs.filter((s2) => s2.name !== name), { name, spec: { ...body, name } }];
         return json({ name });
       }
+      if (p === "/render/report.html" && req.method === "POST") {
+        const body = (await req.json()) as { dataset_name?: string };
+        return new Response(`<html><body>rendered ${body.dataset_name ?? ""}</body></html>`, { headers: { "content-type": "text/html" } });
+      }
+      if (p === "/render/markdown" && req.method === "POST") {
+        const body = (await req.json()) as { dataset_name?: string };
+        return new Response(`# rendered ${body.dataset_name ?? ""}`, { headers: { "content-type": "text/markdown" } });
+      }
       if (p === "/upload" && req.method === "POST") {
         const form = await req.formData();
         const file = form.get("file");

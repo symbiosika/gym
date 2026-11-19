@@ -393,6 +393,24 @@ export const criticsClient = {
   },
 
   /**
+   * The visual report drawn from a report.json GYM holds, for a run whose job
+   * directory the critics no longer have. Stateless on their side, so the
+   * contact sheets of the run are not in it.
+   */
+  async renderReportHtml(report: DatasetReport, top = 5): Promise<string> {
+    return (
+      await request(`/render/report.html?top=${top}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) })
+    ).text();
+  },
+
+  /** The AI-readable Markdown drawn from a report.json GYM holds, like `renderReportHtml`. */
+  async renderMarkdown(report: DatasetReport, detail: "summary" | "flagged" | "full" = "summary"): Promise<string> {
+    return (
+      await request(`/render/markdown?detail=${detail}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(report) })
+    ).text();
+  },
+
+  /**
    * The selected episodes of several datasets as **one** LeRobot dataset.
    * The critics service holds the uploaded data, so it does the merging: the
    * episodes are renumbered without gaps, the task tables are joined and the

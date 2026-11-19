@@ -641,9 +641,9 @@ export async function finishSpecDraft(
   if (!row.spec) throw new ConflictError("There is no spec to store yet: the analysis of the sample has to finish first");
   const name = specNameOf(data.name);
   if (!name) throw new InvalidInputError("The spec needs a name");
-  if (!data.overwrite && (await specExists(name))) throw new ConflictError(`A spec named "${name}" exists already`);
+  if (!data.overwrite && (await specExists(tenantId, name))) throw new ConflictError(`A spec named "${name}" exists already`);
 
-  const stored = await saveSpecObject(name, { ...row.spec, name });
+  const stored = await saveSpecObject(tenantId, name, { ...row.spec, name });
   const assigned = !!row.skillId && data.assignToSkill;
   if (assigned) {
     await getDb()

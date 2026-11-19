@@ -18,3 +18,5 @@ export const DATASET_BUCKET = "gym-datasets";
 export const ROBOT_IMAGE_BUCKET = "gym-robot";
 /** the pictures and PDFs of a skill's strategy (lib/gym/strategy.ts) */
 export const STRATEGY_BUCKET = "gym-strategy";
+/** the copy of a run's visual report, kept so the report link outlives the critics' job directory (lib/critics/report-copy.ts) */
+export const REPORT_BUCKET = "gym-reports";

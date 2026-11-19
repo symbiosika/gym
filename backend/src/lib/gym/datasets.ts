@@ -20,10 +20,11 @@ import { getDb } from "@framework/lib/db/db-connection";
 import { blocks, datasets, dayProtocols, episodes, skills, type BlockSelect, type DatasetSelect, type EpisodeSelect } from "../../db/schema";
 import { criticsClient, CriticsError, type CriticsPurpose, type SpecOverrides } from "../critics/client";
 import { refreshDataset, syncDataset, upgradeStaleSummaries } from "../critics/sync";
+import { ensureSpec, specNameOf } from "../critics/specs";
 import { putFile, removeFile, shareFile, storageDriver } from "../storage";
 import { recordAudit, type Actor } from "./audit";
 import { getBlockRow } from "./blocks";
-import { DATASET_BUCKET, UPLOAD_CHUNK_BUCKET } from "./buckets";
+import { DATASET_BUCKET, REPORT_BUCKET, UPLOAD_CHUNK_BUCKET } from "./buckets";
 import { ConflictError, InvalidInputError, NotFoundError, UpstreamError } from "./errors";
 import { closeIntervals } from "./teleop";
 import { utcRow, utcRows } from "./time";
@@ -80,9 +81,10 @@ export async function datasetLinks(tenantId: string, ds: StoredDataset): Promise
  * Remove the stored bytes of a dataset, the zip or its parts. Never fails the
  * caller: a file that cannot be removed must not keep a deleted dataset alive.
  */
-export async function removeDatasetFiles(tenantId: string, ds: StoredDataset): Promise<void> {
+export async function removeDatasetFiles(tenantId: string, ds: StoredDataset & { reportHtmlRef?: string | null }): Promise<void> {
   if (ds.storageRef) await removeFile(tenantId, DATASET_BUCKET, ds.storageRef).catch(() => undefined);
   for (const ref of ds.storageParts ?? []) await removeFile(tenantId, UPLOAD_CHUNK_BUCKET, ref).catch(() => undefined);
+  if (ds.reportHtmlRef) await removeFile(tenantId, REPORT_BUCKET, ds.reportHtmlRef).catch(() => undefined);
 }
 
 /**
@@ -160,12 +162,13 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
           driver: f.driver,
         }));
   // a spec that was deleted since the skill named it must not fail the upload:
-  // the run falls back to the auto spec, as deleting a spec promises
+  // the run falls back to the auto spec, as deleting a spec promises. One the
+  // critics merely lost (a redeploy) is put back from GYM's copy first.
   const wantedSpec = skill.criticSpecName ?? null;
   let specName: string | null = null;
   let jobId: string;
   try {
-    specName = wantedSpec && (await criticsClient.specExists(wantedSpec)) ? wantedSpec : null;
+    specName = wantedSpec && (await ensureSpec(tenantId, wantedSpec)) ? specNameOf(wantedSpec) : null;
     const links = await datasetLinks(tenantId, stored);
     // the skill's spec says what the task is; the kind of the block says what the
     // episodes are: demonstrations for training or rollouts of a policy

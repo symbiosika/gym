@@ -666,6 +666,14 @@ export const datasets = pgBaseTable(
     report: jsonb("report").$type<DatasetReport>(),
     selection: jsonb("selection").$type<CriticsSelection>(),
     /**
+     * The visual report of the run (report.html with its contact sheets), as
+     * the critics drew it when the run finished, stored through lib/storage.
+     * The critics keep nothing for good: once their job directory is gone
+     * (a redeploy, a deleted job) the report link still opens this copy.
+     * Null before the run is done and for a dataset from before the copy.
+     */
+    reportHtmlRef: text("report_html_ref"),
+    /**
      * Whether the dataset is part of the skill's selection at all. Taken out,
      * none of its episodes reach an export or the figures over the selection,
      * while their ticks stay as they are: taking it in again restores them.
@@ -970,6 +978,33 @@ export const evaluationReports = pgBaseTable(
 );
 
 // ---------------------------------------------------------------------------
+// Critics specs
+// ---------------------------------------------------------------------------
+
+/**
+ * GYM's copy of a critics spec. The critics service runs with a spec from its
+ * own store, but that store is a directory of the service and does not
+ * survive every redeploy. GYM keeps what was written to it here and puts a
+ * spec back when the service has lost it (lib/critics/specs.ts), so a skill's
+ * spec is never silently replaced by the automatic one. A spec written in the
+ * service's own UI is taken over the next time GYM lists or reads it.
+ */
+export const criticsSpecs = pgBaseTable(
+  "critics_specs",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }).notNull(),
+    /** the name the spec has in the critics service, which is what a skill names (`criticSpecName`) */
+    name: text("name").notNull(),
+    /** the spec as the critics read it back (lerobot_critics.spec.models.CriticSpec) */
+    spec: jsonb("spec").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("gym_critics_specs_name_uq").on(table.tenantId, table.name)],
+);
+
+// ---------------------------------------------------------------------------
 // Audit log
 // ---------------------------------------------------------------------------
 
@@ -1089,6 +1124,7 @@ export type PolicySelect = typeof policies.$inferSelect;
 export type DayProtocolSelect = typeof dayProtocols.$inferSelect;
 export type BlockSelect = typeof blocks.$inferSelect;
 export type DatasetSelect = typeof datasets.$inferSelect;
+export type CriticsSpecSelect = typeof criticsSpecs.$inferSelect;
 export type EpisodeSelect = typeof episodes.$inferSelect;
 export type DatasetUploadSelect = typeof datasetUploads.$inferSelect;
 export type SpecDraftSelect = typeof specDrafts.$inferSelect;

@@ -21,6 +21,8 @@ GET  /jobs/{id}/selection          include/review/exclude lists + why each episo
 GET  /jobs/{id}/episodes/{ep}      one episode's results
 GET  /jobs/{id}/episodes/{ep}/markdown   one episode as AI-readable markdown
 GET  /jobs/{id}/files/{path}       any artifact (csv, sheets, composites)
+POST /render/report.html           a report.json in the body -> the visual report, no job needed (?top=5)
+POST /render/markdown              a report.json in the body -> the AI-readable markdown (?detail=...)
 POST /evaluate                     synchronous run of a small episode subset (blocking; ?format=markdown)
 GET  /datasets                     datasets found under CRITICS_DATA_DIR
 POST /upload                       multipart zip of a LeRobot dataset -> stored under CRITICS_DATA_DIR
@@ -584,6 +586,38 @@ def job_markdown(
     except ValueError as e:
         raise HTTPException(422, f"bad episodes list {episodes!r}: {e}") from e
     return _markdown_response(render_ai_markdown(_load_report(job_id), detail=detail, episodes=subset))
+
+
+# ---------------------------------------------------------------- render
+# The report of a run, drawn from a report.json the caller holds. An app that
+# mirrors report.json keeps its reports readable after the job directory is
+# gone (a redeploy without the jobs volume, a deleted job): nothing is read
+# from or written to disc, so the contact sheets of the run are left out.
+@app.post("/render/report.html", response_class=HTMLResponse)
+def render_report_html(report: dict[str, Any], top: int = 5) -> str:
+    from ..visual_report import render_html_report
+
+    return render_html_report(_report_of(report), out_dir=None, top_n=top, asset_base="")
+
+
+@app.post("/render/markdown", response_class=Response, responses={200: {"content": {"text/markdown": {}}}})
+def render_markdown(
+    report: dict[str, Any],
+    detail: Literal["summary", "flagged", "full"] = "full",
+    episodes: str | None = None,
+) -> Response:
+    try:
+        subset = parse_episodes(episodes)
+    except ValueError as e:
+        raise HTTPException(422, f"bad episodes list {episodes!r}: {e}") from e
+    return _markdown_response(render_ai_markdown(_report_of(report), detail=detail, episodes=subset))
+
+
+def _report_of(body: dict[str, Any]) -> DatasetReport:
+    try:
+        return DatasetReport.model_validate(body)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(422, f"not a report.json: {e}") from e
 
 
 class OverridesRequest(BaseModel):

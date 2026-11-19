@@ -4,13 +4,23 @@
  * A spec says what the critics check for a task (lerobot_critics.spec.models
  * .CriticSpec): the task text and its objects, the success indicators the
  * vision-language model judges, and the technical checks with their weights
- * and thresholds. Specs live in the critics service; GYM names one per skill
- * and gives the operator a place to read, write and remove them: a spec is
- * read back as YAML, edited as text and handed to the service, which
+ * and thresholds. The critics run with a spec from their own store; GYM names
+ * one per skill and gives the operator a place to read, write and remove them:
+ * a spec is read back as YAML, edited as text and handed to the service, which
  * validates it. `null` as a spec name means the automatic spec the critics
  * derive from the dataset itself.
+ *
+ * The critics keep nothing for good, their spec store included: a redeploy
+ * may start them with an empty one. So every spec GYM writes is also kept in
+ * GYM (`gym_critics_specs`), and a spec the service has lost is put back
+ * before it is listed, read or run with (`ensureSpec`). A spec written in the
+ * service's own UI is taken over into GYM the next time it is listed or read.
  */
+import { and, eq } from "drizzle-orm";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { getDb } from "@framework/lib/db/db-connection";
+import log from "@framework/lib/log";
+import { criticsSpecs } from "../../db/schema";
 import { InvalidInputError, NotFoundError } from "../gym/errors";
 import { CriticsError, criticsClient, type CriticsHardCriticInfo, type CriticsSpecInfo } from "./client";
 
@@ -66,11 +76,98 @@ const robotOf = (spec: Record<string, unknown>): string | null => {
   return typeof robot?.type === "string" ? robot.type : null;
 };
 
-/** Store a spec under `name` in the critics service; a spec of that name is replaced. */
-async function store(name: string, spec: Record<string, unknown>): Promise<CriticsSpecInfo> {
+/** GYM's copy of a spec, or null when it has none. */
+async function keptSpec(tenantId: string, name: string): Promise<Record<string, unknown> | null> {
+  const [row] = await getDb()
+    .select({ spec: criticsSpecs.spec })
+    .from(criticsSpecs)
+    .where(and(eq(criticsSpecs.tenantId, tenantId), eq(criticsSpecs.name, name)));
+  return row?.spec ?? null;
+}
+
+/** Keep a spec in GYM under `name`, replacing what was kept before. */
+async function keep(tenantId: string, name: string, spec: Record<string, unknown>): Promise<void> {
+  const now = new Date().toISOString();
+  await getDb()
+    .insert(criticsSpecs)
+    .values({ tenantId, name, spec: { ...spec, name }, updatedAt: now })
+    .onConflictDoUpdate({ target: [criticsSpecs.tenantId, criticsSpecs.name], set: { spec: { ...spec, name }, updatedAt: now } });
+}
+
+/** The spec as the critics hold it, or null when they do not. */
+async function criticsSpec(name: string): Promise<Record<string, unknown> | null> {
+  try {
+    return await criticsClient.spec(name);
+  } catch (error) {
+    if (error instanceof CriticsError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** Store a spec under `name` in the critics service, which validates it, and keep it in GYM; a spec of that name is replaced. */
+async function store(tenantId: string, name: string, spec: Record<string, unknown>): Promise<CriticsSpecInfo> {
   if (!SPEC_NAME.test(name)) throw new InvalidInputError("The spec name may only contain letters, digits, '_', '.' and '-'");
   const stored = await criticsClient.putSpec(name, { ...spec, name });
+  // what the service read back, defaults filled in: the same spec it runs with
+  await keep(tenantId, stored.name, (await criticsSpec(stored.name)) ?? spec);
   return { name: stored.name, task: taskOf(spec), robot: robotOf(spec) };
+}
+
+/**
+ * Make sure the critics hold the spec `name` before it is run with. A spec the
+ * service lost is put back from GYM's copy; one only the service knows is
+ * taken over into GYM. False when neither has it: the caller falls back to the
+ * automatic spec, as deleting a spec promises.
+ */
+export async function ensureSpec(tenantId: string, name: string): Promise<boolean> {
+  const clean = specNameOf(name);
+  const there = await criticsSpec(clean);
+  const kept = await keptSpec(tenantId, clean);
+  if (there) {
+    if (!kept) await keep(tenantId, clean, there);
+    return true;
+  }
+  if (!kept) return false;
+  await criticsClient.putSpec(clean, { ...kept, name: clean });
+  log.info(`gym: critics spec "${clean}" was missing in the critics service and was put back from GYM`);
+  return true;
+}
+
+/**
+ * The specs of the tenant: every spec GYM keeps and every spec the service
+ * holds. The two are brought in line on the way: kept specs the service lost
+ * are put back, the service's own are taken over. When the service cannot be
+ * reached, GYM's copies are listed as they are.
+ */
+export async function listSpecs(tenantId: string): Promise<CriticsSpecInfo[]> {
+  const kept = await getDb().select().from(criticsSpecs).where(eq(criticsSpecs.tenantId, tenantId));
+  let listed: CriticsSpecInfo[];
+  try {
+    listed = await criticsClient.specs();
+  } catch (error) {
+    if (!kept.length) throw error;
+    log.error(`gym: critics specs could not be listed, showing GYM's copies: ${error instanceof Error ? error.message : String(error)}`);
+    return kept.map((k) => ({ name: k.name, task: taskOf(k.spec), robot: robotOf(k.spec) })).sort((a, b) => a.name.localeCompare(b.name));
+  }
+  const there = new Set(listed.map((s) => s.name));
+  const known = new Set(kept.map((k) => k.name));
+  const out = [...listed];
+  for (const k of kept) {
+    if (there.has(k.name)) continue;
+    try {
+      await criticsClient.putSpec(k.name, { ...k.spec, name: k.name });
+      log.info(`gym: critics spec "${k.name}" was missing in the critics service and was put back from GYM`);
+    } catch (error) {
+      log.error(`gym: critics spec "${k.name}" could not be put back: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    out.push({ name: k.name, task: taskOf(k.spec), robot: robotOf(k.spec) });
+  }
+  for (const s of listed) {
+    if (known.has(s.name) || s.error) continue;
+    const spec = await criticsSpec(s.name).catch(() => null);
+    if (spec) await keep(tenantId, s.name, spec);
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -78,46 +175,62 @@ async function store(name: string, spec: Record<string, unknown>): Promise<Criti
  * own `name`, else under the file's name. Returns the row as `GET /specs`
  * lists it.
  */
-export async function uploadSpec(file: File, nameOverride?: string): Promise<CriticsSpecInfo> {
+export async function uploadSpec(tenantId: string, file: File, nameOverride?: string): Promise<CriticsSpecInfo> {
   if (!file.size) throw new InvalidInputError("The spec file is empty");
   if (file.size > MAX_BYTES) throw new InvalidInputError("The spec file is too large");
   if (!/\.(ya?ml|json)$/i.test(file.name)) throw new InvalidInputError("Upload the spec as a YAML or JSON file");
 
   const spec = parseSpec(await file.text());
   const own = typeof spec.name === "string" && spec.name.trim() && spec.name.trim() !== "default" ? spec.name : "";
-  return store(specNameOf(nameOverride?.trim() || own || file.name), spec);
+  return store(tenantId, specNameOf(nameOverride?.trim() || own || file.name), spec);
 }
 
 /** A spec written in the editor: YAML or JSON text under a name of the operator's choosing. */
-export async function saveSpecText(name: string, text: string): Promise<CriticsSpecInfo> {
+export async function saveSpecText(tenantId: string, name: string, text: string): Promise<CriticsSpecInfo> {
   const clean = specNameOf(name);
   if (!clean) throw new InvalidInputError("The spec needs a name");
-  return store(clean, parseSpec(text));
+  return store(tenantId, clean, parseSpec(text));
 }
 
 /** A spec built as an object (the spec wizard): checked like a text and stored under `name`. */
-export async function saveSpecObject(name: string, spec: Record<string, unknown>): Promise<CriticsSpecInfo> {
+export async function saveSpecObject(tenantId: string, name: string, spec: Record<string, unknown>): Promise<CriticsSpecInfo> {
   const clean = specNameOf(name);
   if (!clean) throw new InvalidInputError("The spec needs a name");
-  return store(clean, parseSpec(JSON.stringify(spec)));
+  return store(tenantId, clean, parseSpec(JSON.stringify(spec)));
 }
 
-/** Is a spec of this name stored in the critics service? */
-export async function specExists(name: string): Promise<boolean> {
-  return (await criticsClient.specs()).some((s) => s.name === specNameOf(name));
+/** Is a spec of this name stored, in the critics service or in GYM's copies? */
+export async function specExists(tenantId: string, name: string): Promise<boolean> {
+  const clean = specNameOf(name);
+  if (await keptSpec(tenantId, clean)) return true;
+  return (await criticsClient.specs()).some((s) => s.name === clean);
 }
 
-/** One spec with its YAML, for the editor. */
-export async function getSpec(name: string): Promise<CriticsSpecDetail> {
-  const spec = await criticsClient.spec(specNameOf(name)).catch((error) => {
-    if (error instanceof CriticsError && error.status === 404) throw new NotFoundError("The spec does not exist");
-    throw error;
-  });
-  return { name: specNameOf(name), task: taskOf(spec), robot: robotOf(spec), yaml: stringifyYaml(spec), spec };
+/** One spec with its YAML, for the editor. A spec the service lost is put back from GYM's copy first. */
+export async function getSpec(tenantId: string, name: string): Promise<CriticsSpecDetail> {
+  const clean = specNameOf(name);
+  if (!(await ensureSpec(tenantId, clean))) throw new NotFoundError("The spec does not exist");
+  const spec = (await criticsSpec(clean)) ?? (await keptSpec(tenantId, clean));
+  if (!spec) throw new NotFoundError("The spec does not exist");
+  return { name: clean, task: taskOf(spec), robot: robotOf(spec), yaml: stringifyYaml(spec), spec };
 }
 
-export async function deleteSpec(name: string): Promise<void> {
-  await criticsClient.deleteSpec(specNameOf(name));
+/** Remove a spec from the critics service and from GYM's copies. */
+export async function deleteSpec(tenantId: string, name: string): Promise<void> {
+  const clean = specNameOf(name);
+  // gone from the service already (a redeploy): GYM's copy still has to go
+  const there = await criticsClient.deleteSpec(clean).then(
+    () => true,
+    (error) => {
+      if (error instanceof CriticsError && error.status === 404) return false;
+      throw error;
+    },
+  );
+  const kept = await getDb()
+    .delete(criticsSpecs)
+    .where(and(eq(criticsSpecs.tenantId, tenantId), eq(criticsSpecs.name, clean)))
+    .returning({ id: criticsSpecs.id });
+  if (!there && !kept.length) throw new NotFoundError("The spec does not exist");
 }
 
 /**

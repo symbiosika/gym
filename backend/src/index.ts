@@ -6,6 +6,7 @@ import defineGymRoutes from "./routes/tenant/[tenantId]/gym";
 import { deactivateExpiredCodes } from "./lib/gym/invitation-codes";
 import { joinOrganisationFromInvitationCode } from "./lib/gym/registration";
 import { gymMcpServer, SCOPES_SUPPORTED } from "./mcp";
+import { keepMissingReportCopies } from "./lib/critics/report-copy";
 import { syncAllOpenDatasets } from "./lib/critics/sync";
 import { cleanupStaleUploads } from "./lib/gym/dataset-uploads";
 import { cleanupStaleSpecDrafts } from "./lib/gym/spec-drafts";
@@ -91,6 +92,8 @@ const server = defineServer({
       schedule: "* * * * *",
       handler: async () => {
         await syncAllOpenDatasets();
+        // reports of runs from before GYM kept a copy, while the critics still hold them
+        await keepMissingReportCopies();
       },
     },
     // chunks of dataset uploads that were never completed (a closed browser, an
