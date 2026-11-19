@@ -282,6 +282,18 @@ need a wrapper. Names are kebab-case, prefixed by the screen.
   following steps and the next tour, kept inside the window; a double click
   on the title puts it back next to its element.
 
+### 9. Second round of feedback (built)
+
+- The skill's spec is said to be its default, the spec chosen last; a spec is
+  picked at every upload and each dataset keeps the one it was judged with.
+  The automatic spec is not advised.
+- The spec wizard step recommends building on a proven spec (open it in the
+  spec manager, adapt, store under a new name) and the wizard only when task
+  or scene differ a lot. The wizard page itself says in red that it is not
+  extensively tested yet.
+- The spec form gets the purpose as its first section (`spec-purpose`, a step
+  of its own in the critic specs chapter); before, only the YAML showed it.
+
 ## Testing
 
 - Backend: `tour.test.ts`: setting and clearing the tour skill (admin only,

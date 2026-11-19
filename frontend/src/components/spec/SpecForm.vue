@@ -44,6 +44,16 @@ const props = defineProps<{
 const show = (section: SpecFormSection) => !props.sections || props.sections.includes(section)
 const numbered = computed(() => !props.sections)
 const form = defineModel<SpecForm>({ required: true })
+/**
+ * What the episodes are by default: demonstrations for training or rollouts
+ * of a policy. Kept where the YAML has it (`purpose`, carried in `rest`). In
+ * GYM the kind of the block decides for its own run; this is what the spec
+ * says where it runs without one (the critics' UI, the command line).
+ */
+const purpose = computed({
+  get: () => (form.value.rest.purpose === 'evaluation' ? 'evaluation' : 'recording'),
+  set: (value: 'recording' | 'evaluation') => (form.value.rest.purpose = value),
+})
 const { t, te } = useI18n()
 
 const roleOptions = computed(() => OBJECT_ROLES.map((r) => ({ label: t(`spec.role.${r}`), value: r })))
@@ -169,12 +179,33 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
 <template>
   <div class="flex flex-col gap-6">
     <!-- 1 · the task -->
-    <section v-if="show('task')" data-tour="spec-task">
+    <section v-if="show('purpose')" data-tour="spec-purpose">
       <header class="mb-2 flex items-center gap-2">
         <span
           v-if="numbered"
           class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
           >1</span
+        >
+        <h3 class="text-sm font-semibold">{{ t('spec.secPurpose') }}</h3>
+        <span class="text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secPurposeHint') }}</span>
+      </header>
+      <FormField :hint="t(`specWizard.purposeHint.${purpose}`)">
+        <Select
+          v-model="purpose"
+          class="w-full sm:w-80"
+          :options="(['recording', 'evaluation'] as const).map((value) => ({ value, label: t(`specWizard.purpose.${value}`) }))"
+          option-label="label"
+          option-value="value"
+        />
+      </FormField>
+    </section>
+
+    <section v-if="show('task')" data-tour="spec-task">
+      <header class="mb-2 flex items-center gap-2">
+        <span
+          v-if="numbered"
+          class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
+          >2</span
         >
         <h3 class="text-sm font-semibold">{{ t('spec.secTask') }}</h3>
         <span class="text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secTaskHint') }}</span>
@@ -274,7 +305,7 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
         <span
           v-if="numbered"
           class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
-          >2</span
+          >3</span
         >
         <h3 class="text-sm font-semibold">{{ t('spec.secSoft') }}</h3>
         <span class="text-xs text-surface-500 dark:text-surface-400">{{ t('spec.secSoftHint') }}</span>
@@ -416,7 +447,7 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
           <span
             v-if="numbered"
             class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
-            >3</span
+            >4</span
           >
           <h3 class="text-sm font-semibold">{{ t('spec.secHard') }}</h3>
           <span class="text-xs text-surface-500 dark:text-surface-400">{{ hardSummary }}</span>
@@ -525,7 +556,7 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
           <span
             v-if="numbered"
             class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
-            >4</span
+            >5</span
           >
           <h3 class="text-sm font-semibold">{{ t('spec.secScoring') }}</h3>
           <span class="text-xs text-surface-500 dark:text-surface-400">{{ scoringSummary }}</span>
@@ -559,7 +590,7 @@ const scoreTone = (row: SpecIndicator, score: number | null) =>
           <span
             v-if="numbered"
             class="bg-primary/10 text-primary dark:bg-primary/15 rounded-md px-1.5 py-0.5 font-mono text-xs font-semibold"
-            >5</span
+            >6</span
           >
           <h3 class="text-sm font-semibold">{{ t('spec.secRobot') }}</h3>
           <span class="text-xs text-surface-500 dark:text-surface-400">{{ robotSummaryText }}</span>

@@ -1239,7 +1239,9 @@
       "thresholdOrder": "„Prüfen ab“ muss unter „Akzeptieren ab“ liegen."
     },
     "wizard": "Assistent",
-    "wizardHint": "Spec aus einem Muster-Dataset Schritt für Schritt anlegen"
+    "wizardHint": "Spec aus einem Muster-Dataset Schritt für Schritt anlegen",
+    "secPurpose": "Zweck",
+    "secPurposeHint": "Wie die Critics urteilen, wenn die Spec ohne Block läuft. In GYM gibt die Art des Blocks den Zweck seines Laufs vor."
   },
   "block": {
     "kindLabel": "Art",
@@ -1910,7 +1912,8 @@
       "robot": "Roboter, Arme und Kameras bestätigen.",
       "workbench": "Video, Critics und dein Urteil je Episode vergleichen und die Spec einstellen.",
       "save": "Auf denselben Episoden testen und speichern."
-    }
+    },
+    "experimental": "Noch nicht ausgiebig getestet. Besser eine bewährte Spec im Spec-Manager anpassen; den Wizard nur, wenn Aufgabe oder Szene deutlich abweichen."
   },
   "tour": {
     "open": "Geführte Tour",
@@ -1976,8 +1979,8 @@
           "text": "Die Tabs folgen der Arbeit: Strategie planen, Blöcke aufnehmen, Trainingsdaten wählen, trainieren, evaluieren."
         },
         "spec": {
-          "title": "Die Critic-Spec",
-          "text": "Die Spec sagt, was die Critics bei diesem Skill prüfen."
+          "title": "Die Spec des Skills",
+          "text": "Die Spec, die der Skill standardmäßig verwendet: die zuletzt gewählte. Gewählt wird sie im Upload-Schritt jedes Blocks, für die Analyse jedes Datasets; jedes Dataset behält die Spec, mit der es beurteilt wurde."
         }
       },
       "recording": {
@@ -2044,12 +2047,16 @@
           "text": "Die Critics prüfen jede Episode automatisch. Die Spec sagt ihnen, was der Roboter tun soll und woran Erfolg zu erkennen ist, damit ihr Urteil über Tage und Zellen hinweg vergleichbar ist."
         },
         "skillSpec": {
-          "title": "Eine Spec pro Skill",
-          "text": "Jeder Skill nennt eine Spec. Ohne Spec leiten die Critics selbst eine aus dem Dataset ab."
+          "title": "Die Spec des Skills",
+          "text": "Das ist nur die Voreinstellung des Skills, die zuletzt gewählte Spec; jedes Dataset wird mit der Spec analysiert, die bei seinem Upload gewählt ist. Ohne Spec leiten die Critics eine aus dem Dataset selbst ab. Davon ist abzuraten: Das Urteil ist dann weder auf die Aufgabe zugeschnitten noch zwischen Datasets vergleichbar."
         },
         "list": {
           "title": "Alle Specs",
           "text": "Die Specs der Organisation, jede mit den Skills, die sie verwenden."
+        },
+        "purpose": {
+          "title": "Zweck",
+          "text": "Aufnahme oder Evaluierung: ob die Episoden als Trainingsdaten oder als Rollouts einer Policy beurteilt werden. In GYM entscheidet die Art des Blocks für seinen Lauf; hier steht die Voreinstellung der Spec für Läufe ohne Block."
         },
         "task": {
           "title": "Die Aufgabe",
@@ -2073,7 +2080,7 @@
         },
         "wizardNew": {
           "title": "Der Spec-Wizard",
-          "text": "Eine neue Spec entsteht am besten im Wizard, aus einem Beispiel-Dataset."
+          "text": "Am besten baut eine neue Spec auf einer bewährten auf: im Spec-Manager öffnen, anpassen und unter neuem Namen speichern. Eine ganz neue Spec mit dem Wizard lohnt sich nur, wenn Aufgabe oder Szene deutlich abweichen. Der Wizard ist neu und noch nicht ausgiebig getestet."
         },
         "wizardSteps": {
           "title": "Schritt für Schritt",

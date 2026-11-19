@@ -70,6 +70,7 @@ export const CHAPTER_STEPS: Record<TourChapterId, TourStep[]> = {
     { id: 'goal', page: skill('blocks') },
     { id: 'skillSpec', element: 'skill-spec', page: skill('blocks') },
     { id: 'list', element: 'spec-list', page: skill('blocks'), needs: ['specStored'], ui: { specManager: 'form' } },
+    { id: 'purpose', element: 'spec-purpose', page: skill('blocks'), needs: ['specStored'], ui: { specManager: 'form' } },
     { id: 'task', element: 'spec-task', page: skill('blocks'), needs: ['specStored'], ui: { specManager: 'form' } },
     { id: 'indicators', element: 'spec-indicators', page: skill('blocks'), needs: ['specStored'], ui: { specManager: 'form' } },
     { id: 'hard', element: 'spec-hard', page: skill('blocks'), needs: ['specStored'], ui: { specManager: 'form' } },

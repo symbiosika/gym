@@ -1239,7 +1239,9 @@
       "thresholdOrder": "\"Review from\" must lie below \"Accept from\"."
     },
     "wizard": "Wizard",
-    "wizardHint": "Create a spec step by step from a sample dataset"
+    "wizardHint": "Create a spec step by step from a sample dataset",
+    "secPurpose": "Purpose",
+    "secPurposeHint": "How the critics judge when the spec runs without a block. In GYM the kind of the block sets the purpose of its run."
   },
   "block": {
     "kindLabel": "Kind",
@@ -1910,7 +1912,8 @@
       "robot": "Confirm the robot, its arms and cameras.",
       "workbench": "Compare video, critics and your judgement per episode and tune the spec.",
       "save": "Test on the same episodes and store it."
-    }
+    },
+    "experimental": "Not extensively tested yet. Better adapt a proven spec in the spec manager; use the wizard only when the task or the scene differs a lot."
   },
   "tour": {
     "open": "Guided tour",
@@ -1976,8 +1979,8 @@
           "text": "The tabs follow the work: plan the strategy, record blocks, pick the training data, train, evaluate."
         },
         "spec": {
-          "title": "The critic spec",
-          "text": "The spec says what the critics check for this skill."
+          "title": "The skill's spec",
+          "text": "The spec the skill uses by default: the one chosen last. It is picked in the upload step of each block, for the analysis of every dataset; each dataset keeps the spec it was judged with."
         }
       },
       "recording": {
@@ -2044,12 +2047,16 @@
           "text": "The critics check every episode automatically. The spec tells them what the robot should do and how success shows, so their judgement stays comparable over days and cells."
         },
         "skillSpec": {
-          "title": "One spec per skill",
-          "text": "Each skill names one spec. Without one, the critics derive a spec from the dataset itself."
+          "title": "The skill's spec",
+          "text": "This is only the skill's default, the spec chosen last; each dataset is analysed with the spec picked at its upload. Without a spec the critics derive one from the dataset itself. That is not advised: the judgement is then neither specific to the task nor comparable between datasets."
         },
         "list": {
           "title": "All specs",
           "text": "The specs of the organisation, each with the skills that use it."
+        },
+        "purpose": {
+          "title": "Purpose",
+          "text": "Recording or evaluation: whether the episodes are judged as training data or as rollouts of a policy. In GYM the kind of the block decides for its own run; this is the spec's default for runs without a block."
         },
         "task": {
           "title": "The task",
@@ -2073,7 +2080,7 @@
         },
         "wizardNew": {
           "title": "The spec wizard",
-          "text": "A new spec is best made in the wizard, from a sample dataset."
+          "text": "A new spec is best built on one that has proven itself: open it in the spec manager, adapt it and store it under a new name. A spec made from scratch in the wizard is only worth it when the task or the scene differs a lot. The wizard is new and not extensively tested yet."
         },
         "wizardSteps": {
           "title": "Step by step",

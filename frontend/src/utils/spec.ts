@@ -85,7 +85,7 @@ export interface SpecForm {
 }
 
 /** The parts of the spec form; the spec wizard shows one per step. */
-export type SpecFormSection = 'task' | 'soft' | 'hard' | 'scoring' | 'robot'
+export type SpecFormSection = 'purpose' | 'task' | 'soft' | 'hard' | 'scoring' | 'robot'
 
 /**
  * The technical checks the critics run when a spec names none, with their

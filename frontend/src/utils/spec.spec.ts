@@ -206,3 +206,16 @@ describe('robotSummary', () => {
     expect(robotSummary(robot('', []), 'auto')).toBe('auto')
   })
 })
+
+describe('the purpose of a spec', () => {
+  it('survives the form: read from the spec, written back, and set in the form section', () => {
+    const read = fromSpec({ name: 'x', purpose: 'evaluation', task: { instruction: 'put the cup on the tray' } })
+    expect(read.rest.purpose).toBe('evaluation')
+    expect(toSpec(read, 'x').purpose).toBe('evaluation')
+    const fresh = emptySpec()
+    fresh.task.instruction = 'put the cup on the tray'
+    expect(toSpec(fresh, 'x').purpose).toBeUndefined()
+    fresh.rest.purpose = 'recording'
+    expect(toSpec(fresh, 'x').purpose).toBe('recording')
+  })
+})

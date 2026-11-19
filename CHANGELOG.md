@@ -36,6 +36,13 @@ A guided tour through one skill.
 - The skill page keeps its tab in the address (`?tab=`), the analysis takes
   its skill from it (`?skillId=`), and the spec wizard's start page shows the
   six steps of the wizard.
+- The spec form has the purpose as its first section (recording or
+  evaluation), which only the YAML showed so far; in GYM the kind of the
+  block still decides for its own run. The spec wizard says in red that it
+  is not extensively tested yet and that adapting a proven spec is the
+  better way; the tour says the same, and that the skill's spec is only its
+  default, picked again at every upload, and that the automatic spec is not
+  advised.
 - Looking at the brief or the recording step of a closed block no longer asks
   for a phone access token, which a closed block refuses with a red banner.
 

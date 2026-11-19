@@ -365,7 +365,8 @@ onBeforeUnmount(() => {
         <template #icon><IconTrash class="size-4" /></template>
       </SecondaryButton>
     </PageTitle>
-    <p class="mb-5 max-w-3xl text-surface-600 dark:text-surface-300">{{ t('specWizard.lead') }}</p>
+    <p class="max-w-3xl text-surface-600 dark:text-surface-300">{{ t('specWizard.lead') }}</p>
+    <p class="text-bad mt-1 mb-5 max-w-3xl text-sm font-medium">{{ t('specWizard.experimental') }}</p>
 
     <div v-if="loading" class="gym-empty">{{ t('app.loading') }}</div>
 
