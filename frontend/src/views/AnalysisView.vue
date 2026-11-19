@@ -12,7 +12,11 @@ import IconWarning from '~icons/carbon/warning-alt-filled'
 import KpiTile from '@/components/KpiTile.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 
-/** The analyst's view: key figures for a period, per cell and per day, plus the skills and day protocols behind them. */
+/**
+ * The analyst's view: key figures for a period, per cell and per day, plus the
+ * skills and day protocols behind them. Filtered by period, skill, cell and
+ * collection; the skills offered follow the collection.
+ */
 const route = useRoute()
 const { t, locale } = useI18n()
 const gym = useGym()
@@ -21,8 +25,11 @@ const tenantId = computed(() => String(route.params.tenantId))
 
 const from = ref(addDays(today(), -30))
 const to = ref(today())
+const skillId = ref(NONE)
 const cellId = ref(NONE)
 const collectionId = ref(NONE)
+/** every skill of the organisation, for the skill filter; read once */
+const allSkills = ref<SkillListItem[]>([])
 const kpis = ref<KpiResult | null>(null)
 const skills = ref<SkillListItem[]>([])
 const days = ref<DayView[]>([])
@@ -32,6 +39,16 @@ const tabs = computed(() => [
   { value: 'skills', label: t('analysis.skills') },
   { value: 'days', label: t('analysis.days') },
 ])
+const skillOptions = computed(() => [
+  { label: t('analysis.all'), value: NONE },
+  ...allSkills.value
+    .filter((s) => collectionId.value === NONE || s.collectionId === collectionId.value)
+    .map((s) => ({ label: s.name, value: s.id })),
+])
+// a skill outside the chosen collection is no longer offered, and no longer filtered by
+watch(collectionId, () => {
+  if (skillId.value !== NONE && !skillOptions.value.some((o) => o.value === skillId.value)) skillId.value = NONE
+})
 const cellOptions = computed(() => [
   { label: t('analysis.all'), value: NONE },
   ...gym.cells.map((c) => ({ label: c.name, value: c.id })),
@@ -46,23 +63,33 @@ async function load() {
     const f = {
       from: from.value,
       to: to.value,
+      skillId: skillId.value === NONE ? undefined : skillId.value,
       cellId: cellId.value === NONE ? undefined : cellId.value,
       collectionId: collectionId.value === NONE ? undefined : collectionId.value,
     }
     kpis.value = await gymApi.kpis(tenantId.value, f)
-    skills.value = await gymApi.skills(tenantId.value, { collectionId: f.collectionId, limit: 500 })
+    const listed = await gymApi.skills(tenantId.value, { collectionId: f.collectionId, limit: 500 })
+    skills.value = f.skillId ? listed.filter((s) => s.id === f.skillId) : listed
     days.value = await gymApi.days(tenantId.value, {
       from: f.from,
       to: f.to,
       cellId: f.cellId,
+      skillId: f.skillId,
       limit: 500,
     })
   } catch (e) {
     ui.showBanner('err', e instanceof Error ? e.message : String(e))
   }
 }
-onMounted(load)
-watch([from, to, cellId, collectionId], load)
+onMounted(async () => {
+  await load()
+  try {
+    allSkills.value = await gymApi.skills(tenantId.value, { limit: 500 })
+  } catch (e) {
+    ui.showBanner('err', e instanceof Error ? e.message : String(e))
+  }
+})
+watch([from, to, skillId, cellId, collectionId], load)
 
 const maxDay = computed(() => Math.max(1, ...(kpis.value?.perDay.map((d) => d.episodes) ?? [1])))
 /**
@@ -103,6 +130,9 @@ const rateTone = (r: number | null) => (r == null ? 'neutral' : r >= 80 ? 'ok' :
       </FormField>
       <FormField class="w-36" :label="t('analysis.to')">
         <InputText v-model="to" type="date" fluid />
+      </FormField>
+      <FormField class="w-52" :label="t('analysis.skill')">
+        <Select v-model="skillId" fluid filter :options="skillOptions" option-label="label" option-value="value" />
       </FormField>
       <FormField class="w-44" :label="t('analysis.cell')">
         <Select v-model="cellId" fluid :options="cellOptions" option-label="label" option-value="value" />

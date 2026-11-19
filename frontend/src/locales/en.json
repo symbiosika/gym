@@ -625,6 +625,7 @@
     "sub": "Volumes, quality, duration",
     "from": "From",
     "to": "To",
+    "skill": "Skill",
     "cell": "Cell",
     "collection": "Collection",
     "all": "all",

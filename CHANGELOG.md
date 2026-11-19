@@ -42,6 +42,9 @@ Specs and reports survive a redeploy of the critics; the selection step is the b
   block ("Selection", and the "to review" pill), to set ticks and resolve open
   reviews there. The wizard opens the step to look at; "continue here" moves
   the block there.
+- The Analysis view filters by skill as well, between the period and the
+  cell: the key figures, the day protocols and the skills list follow it, and
+  the skills offered follow the collection.
 - An export, manifest or merged dataset, takes a name: it names the zip and
   the folder of the merged dataset, and starts as the skill and the day.
 - The Strategy tab offers a CSV template of the run sheet, laid out the way it
