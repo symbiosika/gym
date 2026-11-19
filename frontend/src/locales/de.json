@@ -1932,13 +1932,13 @@
         "title": "Der Skill",
         "lead": "Was ein Skill ist und was zu ihm gehört"
       },
-      "specs": {
-        "title": "Critic-Specs",
-        "lead": "Wie die Critics wissen, was sie prüfen"
-      },
       "recording": {
         "title": "Einen Block aufnehmen",
         "lead": "Vom Briefing bis zur Auswahl der Episoden"
+      },
+      "specs": {
+        "title": "Critic-Specs",
+        "lead": "Wie die Critics wissen, was sie prüfen"
       },
       "pretrain": {
         "title": "Pre-Train",
@@ -1955,6 +1955,14 @@
     },
     "steps": {
       "skill": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Ein Skill ist ein Anwendungsfall des Roboters, etwa „Produkt aus dem Regal greifen“. Alles, was GYM sammelt, gehört zu einem Skill: Daten, Auswahl, Policies und Ergebnisse."
+        },
+        "create": {
+          "title": "Wo Skills entstehen",
+          "text": "Ein neuer Skill wird beim Start eines Blocks angelegt: einen bestehenden wählen oder einen neuen benennen. Jeder Skill steht für einen Anwendungsfall des Roboters."
+        },
         "header": {
           "title": "Der Skill",
           "text": "Das ist der Skill: die Aufgabe, die der Roboter lernt. Alles darunter gehört zu ihm."
@@ -1969,52 +1977,14 @@
         },
         "spec": {
           "title": "Die Critic-Spec",
-          "text": "Die Spec sagt, was die Critics bei diesem Skill prüfen. Das Kapitel Critic-Specs öffnet sie."
-        }
-      },
-      "specs": {
-        "skillSpec": {
-          "title": "Eine Spec pro Skill",
-          "text": "Jeder Skill nennt eine Spec. Ohne Spec leiten die Critics selbst eine aus dem Dataset ab."
-        },
-        "list": {
-          "title": "Alle Specs",
-          "text": "Die Specs der Organisation, jede mit den Skills, die sie verwenden."
-        },
-        "task": {
-          "title": "Die Aufgabe",
-          "text": "Die Aufgabe in einem Satz und ihre Objekte. Das Sprachmodell beurteilt jede Episode daran."
-        },
-        "indicators": {
-          "title": "Woran Erfolg erkannt wird",
-          "text": "Aussagen, die das Modell prüft. Ein Gate muss stimmen, sonst wird die Episode abgelehnt."
-        },
-        "hard": {
-          "title": "Technische Prüfungen",
-          "text": "Prüfungen auf Signalen und Videos, jede mit Gewicht und Schwellen."
-        },
-        "scoring": {
-          "title": "Bewertung",
-          "text": "Wo akzeptieren, prüfen und ablehnen beginnen, und Befunde, die nur Warnungen sind."
-        },
-        "yaml": {
-          "title": "Als YAML",
-          "text": "Dieselbe Spec als YAML, zum Kopieren oder Bearbeiten von Hand."
-        },
-        "wizardNew": {
-          "title": "Der Spec-Wizard",
-          "text": "Eine neue Spec entsteht am besten im Wizard, aus einem Beispiel-Dataset."
-        },
-        "wizardSteps": {
-          "title": "Schritt für Schritt",
-          "text": "Die Critics analysieren das Beispiel, dann folgen Aufgabe, Roboter und Kameras. In der Werkbank vergleichst du Video, Critics und dein Urteil, bis sie übereinstimmen."
-        },
-        "wizardOpen": {
-          "title": "Offene Entwürfe",
-          "text": "Ein angefangener Entwurf wartet hier. Getestet und gespeichert, wird er dem Skill direkt zugewiesen."
+          "text": "Die Spec sagt, was die Critics bei diesem Skill prüfen."
         }
       },
       "recording": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Gute Trainingsdaten entstehen geplant: ein Block nimmt Episoden nach Plan auf, die Critics prüfen sie, und nur die guten gehen weiter ins Training."
+        },
         "runSheet": {
           "title": "Strategie und Run Sheet",
           "text": "Optional: die Strategie und ein Run Sheet mit einer Zeile pro Episode. Ein Block kann es als Plan übernehmen."
@@ -2059,12 +2029,66 @@
           "title": "Auswahl",
           "text": "Welche Episoden dieses Blocks ins Training gehen. Abgelehnte starten ohne Haken; dein Urteil zählt vor dem der Critics."
         },
+        "override": {
+          "title": "Dein Urteil zählt",
+          "text": "Wo du den Critics nicht folgst, setzt du dein eigenes Urteil mit ✓ oder ✗. Es zählt sofort in allen Kennzahlen und nimmt die Episode in den Export oder heraus; das Urteil der Critics bleibt daneben sichtbar."
+        },
         "export": {
           "title": "Export des Blocks",
           "text": "Die ausgewählten Episoden dieses Blocks, als Manifest oder als ein zusammengeführtes Dataset."
         }
       },
+      "specs": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Die Critics prüfen jede Episode automatisch. Die Spec sagt ihnen, was der Roboter tun soll und woran Erfolg zu erkennen ist, damit ihr Urteil über Tage und Zellen hinweg vergleichbar ist."
+        },
+        "skillSpec": {
+          "title": "Eine Spec pro Skill",
+          "text": "Jeder Skill nennt eine Spec. Ohne Spec leiten die Critics selbst eine aus dem Dataset ab."
+        },
+        "list": {
+          "title": "Alle Specs",
+          "text": "Die Specs der Organisation, jede mit den Skills, die sie verwenden."
+        },
+        "task": {
+          "title": "Die Aufgabe",
+          "text": "Die Aufgabe in einem Satz und ihre Objekte. Das Sprachmodell beurteilt jede Episode daran."
+        },
+        "indicators": {
+          "title": "Woran Erfolg erkannt wird",
+          "text": "Aussagen, die das Modell prüft. Ein Gate muss stimmen, sonst wird die Episode abgelehnt."
+        },
+        "hard": {
+          "title": "Technische Prüfungen",
+          "text": "Prüfungen auf Signalen und Videos, jede mit Gewicht und Schwellen."
+        },
+        "scoring": {
+          "title": "Bewertung",
+          "text": "Wo akzeptieren, prüfen und ablehnen beginnen, und Befunde, die nur Warnungen sind."
+        },
+        "yaml": {
+          "title": "Als YAML",
+          "text": "Dieselbe Spec als YAML, zum Kopieren oder Bearbeiten von Hand."
+        },
+        "wizardNew": {
+          "title": "Der Spec-Wizard",
+          "text": "Eine neue Spec entsteht am besten im Wizard, aus einem Beispiel-Dataset."
+        },
+        "wizardSteps": {
+          "title": "Schritt für Schritt",
+          "text": "Die Critics analysieren das Beispiel, dann folgen Aufgabe, Roboter und Kameras. In der Werkbank vergleichst du Video, Critics und dein Urteil, bis sie übereinstimmen."
+        },
+        "wizardOpen": {
+          "title": "Offene Entwürfe",
+          "text": "Ein angefangener Entwurf wartet hier. Getestet und gespeichert, wird er dem Skill direkt zugewiesen."
+        }
+      },
       "pretrain": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Vor dem Training wird entschieden, mit welchen Daten trainiert wird: aus allen Blöcken eine saubere, vielfältige Auswahl, exportiert als ein Dataset."
+        },
         "table": {
           "title": "Die Trainingsdaten",
           "text": "Alle aufgenommenen Datasets des Skills, eines pro Zeile, mit dem, was davon ausgewählt ist."
@@ -2091,6 +2115,10 @@
         }
       },
       "evaluation": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Eine trainierte Policy wird erfasst und in eigenen Blöcken am Roboter getestet. So wird messbar, ob sie die Aufgabe löst und wo sie scheitert."
+        },
         "policies": {
           "title": "Policies",
           "text": "Eine trainierte Policy wird hier erfasst, mit dem Export, aus dem sie trainiert wurde, und wo sie liegt."
@@ -2113,6 +2141,10 @@
         }
       },
       "analysis": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Die Analyse zeigt, wie die Arbeit vorankommt: Menge und Qualität der Daten, Zeit und die häufigsten Befunde, über Tage, Zellen und Skills."
+        },
         "filters": {
           "title": "Filter",
           "text": "Nach Zeitraum, Skill, Zelle und Collection filtern; die Tour hat den Tour-Skill gewählt."
@@ -2130,6 +2162,8 @@
           "text": "Die Befunde der Critics, die am häufigsten auftraten."
         }
       }
-    }
+    },
+    "toChapter": "Weiter im Kapitel {chapter} →",
+    "drag": "Zum Verschieben ziehen; Doppelklick setzt zurück"
   }
 }

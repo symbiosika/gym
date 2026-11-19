@@ -392,6 +392,46 @@ img {
   border-right-color: var(--p-surface-900);
 }
 
+/* the thin green frame around what a step points at, drawn above the overlay */
+.gym-tour-frame {
+  position: fixed;
+  z-index: 100000;
+  border: 3px solid var(--color-ok);
+  border-radius: 8px;
+  pointer-events: none;
+  box-sizing: border-box;
+  display: none;
+}
+/* dragged by its title: it stays where the person put it */
+.driver-popover.gym-tour.gym-tour-moved {
+  left: var(--gym-tour-x) !important;
+  top: var(--gym-tour-y) !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+.driver-popover.gym-tour.gym-tour-moved .driver-popover-arrow {
+  display: none;
+}
+.driver-popover.gym-tour .gym-tour-handle {
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.driver-popover.gym-tour .gym-tour-link {
+  display: block;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--p-primary-color);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.driver-popover.gym-tour .gym-tour-link:hover {
+  text-decoration: underline;
+}
+
 /* ------------------------------------------------------------------- print */
 @media print {
   body {

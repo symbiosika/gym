@@ -18,6 +18,8 @@ export const useTour = defineStore('tour', () => {
   const requested = ref<TourChapterId[] | null>(null)
   const material = ref<TourMaterial | null>(null)
   const ui = ref<TourUi>({})
+  /** where the person dragged the popover to; kept for the steps that follow and the next tour, null for next to its element */
+  const popoverAt = ref<{ x: number; y: number } | null>(null)
 
   const openDialog = () => (dialogOpen.value = true)
   function start(chapters: TourChapterId[]) {
@@ -29,5 +31,5 @@ export const useTour = defineStore('tour', () => {
     requested.value = null
     ui.value = {}
   }
-  return { dialogOpen, active, requested, material, ui, openDialog, start, reset }
+  return { dialogOpen, active, requested, material, ui, popoverAt, openDialog, start, reset }
 })

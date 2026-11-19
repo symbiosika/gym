@@ -1932,13 +1932,13 @@
         "title": "The skill",
         "lead": "What a skill is and what belongs to it"
       },
-      "specs": {
-        "title": "Critic specs",
-        "lead": "How the critics know what to check"
-      },
       "recording": {
         "title": "Recording a block",
         "lead": "From the brief to the selection of episodes"
+      },
+      "specs": {
+        "title": "Critic specs",
+        "lead": "How the critics know what to check"
       },
       "pretrain": {
         "title": "Pre-Train",
@@ -1955,6 +1955,14 @@
     },
     "steps": {
       "skill": {
+        "goal": {
+          "title": "What this is for",
+          "text": "A skill is a use case of the robot, such as “pick a product from the shelf”. Everything GYM collects belongs to a skill: data, selection, policies and results."
+        },
+        "create": {
+          "title": "Where skills are made",
+          "text": "A new skill is created when a block is started: pick an existing one or name a new one. Each skill stands for one use case of the robot."
+        },
         "header": {
           "title": "The skill",
           "text": "This is the skill: the task the robot learns. Everything below belongs to it."
@@ -1969,52 +1977,14 @@
         },
         "spec": {
           "title": "The critic spec",
-          "text": "The spec says what the critics check for this skill. The Critic specs chapter opens it."
-        }
-      },
-      "specs": {
-        "skillSpec": {
-          "title": "One spec per skill",
-          "text": "Each skill names one spec. Without one, the critics derive a spec from the dataset itself."
-        },
-        "list": {
-          "title": "All specs",
-          "text": "The specs of the organisation, each with the skills that use it."
-        },
-        "task": {
-          "title": "The task",
-          "text": "The task in one sentence and its objects. The language model judges every episode against it."
-        },
-        "indicators": {
-          "title": "How success is recognised",
-          "text": "Statements the model checks. A gate must hold, or the episode is rejected."
-        },
-        "hard": {
-          "title": "Technical checks",
-          "text": "Checks on signals and videos, each with a weight and thresholds."
-        },
-        "scoring": {
-          "title": "Scoring",
-          "text": "Where accept, review and reject begin, and findings that are only warnings."
-        },
-        "yaml": {
-          "title": "As YAML",
-          "text": "The same spec as YAML, for copying or editing by hand."
-        },
-        "wizardNew": {
-          "title": "The spec wizard",
-          "text": "A new spec is best made in the wizard, from a sample dataset."
-        },
-        "wizardSteps": {
-          "title": "Step by step",
-          "text": "The critics analyse the sample, then come the task, the robot and the cameras. In the workbench you compare video, critics and your own judgement until they agree."
-        },
-        "wizardOpen": {
-          "title": "Open drafts",
-          "text": "A draft you started waits here. Tested and stored, it is assigned to the skill right away."
+          "text": "The spec says what the critics check for this skill."
         }
       },
       "recording": {
+        "goal": {
+          "title": "What this is for",
+          "text": "Good training data is recorded to a plan: a block records episodes, the critics check them, and only the good ones go on to training."
+        },
         "runSheet": {
           "title": "Strategy and run sheet",
           "text": "Optional: the strategy and a run sheet with one row per episode. A block can take it over as its plan."
@@ -2059,12 +2029,66 @@
           "title": "Selection",
           "text": "Which episodes of this block go into training. Rejected ones start unticked; your verdict counts over the critics'."
         },
+        "override": {
+          "title": "Your verdict counts",
+          "text": "Where you disagree with the critics, set your own verdict with ✓ or ✗. It counts in every figure at once and takes the episode into the export or out of it; the critics' verdict stays visible next to it."
+        },
         "export": {
           "title": "The block's export",
           "text": "The selected episodes of this block, as a manifest or as one merged dataset."
         }
       },
+      "specs": {
+        "goal": {
+          "title": "What this is for",
+          "text": "The critics check every episode automatically. The spec tells them what the robot should do and how success shows, so their judgement stays comparable over days and cells."
+        },
+        "skillSpec": {
+          "title": "One spec per skill",
+          "text": "Each skill names one spec. Without one, the critics derive a spec from the dataset itself."
+        },
+        "list": {
+          "title": "All specs",
+          "text": "The specs of the organisation, each with the skills that use it."
+        },
+        "task": {
+          "title": "The task",
+          "text": "The task in one sentence and its objects. The language model judges every episode against it."
+        },
+        "indicators": {
+          "title": "How success is recognised",
+          "text": "Statements the model checks. A gate must hold, or the episode is rejected."
+        },
+        "hard": {
+          "title": "Technical checks",
+          "text": "Checks on signals and videos, each with a weight and thresholds."
+        },
+        "scoring": {
+          "title": "Scoring",
+          "text": "Where accept, review and reject begin, and findings that are only warnings."
+        },
+        "yaml": {
+          "title": "As YAML",
+          "text": "The same spec as YAML, for copying or editing by hand."
+        },
+        "wizardNew": {
+          "title": "The spec wizard",
+          "text": "A new spec is best made in the wizard, from a sample dataset."
+        },
+        "wizardSteps": {
+          "title": "Step by step",
+          "text": "The critics analyse the sample, then come the task, the robot and the cameras. In the workbench you compare video, critics and your own judgement until they agree."
+        },
+        "wizardOpen": {
+          "title": "Open drafts",
+          "text": "A draft you started waits here. Tested and stored, it is assigned to the skill right away."
+        }
+      },
       "pretrain": {
+        "goal": {
+          "title": "What this is for",
+          "text": "Before training you decide what to train on: a clean, varied selection from all blocks, exported as one dataset."
+        },
         "table": {
           "title": "The training data",
           "text": "All recorded datasets of the skill, one per row, with what is selected of each."
@@ -2091,6 +2115,10 @@
         }
       },
       "evaluation": {
+        "goal": {
+          "title": "What this is for",
+          "text": "A trained policy is registered and tested on the robot in blocks of its own. That makes it measurable whether it solves the task and where it fails."
+        },
         "policies": {
           "title": "Policies",
           "text": "A trained policy is registered here, with the export it was trained from and where it lives."
@@ -2113,6 +2141,10 @@
         }
       },
       "analysis": {
+        "goal": {
+          "title": "What this is for",
+          "text": "The analysis shows how the work is going: amount and quality of the data, time and the most frequent findings, over days, cells and skills."
+        },
         "filters": {
           "title": "Filters",
           "text": "Filter by period, skill, cell and collection; the tour has chosen the tour skill."
@@ -2130,6 +2162,8 @@
           "text": "The findings of the critics that came up most often."
         }
       }
-    }
+    },
+    "toChapter": "On to the chapter {chapter} →",
+    "drag": "Drag to move; a double click puts it back"
   }
 }

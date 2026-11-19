@@ -214,7 +214,7 @@ const chip = (on: boolean) =>
       </div>
     </section>
 
-    <section class="mt-8">
+    <section class="mt-8" data-tour="start-skill">
       <SectionHeader n="03" :title="t('start.skill')" :hint="t('start.skillHint')" />
       <div v-if="loading" class="py-6 text-center font-mono text-xs text-surface-500">{{ t('app.loading') }} …</div>
       <template v-else>

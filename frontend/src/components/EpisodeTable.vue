@@ -149,7 +149,12 @@ const segment = (active: boolean, tone: 'ok' | 'bad' | 'neutral') =>
                 accept or reject over it. It counts in every figure and moves
                 the export tick with it.
               -->
-              <div v-else class="inline-flex gap-0.5 rounded-lg bg-surface-100 p-0.5 dark:bg-surface-800" role="group">
+              <div
+                v-else
+                class="inline-flex gap-0.5 rounded-lg bg-surface-100 p-0.5 dark:bg-surface-800"
+                role="group"
+                :data-tour="row === rows[0] ? 'selection-override' : undefined"
+              >
                 <button
                   type="button"
                   :class="criticsSegment(row.e)"

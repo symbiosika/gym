@@ -274,7 +274,7 @@ watch(
     </Message>
 
     <div class="grid gap-5 lg:grid-cols-[16rem_1fr]">
-      <div class="flex min-w-0 flex-col gap-2" data-tour="spec-list">
+      <div class="flex min-w-0 flex-col gap-2 self-start" data-tour="spec-list">
         <span class="gym-field mb-0">{{ t('spec.list') }} · {{ specs.length }}</span>
         <div v-if="!readonly" class="flex flex-wrap gap-2">
           <Button

@@ -15,8 +15,8 @@ The versions before 0.9.0 were given afterwards, one per merged pull request.
 A guided tour through one skill.
 
 - A help button in the header opens the guided tour: six chapters, each
-  startable on its own or all as "Whole tour" (the skill, critic specs,
-  recording a block, Pre-Train, policy and evaluation, analysis), with a short
+  startable on its own or all as "Whole tour" (the skill, recording a block,
+  critic specs, Pre-Train, policy and evaluation, analysis), with a short
   title and one or two sentences per step, in German and English.
 - The tour walks over the tour skill of the organisation, which an owner or
   admin picks in Settings (`skills.tour_skill`, one per organisation,
@@ -24,6 +24,12 @@ A guided tour through one skill.
   recording block with judged data, its largest dataset, the newest export,
   the policy, the newest evaluation with reviewed rollouts, the newest report)
   and skips what the skill does not have.
+- Every chapter opens with what the activity is for. What a step points at
+  gets a thin green frame and is shown from its top, also inside the spec
+  manager. The popover can be dragged by its title and stays where it was
+  put; a double click puts it back. The recording chapter comes before the
+  critic specs and links on to them, and the person's own verdict in the
+  selection has a step of its own.
 - The tour only looks: it opens pages and highlights elements, the
   highlighted element cannot be clicked, the block wizard and the spec
   manager it opens are read-only, and nothing is written.

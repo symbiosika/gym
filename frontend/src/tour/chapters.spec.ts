@@ -68,7 +68,13 @@ describe('the steps the material allows', () => {
   it('a skill without data keeps the steps that need nothing, and says which chapters have nothing', () => {
     expect(tourSteps(['skill'], bare)).toHaveLength(CHAPTER_STEPS.skill.length)
     // the spec manager needs a stored spec; the wizard's start page needs nothing
-    expect(tourSteps(['specs'], bare).map((s) => s.step.id)).toEqual(['skillSpec', 'wizardNew', 'wizardSteps', 'wizardOpen'])
+    expect(tourSteps(['specs'], bare).map((s) => s.step.id)).toEqual([
+      'goal',
+      'skillSpec',
+      'wizardNew',
+      'wizardSteps',
+      'wizardOpen',
+    ])
     expect(chapterAvailable('pretrain', bare)).toBe(false)
     expect(chapterAvailable('evaluation', bare)).toBe(false)
     expect(chapterAvailable('analysis', bare)).toBe(true)
@@ -82,8 +88,33 @@ describe('the steps the material allows', () => {
 
   it('no step asks for anything but a page and what to show on it', () => {
     for (const step of Object.values(CHAPTER_STEPS).flat()) {
-      expect(Object.keys(step).every((k) => ['id', 'element', 'page', 'needs', 'ui'].includes(k))).toBe(true)
+      expect(Object.keys(step).every((k) => ['id', 'element', 'page', 'needs', 'ui', 'link'].includes(k))).toBe(true)
     }
+  })
+})
+
+describe('the shape of a chapter', () => {
+  it('every chapter opens with its goal, the only step that points at nothing', () => {
+    for (const chapter of TOUR_CHAPTERS) {
+      expect(CHAPTER_STEPS[chapter][0]).toMatchObject({ id: 'goal' })
+      expect(CHAPTER_STEPS[chapter][0]!.element).toBeUndefined()
+      expect(CHAPTER_STEPS[chapter].slice(1).every((s) => !!s.element)).toBe(true)
+    }
+  })
+
+  it("recording comes before the critic specs, and both the skill and the critics' answer link on to the specs", () => {
+    expect(TOUR_CHAPTERS.indexOf('recording')).toBeLessThan(TOUR_CHAPTERS.indexOf('specs'))
+    const links = Object.values(CHAPTER_STEPS)
+      .flat()
+      .filter((s) => s.link)
+    expect(links.map((s) => s.id).sort()).toEqual(['spec', 'summary'])
+    expect(links.every((s) => TOUR_CHAPTERS.includes(s.link!))).toBe(true)
+  })
+
+  it('a chapter whose goal is all that would be left is not offered', () => {
+    // the policy is there, the evaluation is not: its chapter still shows the policy
+    expect(tourSteps(['evaluation'], { ...bare, policyId: 'p1' }).map((s) => s.step.id)).toEqual(['goal', 'policies'])
+    expect(tourSteps(['pretrain'], bare)).toEqual([])
   })
 })
 

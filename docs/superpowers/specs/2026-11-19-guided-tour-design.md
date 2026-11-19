@@ -260,6 +260,28 @@ Every `data-tour` name in the tables above is added to exactly one element.
 Most are existing panels or headers (`SectionHeader`, `gym-panel`); a few
 need a wrapper. Names are kebab-case, prefixed by the screen.
 
+### 8. First round of feedback (built)
+
+- Order of the chapters: the skill, recording a block, critic specs,
+  Pre-Train, policy and evaluation, analysis. The critic spec step of the
+  skill chapter and the critics' answer in the recording chapter link on to
+  the critic specs chapter (a button in the popover).
+- Every chapter opens with its goal: a step without an element, its popover
+  in the middle of the page, saying what the activity is for.
+- The skill chapter starts where skills are made: section 03 of "Start a
+  block", with the note that a skill stands for a use case of the robot.
+- The selection step of the recording chapter is split: the table, then the
+  person's own verdict over the critics' (`selection-override`).
+- What a step points at gets a thin (3px) green frame, drawn above the
+  overlay so a scrolling panel cannot cut it, and kept on the element every
+  frame; when the element moves, the overlay's cut-out follows.
+- A region that is not wholly visible is shown from its top, under the
+  sticky bars of the page or at the top of the dialog it is in (driver.js
+  only centres, and never scrolls inside a dialog).
+- The popover can be dragged by its title. Where it was put it stays, for the
+  following steps and the next tour, kept inside the window; a double click
+  on the title puts it back next to its element.
+
 ## Testing
 
 - Backend: `tour.test.ts`: setting and clearing the tour skill (admin only,
