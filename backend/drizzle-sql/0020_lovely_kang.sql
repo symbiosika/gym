@@ -1,0 +1,2 @@
+ALTER TABLE "gym_skills" ADD COLUMN "tour_skill" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "gym_skills_tour_uq" ON "gym_skills" USING btree ("tenant_id") WHERE "gym_skills"."tour_skill";
