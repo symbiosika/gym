@@ -396,9 +396,9 @@
   },
   "selection": {
     "excluded": "excluded",
-    "excludedHint": "Taken out of the selection on the skill's Episodes tab: its episodes are not exported, their ticks stay.",
+    "excludedHint": "Taken out of the selection on the skill's Pre-Train tab: its episodes are not exported, their ticks stay.",
     "title": "Select episodes and download",
-    "lead": "The recordings of this block. Rejected ones are deselected. Where you disagree with the critics, set your verdict with ✓ or ✗; it counts in every figure at once. The episodes of the skill's other blocks are decided in their own selection step.",
+    "lead": "The recordings of this block. Rejected ones are deselected. Where you disagree with the critics, set your verdict with ✓ or ✗; it counts in every figure at once. The export here takes the selected episodes of this block; the selection over the whole skill is exported on the skill's Pre-Train tab.",
     "selectedHint": "episodes selected",
     "selectedShort": "Selected",
     "all": "All",
@@ -425,7 +425,7 @@
     "criticsSaid": "critics: {verdict}",
     "thisBlock": "this block",
     "exportTitle": "Export",
-    "exportCount": "{n} episodes selected over the whole skill",
+    "exportCount": "{n} episodes of this block selected",
     "exportShort": "Export",
     "exportHead": "Does the episode go into the export?",
     "exportEpisode": "Export episode {n}",
@@ -556,7 +556,9 @@
         }
       },
       "toSelection": "To the block's selection step: set the ticks and resolve open reviews",
-      "selectionStep": "Selection"
+      "selectionStep": "Selection",
+      "includeAll": "Take every dataset into the selection, or every one out",
+      "exportCount": "{n} episodes selected over the skill"
     },
     "cell": "Cell",
     "name": "Name",
@@ -584,9 +586,9 @@
     "tabs": {
       "blocks": "Blocks",
       "strategy": "Strategy",
-      "evaluations": "Evaluations",
+      "pretrain": "Pre-Train",
       "policies": "Policies",
-      "episodes": "Episodes",
+      "evaluations": "Evaluations",
       "audit": "Audit log"
     },
     "when": "When",

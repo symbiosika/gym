@@ -30,10 +30,15 @@ Specs and reports survive a redeploy of the critics; the selection step is the b
   was lost before this version come back that way, without their contact
   sheets.
 - The selection step of a block shows the datasets and episodes of that block
-  only; "all", "none" and the verdict filters only touch them. The export
-  still takes the selection of the whole skill and says how many episodes
-  that is.
-- The Episodes tab of a skill links every dataset to the selection step of its
+  only; "all", "none" and the verdict filters only touch them, and its export
+  takes that block's selected episodes only (`blockId` on both export routes).
+  The selection of the whole skill is exported on the skill's Pre-Train tab.
+- The Episodes tab of a skill is now called Pre-Train, and the tabs read
+  Blocks, Strategy, Pre-Train, Policies, Evaluations, Audit log. A tick in
+  the head of its table takes every dataset into the selection or every one
+  out, and the export bar is there twice, above the table and at the end of
+  the page.
+- The Pre-Train tab of a skill links every dataset to the selection step of its
   block ("Selection", and the "to review" pill), to set ticks and resolve open
   reviews there. The wizard opens the step to look at; "continue here" moves
   the block there.

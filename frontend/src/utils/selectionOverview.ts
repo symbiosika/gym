@@ -4,7 +4,7 @@ const effective = (e: Pick<Episode, 'verdict' | 'humanVerdict'>) => e.humanVerdi
 
 /**
  * The selection narrowed to one dataset, counted on its own: what a dataset
- * row of the Episodes tab opens to. Counts are on the effective verdict, a
+ * row of the Pre-Train tab opens to. Counts are on the effective verdict, a
  * person's word over the critics'.
  */
 export function narrowSelection(view: SelectionView, datasetId: string): SelectionView {

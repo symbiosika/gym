@@ -803,6 +803,30 @@ describe("Gym operator flow", () => {
     expect(merged.every((f) => f.head[0] === 0x50 && f.head[1] === 0x4b)).toBe(true);
     expect((await testFetcher.get(app, `${base}/skills/${skillId}/exports`, token)).jsonResponse).toHaveLength(2);
 
+    // from a block's selection step: only that block's selected episodes
+    const ofBlock = await app.request(`/tenant/${T}/gym/skills/${skillId}/exports/dataset`, {
+      method: "POST",
+      headers: { "content-type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: "Block set", blockId }),
+    });
+    expect(ofBlock.status).toBe(200);
+    await ofBlock.arrayBuffer();
+    const blockSources = critics.merges.at(-1)!.sources;
+    const sel = (await testFetcher.get(app, `${base}/skills/${skillId}/selection`, token)).jsonResponse;
+    const ofThisBlock = sel.datasets.filter((d: { dataset: { blockId: string; included: boolean } }) => d.dataset.blockId === blockId && d.dataset.included);
+    expect(blockSources.map((x) => x.name).sort()).toEqual(
+      ofThisBlock
+        .filter((d: { episodes: { selected: boolean }[] }) => d.episodes.some((e) => e.selected))
+        .map((d: { dataset: { criticsDatasetName: string } }) => d.dataset.criticsDatasetName)
+        .sort(),
+    );
+    const manifest = await testFetcher.post(app, `${base}/skills/${skillId}/exports`, token, { name: "Block manifest", blockId });
+    expect(manifest.status).toBe(200);
+    // a block of another skill, or none at all, is not found
+    const stranger = await testFetcher.post(app, `${base}/skills/${skillId}/exports`, token, { blockId: "00000000-0000-0000-0000-000000000000" });
+    expect(stranger.status).toBe(404);
+    expect((await testFetcher.get(app, `${base}/skills/${skillId}/exports`, token)).jsonResponse).toHaveLength(4);
+
     critics.failMergeWith = { status: 400, detail: "different fps: 'a' is 10.0, 'b' is 30.0" };
     try {
       const refused = await app.request(`/tenant/${T}/gym/skills/${skillId}/exports/dataset`, {

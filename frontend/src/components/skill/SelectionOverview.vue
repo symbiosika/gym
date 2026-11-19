@@ -8,6 +8,7 @@ import { defaultExportName, narrowSelection } from '@/utils/selectionOverview'
 import { fmtDate, today } from '@/utils/time'
 import type { SelectionOverview, SelectionOverviewRow, SelectionView } from '@/types/gym'
 import EpisodeTable from '@/components/EpisodeTable.vue'
+import SelectionExportBar from '@/components/skill/SelectionExportBar.vue'
 import SelectionMetrics from '@/components/skill/SelectionMetrics.vue'
 import IconChevronDown from '~icons/carbon/chevron-down'
 import IconChevronRight from '~icons/carbon/chevron-right'
@@ -15,10 +16,14 @@ import IconDownload from '~icons/carbon/download'
 import IconLaunch from '~icons/carbon/launch'
 
 /**
- * The Episodes tab of a skill: its recording datasets, one row each, with
+ * The Pre-Train tab of a skill: its recording datasets, one row each, with
  * what is selected of them, and the figures over the selection as a whole.
+ * The selection of the whole skill is exported here (the selection step of a
+ * block exports that block's episodes only), from the bar above the table or
+ * the same bar at the end of the page.
  *
- * A dataset is taken in or out of the selection here as a whole; which of its
+ * A dataset is taken in or out of the selection here as a whole, one by one
+ * or all at once with the tick in the column head; which of its
  * episodes are ticked is decided in the block's wizard and only looked at
  * here (a row opens to its episodes, read-only); each row links to the
  * selection step of its block, where the ticks and the pending reviews are
@@ -72,7 +77,10 @@ watch(
 const datasetNames = computed(() =>
   Object.fromEntries((overview.value?.datasets ?? []).map((d) => [d.dataset.id, d.dataset.name])),
 )
-const anySelected = computed(() => (overview.value?.totals.selected ?? 0) > 0)
+const selectedCount = computed(() => overview.value?.totals.selected ?? 0)
+/** the tick in the column head: all datasets in, none, or some (indeterminate) */
+const allIncluded = computed(() => !!overview.value?.datasets.length && overview.value.datasets.every((d) => d.dataset.included))
+const someIncluded = computed(() => !allIncluded.value && !!overview.value?.datasets.some((d) => d.dataset.included))
 
 async function toggle(row: SelectionOverviewRow) {
   const id = row.dataset.id
@@ -97,6 +105,21 @@ async function setIncluded(row: SelectionOverviewRow, included: boolean) {
   } catch (e) {
     fail(e)
   } finally {
+    busy.value = ''
+  }
+}
+
+/** Every dataset into the selection, or every one out; only the ones that change are sent. */
+async function setAllIncluded(included: boolean) {
+  busy.value = 'inc:all'
+  try {
+    for (const row of overview.value?.datasets ?? []) {
+      if (row.dataset.included !== included) await gymApi.setDatasetIncluded(props.tenantId, row.dataset.id, included)
+    }
+  } catch (e) {
+    fail(e)
+  } finally {
+    await load()
     busy.value = ''
   }
 }
@@ -138,34 +161,28 @@ async function exportAll(row: SelectionOverviewRow) {
       <SectionHeader
         :title="t('skill.episodesTab.datasets')"
         :hint="t('skill.episodesTab.selectedOf', { n: overview.totals.selected, total: overview.totals.episodes })"
-      >
-        <SecondaryButton
-          size="small"
-          :disabled="!anySelected || !!busy"
-          :loading="busy === 'export'"
-          :label="t('skill.episodesTab.export')"
-          :title="anySelected ? t('skill.episodesTab.exportHint') : t('skill.episodesTab.nothingSelected')"
-          @click="exportSelection('export')"
-        />
-        <Button
-          size="small"
-          :disabled="!anySelected || !!busy"
-          :loading="busy === 'merged'"
-          :label="busy === 'merged' ? t('skill.episodesTab.merging') : t('skill.episodesTab.exportMerged')"
-          :title="anySelected ? t('skill.episodesTab.exportMergedHint') : t('skill.episodesTab.nothingSelected')"
-          @click="exportSelection('merged')"
-        />
-      </SectionHeader>
+      />
       <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">{{ t('skill.episodesTab.lead') }}</p>
-      <FormField class="mb-3 max-w-md" :label="t('selection.exportName')" :hint="t('selection.exportNameHint')">
-        <InputText v-model="exportName" fluid :disabled="!!busy" maxlength="120" />
-      </FormField>
+      <SelectionExportBar v-model:name="exportName" class="mb-3" :count="selectedCount" :busy="busy" @export="exportSelection" />
 
       <div class="gym-panel overflow-x-auto">
         <table class="gym-table">
           <thead>
             <tr>
-              <th :title="t('skill.episodesTab.includedHint')">{{ t('skill.episodesTab.included') }}</th>
+              <th :title="t('skill.episodesTab.includedHint')">
+                <span class="flex items-center gap-2">
+                  <Checkbox
+                    binary
+                    :model-value="allIncluded"
+                    :indeterminate="someIncluded"
+                    :disabled="!!busy"
+                    :aria-label="t('skill.episodesTab.includeAll')"
+                    :title="t('skill.episodesTab.includeAll')"
+                    @update:model-value="(value: boolean) => setAllIncluded(value)"
+                  />
+                  {{ t('skill.episodesTab.included') }}
+                </span>
+              </th>
               <th>{{ t('analysis.dataset') }}</th>
               <th>{{ t('day.date') }} · {{ t('skill.cell') }}</th>
               <th class="num">{{ t('skill.selected') }}</th>
@@ -183,7 +200,7 @@ async function exportAll(row: SelectionOverviewRow) {
                   <Checkbox
                     binary
                     :model-value="row.dataset.included"
-                    :disabled="busy === `inc:${row.dataset.id}`"
+                    :disabled="busy === `inc:${row.dataset.id}` || busy === 'inc:all'"
                     :aria-label="t('skill.episodesTab.includedHint')"
                     @update:model-value="(value: boolean) => setIncluded(row, value)"
                   />
@@ -275,5 +292,7 @@ async function exportAll(row: SelectionOverviewRow) {
     </section>
 
     <SelectionMetrics :metrics="overview.metrics" :points="overview.points" :names="datasetNames" />
+
+    <SelectionExportBar v-model:name="exportName" :count="selectedCount" :busy="busy" @export="exportSelection" />
   </div>
 </template>

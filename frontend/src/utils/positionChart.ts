@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 import type { AxisStat, SelectionMetrics, SelectionPoint } from '@/types/gym'
 
 /**
- * The geometry of the position charts on a skill's Episodes tab: which marks
+ * The geometry of the position charts on a skill's Pre-Train tab: which marks
  * to draw for a choice of positions and of a viewing plane, and the scales
  * they are drawn on. Everything is in centimetres, as the figures are.
  *

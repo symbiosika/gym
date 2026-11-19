@@ -16,9 +16,9 @@ import IconDownload from '~icons/carbon/download'
  * start unchecked; the operator decides. The episodes of the skill's other
  * blocks are decided in their own selection step.
  *
- * The export takes the selection of the whole skill, this block's ticks with
- * the rest, under a name the operator may change. Two downloads, and the
- * difference matters. The **dataset** is the one to
+ * The export takes the selected episodes of this block, under a name the
+ * operator may change; the selection of the whole skill is exported from the
+ * skill's Pre-Train tab. Two downloads, and the difference matters. The **dataset** is the one to
  * take: the selected episodes of every upload merged into one LeRobot dataset,
  * renumbered, that goes straight into training. The **manifest** is the small
  * one: the episode lists and the critics' files, for a pipeline that reads the
@@ -36,7 +36,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const dialog = useDialog()
 
-/** the selection of the whole skill, as the server has it: the export takes all of it */
+/** the selection of the whole skill, as the server has it */
 const selection = ref<SelectionView | null>(null)
 /** what this step shows and decides: the datasets of this block */
 const shown = computed(() => (selection.value ? narrowToBlock(selection.value, props.block.id) : null))
@@ -67,12 +67,12 @@ function show(view: SelectionView, keep: SelectionChange[] = []) {
 
 const count = computed(() => Object.values(selected.value).filter(Boolean).length)
 const total = computed(() => Object.keys(selected.value).length)
-/** what the export takes: the selected episodes of every dataset of the skill still in the selection, this block's as ticked here */
+/** what the export takes: the ticked episodes of this block's datasets that are still in the skill's selection */
 const exportCount = computed(() => {
   let n = 0
-  for (const d of selection.value?.datasets ?? []) {
+  for (const d of shown.value?.datasets ?? []) {
     if (d.dataset.included === false) continue
-    for (const e of d.episodes) if (e.id in selected.value ? selected.value[e.id] : e.selected) n++
+    for (const e of d.episodes) if (selected.value[e.id]) n++
   }
   return n
 })
@@ -151,7 +151,7 @@ async function download() {
   busy.value = 'dl'
   try {
     await saveChanges()
-    const { blob, fileName } = await gymApi.createExport(props.tenantId, props.block.skillId, exportName.value)
+    const { blob, fileName } = await gymApi.createExport(props.tenantId, props.block.skillId, exportName.value, props.block.id)
     downloadBlob(fileName, blob)
     emit('update', await gymApi.block(props.tenantId, props.block.id))
   } catch (e) {
@@ -170,7 +170,12 @@ async function downloadDataset() {
   busy.value = 'ds'
   try {
     await saveChanges()
-    const { blob, fileName } = await gymApi.createDatasetExport(props.tenantId, props.block.skillId, exportName.value)
+    const { blob, fileName } = await gymApi.createDatasetExport(
+      props.tenantId,
+      props.block.skillId,
+      exportName.value,
+      props.block.id,
+    )
     downloadBlob(fileName, blob)
     emit('update', await gymApi.block(props.tenantId, props.block.id))
   } catch (e) {

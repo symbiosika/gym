@@ -396,9 +396,9 @@
   },
   "selection": {
     "excluded": "ausgeschlossen",
-    "excludedHint": "Auf dem Episoden-Tab des Skills aus der Auswahl genommen: Seine Episoden werden nicht exportiert, ihre Haken bleiben.",
+    "excludedHint": "Auf dem Pre-Train-Tab des Skills aus der Auswahl genommen: Seine Episoden werden nicht exportiert, ihre Haken bleiben.",
     "title": "Episoden auswählen und herunterladen",
-    "lead": "Die Aufnahmen dieses Blocks. Abgelehnte sind abgewählt. Wo du den Critics nicht folgst, setz dein Urteil mit ✓ oder ✗; es zählt sofort in allen Kennzahlen. Die Episoden der anderen Blöcke des Skills werden in deren Auswahlschritt entschieden.",
+    "lead": "Die Aufnahmen dieses Blocks. Abgelehnte sind abgewählt. Wo du den Critics nicht folgst, setz dein Urteil mit ✓ oder ✗; es zählt sofort in allen Kennzahlen. Der Export hier nimmt die ausgewählten Episoden dieses Blocks; die Auswahl über den ganzen Skill exportierst du auf dem Pre-Train-Tab des Skills.",
     "selectedHint": "Episoden ausgewählt",
     "selectedShort": "Ausgewählt",
     "all": "Alle",
@@ -425,7 +425,7 @@
     "criticsSaid": "Critics: {verdict}",
     "thisBlock": "dieser Block",
     "exportTitle": "Export",
-    "exportCount": "{n} Episoden über den ganzen Skill ausgewählt",
+    "exportCount": "{n} Episoden dieses Blocks ausgewählt",
     "exportShort": "Export",
     "exportHead": "Kommt die Episode in den Export?",
     "exportEpisode": "Episode {n} exportieren",
@@ -556,7 +556,9 @@
         }
       },
       "toSelection": "Zum Auswahlschritt des Blocks: Haken setzen und offene Prüfungen klären",
-      "selectionStep": "Auswahl"
+      "selectionStep": "Auswahl",
+      "includeAll": "Alle Datasets in die Auswahl nehmen oder alle herausnehmen",
+      "exportCount": "{n} Episoden über den Skill ausgewählt"
     },
     "cell": "Zelle",
     "name": "Name",
@@ -584,9 +586,9 @@
     "tabs": {
       "blocks": "Blöcke",
       "strategy": "Strategie",
-      "evaluations": "Evaluierungen",
+      "pretrain": "Pre-Train",
       "policies": "Policies",
-      "episodes": "Episoden",
+      "evaluations": "Evaluierungen",
       "audit": "Audit-Log"
     },
     "when": "Zeitpunkt",

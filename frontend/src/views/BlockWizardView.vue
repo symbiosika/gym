@@ -117,7 +117,7 @@ const stepLabel = (step: BlockStep) => t(block.value?.kind === 'evaluation' ? `b
 
 /**
  * A link may name the step to open (`?step=selection`, from the skill's
- * Episodes tab to resolve the reviews of a dataset). It is opened to look at,
+ * Pre-Train tab to resolve the reviews of a dataset). It is opened to look at,
  * like a click on the step guide; moving the block there stays the explicit
  * second click.
  */
