@@ -183,6 +183,14 @@ export interface ExportResult {
 
 const safeName = (s: string) => s.replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "") || "dataset";
 
+/**
+ * The file name of an export, and the folder name of a merged dataset: the
+ * name the person gave it, else the skill and the day. Only characters a file
+ * system and the critics accept in a dataset name are kept.
+ */
+export const exportFileStem = (name: string | undefined, skillName: string, createdAt: string): string =>
+  (name?.trim() ? safeName(name.trim()) : `${safeName(skillName)}-${createdAt.slice(0, 10)}`).slice(0, 120);
+
 /** `[0,1,2,4,7,8]` → `"0-2,4,7-8"`, the form a `--episodes` filter takes (lerobot_critics.selection.compact_ranges). */
 export function compactRanges(nums: number[]): string {
   const out: string[] = [];
@@ -241,7 +249,7 @@ export async function createExport(tenantId: string, actor: Actor, skillId: stri
 
   const zip = buildZip(skill.name, record!, selectedSets);
   await recordAudit(tenantId, { skillId }, actor, "export.created", { exportId: record!.id, episodes: exportSelection.episodes, datasets: exportSelection.datasets.length });
-  return { record: record!, zip, fileName: `${safeName(skill.name)}-${record!.createdAt.slice(0, 10)}.zip` };
+  return { record: record!, zip, fileName: `${exportFileStem(name, skill.name, record!.createdAt)}.zip` };
 }
 
 export async function listExports(tenantId: string, skillId: string): Promise<ExportSelect[]> {
@@ -303,7 +311,8 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
     .values({ tenantId, skillId, name: exportName, selection: exportSelection, createdBy: actor.userId })
     .returning();
 
-  const datasetName = `${safeName(skill.name)}-${record!.createdAt.slice(0, 10)}`;
+  // the name the person gave the export is the name of the merged dataset, its folder and its zip
+  const datasetName = exportFileStem(name, skill.name, record!.createdAt);
   // one fresh link per dataset: the critics fetch them for this one merge and
   // keep nothing, so a link is only ever as old as the request
   const sources = await Promise.all(

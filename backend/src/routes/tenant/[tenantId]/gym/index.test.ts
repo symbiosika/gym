@@ -665,6 +665,49 @@ describe("Gym operator flow", () => {
     expect((await testFetcher.delete(app, `${base}/critics/specs/edited_spec`, token)).status).toBe(404);
   });
 
+  test("specs and report links outlive a redeploy of the critics", async () => {
+    // the critics come back with an empty spec store: listing puts GYM's copy back
+    critics.specs = critics.specs.filter((sp) => sp.name !== "Cup_on_Tray");
+    const list = await testFetcher.get(app, `${base}/critics/specs`, token);
+    expect(list.jsonResponse.some((sp: { name: string }) => sp.name === "Cup_on_Tray")).toBe(true);
+    expect(critics.specs.find((sp) => sp.name === "Cup_on_Tray")?.spec.task).toMatchObject({ instruction: "put the cup on the tray" });
+
+    // lost again, an upload still runs with the skill's spec instead of the automatic one
+    critics.specs = critics.specs.filter((sp) => sp.name !== "Cup_on_Tray");
+    const up = await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, zipUpload("after_redeploy.zip"));
+    const usedSpec = critics.jobs.at(-1)?.spec;
+    if (up.jsonResponse?.id) await testFetcher.delete(app, `${base}/datasets/${up.jsonResponse.id}`, token);
+    expect(up.status).toBe(201);
+    expect(usedSpec).toBe("Cup_on_Tray");
+    expect(critics.specs.some((sp) => sp.name === "Cup_on_Tray")).toBe(true);
+
+    // a spec written in the critics' own UI is taken over by GYM when listed
+    critics.specs.push({ name: "from_ui", spec: { name: "from_ui", task: { instruction: "wave" } } });
+    await testFetcher.get(app, `${base}/critics/specs`, token);
+    critics.specs = critics.specs.filter((sp) => sp.name !== "from_ui");
+    expect((await testFetcher.get(app, `${base}/critics/specs/from_ui`, token)).jsonResponse.task).toBe("wave");
+    expect((await testFetcher.delete(app, `${base}/critics/specs/from_ui`, token)).status).toBe(200);
+
+    // the job directory is gone: the report link opens GYM's copy, other views are drawn from report.json
+    const ds = (await testFetcher.get(app, `${base}/datasets/${datasetId}`, token)).jsonResponse;
+    const at = critics.jobs.findIndex((j) => j.id === ds.criticsJobId);
+    const [job] = critics.jobs.splice(at, 1);
+    try {
+      const auth = { headers: { Authorization: `Bearer ${token}` } };
+      const html = await app.request(`/tenant/${T}/gym/datasets/${datasetId}/report.html`, auth);
+      expect(html.status).toBe(200);
+      expect(await html.text()).toContain(`report ${job!.id}`);
+      const wider = await app.request(`/tenant/${T}/gym/datasets/${datasetId}/report.html?top=20`, auth);
+      expect(wider.status).toBe(200);
+      expect(await wider.text()).toContain("rendered");
+      const md = await app.request(`/tenant/${T}/gym/datasets/${datasetId}/markdown?detail=summary`, auth);
+      expect(md.status).toBe(200);
+      expect(await md.text()).toContain("# rendered");
+    } finally {
+      critics.jobs.splice(at, 0, job!);
+    }
+  });
+
   let exportId = "";
   test("selection and export of the skill", async () => {
     const sel = await testFetcher.get(app, `${base}/skills/${skillId}/selection`, token);
@@ -745,6 +788,9 @@ describe("Gym operator flow", () => {
     expect(res.headers.get("x-export-episodes")).toBe("4");
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
     const call = critics.merges.at(-1)!;
+    // the name the person typed names the merged dataset and its zip
+    expect(call.name).toBe("Training_set");
+    expect(res.headers.get("content-disposition")).toContain('filename="Training_set.zip"');
     expect(call.sources).toHaveLength(2);
     // a fresh link per dataset, and the name travels beside it because a link
     // carries a token and not a name

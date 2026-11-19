@@ -398,7 +398,7 @@
     "excluded": "ausgeschlossen",
     "excludedHint": "Auf dem Episoden-Tab des Skills aus der Auswahl genommen: Seine Episoden werden nicht exportiert, ihre Haken bleiben.",
     "title": "Episoden auswählen und herunterladen",
-    "lead": "Alle Aufnahmen dieses Skills, über alle Tage und Zellen. Abgelehnte sind abgewählt. Wo du den Critics nicht folgst, setz dein Urteil mit ✓ oder ✗; es zählt sofort in allen Kennzahlen.",
+    "lead": "Die Aufnahmen dieses Blocks. Abgelehnte sind abgewählt. Wo du den Critics nicht folgst, setz dein Urteil mit ✓ oder ✗; es zählt sofort in allen Kennzahlen. Die Episoden der anderen Blöcke des Skills werden in deren Auswahlschritt entschieden.",
     "selectedHint": "Episoden ausgewählt",
     "selectedShort": "Ausgewählt",
     "all": "Alle",
@@ -425,7 +425,7 @@
     "criticsSaid": "Critics: {verdict}",
     "thisBlock": "dieser Block",
     "exportTitle": "Export",
-    "exportCount": "{n} Episoden ausgewählt",
+    "exportCount": "{n} Episoden über den ganzen Skill ausgewählt",
     "exportShort": "Export",
     "exportHead": "Kommt die Episode in den Export?",
     "exportEpisode": "Episode {n} exportieren",
@@ -434,7 +434,10 @@
     "iAccept": "Ich akzeptiere die Episode",
     "iReject": "Ich lehne die Episode ab",
     "criticError": "Prüfung unvollständig",
-    "groupCount": "{n} von {total} im Export"
+    "groupCount": "{n} von {total} im Export",
+    "noneInBlock": "In diesem Block ist noch kein analysiertes Dataset.",
+    "exportName": "Name des Exports",
+    "exportNameHint": "benennt die ZIP-Datei und den Ordner des zusammengeführten Datasets"
   },
   "closed": {
     "title": "Block abgeschlossen",
@@ -478,14 +481,18 @@
       "hint": "eine CSV mit einer Zeile pro aufzunehmender Episode",
       "upload": "CSV hochladen",
       "replace": "CSV ersetzen",
-      "none": "Noch kein Run Sheet. Lade eine CSV mit Kopfzeile hoch; ein Block kann sie dann als Aufnahmeplan übernehmen.",
+      "none": "Noch kein Run Sheet. Lade die CSV-Vorlage, füll sie aus und lade sie hoch; ein Block kann sie dann als Aufnahmeplan übernehmen.",
       "groupBy": "Zu Planschritten gruppieren nach",
       "groupByHint": "aufeinanderfolgende Zeilen mit gleichem Wert bilden einen Schritt",
       "noGroup": "keine Gruppierung · ein Schritt",
       "counts": "{rows} Zeilen · {groups} Schritte",
       "more": "und {n} weitere Zeilen",
       "removeConfirm": "Run Sheet entfernen?",
-      "removeText": "Pläne, die Blöcke bereits daraus übernommen haben, bleiben wie sie sind."
+      "removeText": "Pläne, die Blöcke bereits daraus übernommen haben, bleiben wie sie sind.",
+      "template": "CSV-Vorlage",
+      "templateHint": "Eine Vorlage im Format der Planschritte: eine Zeile pro Episode, layout bildet die Schritte, episode und prompt werden beim Namen gelesen, jede weitere Spalte wird zum Wert der Episode",
+      "templateFile": "run-sheet-vorlage.csv",
+      "download": "CSV laden"
     }
   },
   "skill": {
@@ -547,7 +554,9 @@
           "start": "Handgelenk am Start",
           "end": "Handgelenk am Ende"
         }
-      }
+      },
+      "toSelection": "Zum Auswahlschritt des Blocks: Haken setzen und offene Prüfungen klären",
+      "selectionStep": "Auswahl"
     },
     "cell": "Zelle",
     "name": "Name",

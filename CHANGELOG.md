@@ -10,6 +10,40 @@ raises it, and its merge is tagged `v<version>`:
 
 The versions before 0.9.0 were given afterwards, one per merged pull request.
 
+## 0.12.0
+
+Specs and reports survive a redeploy of the critics; the selection step is the block's.
+
+- The critics keep nothing for good, and a redeploy could leave them with an
+  empty spec store and no job directories: specs were gone and the report
+  links of blocks led nowhere. GYM now keeps a copy of every spec it writes
+  (`gym_critics_specs`) and puts a spec back when the critics lost it, before
+  it is listed, read or run with, so an upload no longer falls back to the
+  automatic spec unnoticed. A spec written in the critics' own UI is taken
+  over the next time GYM lists it.
+- The visual report of a run is copied into GYM's storage when the run is
+  mirrored (`datasets.report_html_ref`), and the cron copies the reports of
+  older runs while the critics still have them. When the critics no longer
+  have a job, any other view of its report and its Markdown is drawn by the
+  critics from the report.json GYM mirrored, through the new stateless
+  `POST /render/report.html` and `POST /render/markdown`. Reports whose job
+  was lost before this version come back that way, without their contact
+  sheets.
+- The selection step of a block shows the datasets and episodes of that block
+  only; "all", "none" and the verdict filters only touch them. The export
+  still takes the selection of the whole skill and says how many episodes
+  that is.
+- The Episodes tab of a skill links every dataset to the selection step of its
+  block ("Selection", and the "to review" pill), to set ticks and resolve open
+  reviews there. The wizard opens the step to look at; "continue here" moves
+  the block there.
+- An export, manifest or merged dataset, takes a name: it names the zip and
+  the folder of the merged dataset, and starts as the skill and the day.
+- The Strategy tab offers a CSV template of the run sheet, laid out the way it
+  becomes plan steps (episode, layout, prompt and further columns as labelled
+  values), with the skill's task as the prompt and semicolons in German. A
+  sheet that is in can be downloaded to edit it outside GYM.
+
 ## 0.11.0
 
 Skills in the navigation, a strategy per skill, datasets instead of episodes.

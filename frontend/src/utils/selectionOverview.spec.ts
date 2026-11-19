@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fmtAxis, metricRows, narrowSelection } from './selectionOverview'
+import { defaultExportName, fmtAxis, metricRows, narrowSelection, narrowToBlock } from './selectionOverview'
 import type { Episode, SelectionMetrics, SelectionView } from '@/types/gym'
 
 const ep = (
@@ -34,6 +34,37 @@ describe('one dataset of the selection', () => {
 
   it('is empty for a dataset the selection does not have', () => {
     expect(narrowSelection(view, 'nope')).toMatchObject({ datasets: [], totals: { episodes: 0, selected: 0 } })
+  })
+})
+
+describe('the datasets of one block', () => {
+  const blocks: SelectionView = {
+    ...view,
+    datasets: [
+      { ...view.datasets[0]!, dataset: { ...view.datasets[0]!.dataset, blockId: 'x' } },
+      { ...view.datasets[1]!, dataset: { ...view.datasets[1]!.dataset, blockId: 'y' } },
+      {
+        dataset: { id: 'c', name: 'C', blockId: 'x' } as SelectionView['datasets'][number]['dataset'],
+        episodes: [ep('4', 'reject', false)],
+      },
+    ],
+  }
+
+  it('keeps the datasets of the block only and counts them on their own', () => {
+    const x = narrowToBlock(blocks, 'x')
+    expect(x.datasets.map((d) => d.dataset.id)).toEqual(['a', 'c'])
+    expect(x.totals).toMatchObject({ episodes: 3, accepted: 1, review: 1, rejected: 1, selected: 1 })
+  })
+
+  it('is empty for a block without datasets in the selection', () => {
+    expect(narrowToBlock(blocks, 'z')).toMatchObject({ datasets: [], totals: { episodes: 0, selected: 0 } })
+  })
+})
+
+describe('the name an export starts with', () => {
+  it('is the skill and the day, as the server names the file', () => {
+    expect(defaultExportName('Pick from shelf', '2026-11-19')).toBe('Pick_from_shelf-2026-11-19')
+    expect(defaultExportName('  ', '2026-11-19')).toBe('dataset-2026-11-19')
   })
 })
 

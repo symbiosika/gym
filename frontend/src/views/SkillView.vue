@@ -355,7 +355,7 @@ async function removePolicy(p: PolicyRecord) {
       </section>
 
       <section v-else-if="tab === 'strategy'" class="mt-4">
-        <StrategyTab :tenant-id="tenantId" :skill-id="skillId" />
+        <StrategyTab :tenant-id="tenantId" :skill-id="skillId" :task="skill.taskDescription" />
       </section>
 
       <section v-else-if="tab === 'evaluations'" class="mt-4">
@@ -538,7 +538,7 @@ async function removePolicy(p: PolicyRecord) {
       </section>
 
       <section v-else-if="tab === 'episodes'" class="mt-4">
-        <SelectionOverview :tenant-id="tenantId" :skill-id="skillId" @exported="load" />
+        <SelectionOverview :tenant-id="tenantId" :skill-id="skillId" :skill-name="skill.name" @exported="load" />
       </section>
 
       <section v-else class="mt-4">

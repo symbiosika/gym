@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { gymApi } from '@/api/gym'
@@ -53,11 +53,13 @@ watch(() => block.value?.step, schedulePolling)
 watch(blockId, async () => {
   loading.value = true
   await load()
+  await lookAtLinkedStep()
   schedulePolling()
 })
 const onVisibility = () => schedulePolling()
 onMounted(async () => {
   await load()
+  await lookAtLinkedStep()
   schedulePolling()
   document.addEventListener('visibilitychange', onVisibility)
 })
@@ -112,6 +114,22 @@ watch(
 )
 const shown = computed<BlockStep | undefined>(() => viewing.value ?? block.value?.step)
 const stepLabel = (step: BlockStep) => t(block.value?.kind === 'evaluation' ? `block.evalSteps.${step}` : `day.steps.${step}`)
+
+/**
+ * A link may name the step to open (`?step=selection`, from the skill's
+ * Episodes tab to resolve the reviews of a dataset). It is opened to look at,
+ * like a click on the step guide; moving the block there stays the explicit
+ * second click.
+ */
+async function lookAtLinkedStep() {
+  const step = route.query.step
+  // after the step watcher of the first load, which clears what is looked at
+  await nextTick()
+  const b = block.value
+  if (typeof step === 'string' && b && step !== b.step && reachable.value.includes(step as BlockStep)) {
+    viewing.value = step as BlockStep
+  }
+}
 
 function look(step: BlockStep) {
   viewing.value = step === block.value?.step ? null : step
