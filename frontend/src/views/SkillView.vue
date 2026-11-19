@@ -31,7 +31,17 @@ const skillId = computed(() => String(route.params.skillId))
 const skill = ref<SkillData | null>(null)
 const audit = ref<AuditEntry[]>([])
 const reports = ref<EvaluationReportRecord[]>([])
-const tab = ref('blocks')
+const TAB_NAMES = ['blocks', 'strategy', 'pretrain', 'policies', 'evaluations', 'audit'] as const
+/** the tab, also in the address (`?tab=`): a link (the guided tour) opens a tab, and a reload keeps it */
+const tabOf = (q: unknown) => (typeof q === 'string' && (TAB_NAMES as readonly string[]).includes(q) ? q : 'blocks')
+const tab = ref(tabOf(route.query.tab))
+watch(
+  () => route.query.tab,
+  (q) => (tab.value = tabOf(q)),
+)
+watch(tab, (value) => {
+  if (value !== tabOf(route.query.tab)) void router.replace({ query: { ...route.query, tab: value } })
+})
 const editing = ref(false)
 const form = ref<{ name: string; taskDescription: string; collectionId: string; criticSpecName: string | null }>({
   name: '',
@@ -42,7 +52,7 @@ const form = ref<{ name: string; taskDescription: string; collectionId: string; 
 const fail = (e: unknown) => ui.showBanner('err', e instanceof Error ? e.message : String(e))
 
 const tabs = computed(() =>
-  (['blocks', 'strategy', 'pretrain', 'policies', 'evaluations', 'audit'] as const).map((v) => ({
+  TAB_NAMES.map((v) => ({
     value: v,
     label: t(`skill.tabs.${v}`),
   })),
@@ -199,6 +209,7 @@ async function removePolicy(p: PolicyRecord) {
     <div v-if="!skill" class="py-16 text-center font-mono text-xs text-surface-500">{{ t('app.loading') }} …</div>
     <template v-else>
       <PageTitle
+        data-tour="skill-header"
         :title="skill.name"
         :sub="`${skill.collectionName ?? t('start.noCollection')}${skill.firstDate ? ' · ' + fmtDate(skill.firstDate, locale) : ''}${skill.lastDate && skill.lastDate !== skill.firstDate ? ' – ' + fmtDate(skill.lastDate, locale) : ''}`"
       >
@@ -221,7 +232,7 @@ async function removePolicy(p: PolicyRecord) {
       </PageTitle>
 
       <p v-if="skill.taskDescription && !editing" class="text-surface-600 dark:text-surface-300">{{ skill.taskDescription }}</p>
-      <p v-if="!editing" class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+      <p v-if="!editing" class="mt-1 text-xs text-surface-500 dark:text-surface-400" data-tour="skill-spec">
         {{ t('skill.spec') }}: {{ skill.criticSpecName ?? t('skill.specAuto') }}
       </p>
 
@@ -246,7 +257,7 @@ async function removePolicy(p: PolicyRecord) {
         </div>
       </div>
 
-      <div class="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div class="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-6" data-tour="skill-kpis">
         <KpiTile
           :label="t('skill.episodes')"
           :value="String(skill.episodes)"
@@ -274,11 +285,11 @@ async function removePolicy(p: PolicyRecord) {
         />
       </div>
 
-      <TabBar v-model="tab" class="mt-6" :tabs="tabs" />
+      <TabBar v-model="tab" data-tour="skill-tabs" class="mt-6" :tabs="tabs" />
 
       <section v-if="tab === 'blocks'" class="mt-4">
         <div v-if="!skill.blocks_.length" class="gym-empty">{{ t('skill.noBlocks') }}</div>
-        <div v-else class="gym-panel overflow-x-auto">
+        <div v-else class="gym-panel overflow-x-auto" data-tour="skill-blocks">
           <table class="gym-table">
             <thead>
               <tr>
@@ -324,7 +335,7 @@ async function removePolicy(p: PolicyRecord) {
           </table>
         </div>
 
-        <SectionHeader class="mt-6" n="" :title="t('skill.exports')" />
+        <SectionHeader class="mt-6" n="" data-tour="skill-exports" :title="t('skill.exports')" />
         <div v-if="!skill.exports.length" class="gym-empty">{{ t('skill.noExports') }}</div>
         <div v-else class="gym-panel overflow-x-auto">
           <table class="gym-table">
@@ -361,7 +372,7 @@ async function removePolicy(p: PolicyRecord) {
       <section v-else-if="tab === 'evaluations'" class="mt-4">
         <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">{{ t('skill.evaluationsLead') }}</p>
         <div v-if="!evaluationsByDate.length" class="gym-empty">{{ t('skill.noEvaluations') }}</div>
-        <div v-else class="gym-panel overflow-x-auto">
+        <div v-else class="gym-panel overflow-x-auto" data-tour="evaluations-course">
           <table class="gym-table">
             <thead>
               <tr>
@@ -470,7 +481,7 @@ async function removePolicy(p: PolicyRecord) {
       <section v-else-if="tab === 'policies'" class="mt-4">
         <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">{{ t('skill.policiesLead') }}</p>
         <div v-if="!skill.policies_.length" class="gym-empty">{{ t('skill.noPolicies') }}</div>
-        <div v-else class="flex flex-col gap-1.5">
+        <div v-else class="flex flex-col gap-1.5" data-tour="policies-table">
           <div
             v-for="p in skill.policies_"
             :key="p.id"

@@ -107,7 +107,7 @@ async function remove() {
 </script>
 
 <template>
-  <section>
+  <section data-tour="strategy-runsheet">
     <SectionHeader :title="t('strategy.runSheet.title')" :hint="t('strategy.runSheet.hint')">
       <SecondaryButton
         size="small"

@@ -207,7 +207,12 @@ const conclusionKeys = ['working', 'needsReview', 'nextSteps'] as const
         </section>
       </div>
 
-      <EvaluationReportBody :figures="report.figures" :sections="report.sections" :tenant-id="tenantId" />
+      <EvaluationReportBody
+        data-tour="report-sections"
+        :figures="report.figures"
+        :sections="report.sections"
+        :tenant-id="tenantId"
+      />
     </template>
   </div>
 </template>

@@ -365,7 +365,8 @@ onBeforeUnmount(() => {
         <template #icon><IconTrash class="size-4" /></template>
       </SecondaryButton>
     </PageTitle>
-    <p class="mb-5 max-w-3xl text-surface-600 dark:text-surface-300">{{ t('specWizard.lead') }}</p>
+    <p class="max-w-3xl text-surface-600 dark:text-surface-300">{{ t('specWizard.lead') }}</p>
+    <p class="text-bad mt-1 mb-5 max-w-3xl text-sm font-medium">{{ t('specWizard.experimental') }}</p>
 
     <div v-if="loading" class="gym-empty">{{ t('app.loading') }}</div>
 
@@ -374,6 +375,7 @@ onBeforeUnmount(() => {
       <div class="grid gap-4 md:grid-cols-2">
         <button
           type="button"
+          data-tour="specwizard-new"
           class="flex cursor-pointer flex-col items-start gap-2 rounded-panel border-2 border-dashed border-surface-300 p-5 text-start transition-colors hover:border-primary dark:border-surface-700"
           :disabled="busy"
           @click="createDraft()"
@@ -382,7 +384,7 @@ onBeforeUnmount(() => {
           <b class="font-display text-base font-semibold">{{ t('specWizard.new') }}</b>
           <span class="text-sm text-surface-500 dark:text-surface-400">{{ t('specWizard.newHint') }}</span>
         </button>
-        <div>
+        <div data-tour="specwizard-open">
           <span class="gym-field">{{ t('specWizard.open') }}</span>
           <div v-if="!openDrafts.length" class="gym-empty">{{ t('specWizard.noOpen') }}</div>
           <div v-else class="flex flex-col gap-2">
@@ -413,6 +415,23 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
+      <!-- how the wizard goes, before anything is started -->
+      <section class="mt-6" data-tour="specwizard-steps">
+        <span class="gym-field">{{ t('specWizard.howTitle') }}</span>
+        <ol class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <li
+            v-for="(s, i) in SPEC_DRAFT_STEPS"
+            :key="s"
+            class="flex gap-2.5 rounded-panel border border-surface-300 p-3 dark:border-surface-700"
+          >
+            <span class="font-mono text-xs font-semibold text-surface-500">{{ String(i + 1).padStart(2, '0') }}</span>
+            <span class="min-w-0">
+              <b class="block text-sm font-medium">{{ stepTitle(s) }}</b>
+              <span class="block text-xs text-surface-500 dark:text-surface-400">{{ t(`specWizard.how.${s}`) }}</span>
+            </span>
+          </li>
+        </ol>
+      </section>
     </template>
 
     <template v-else-if="draft">

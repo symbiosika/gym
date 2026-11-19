@@ -849,7 +849,11 @@
     "noSpecs": "Noch keine Spec im Critics-Dienst.",
     "moveRobot": "„{robot}“ nach {cell} stellen?",
     "moveRobotHint": "Der Roboter steht gerade in {from}. {from} hat danach einen unbestimmten Roboter.",
-    "manageRobots": "Roboter verwalten"
+    "manageRobots": "Roboter verwalten",
+    "tourSkill": "Tour-Skill",
+    "tourSkillHint": "Die geführte Tour zeigt diesen Skill. Am besten einer mit aufgenommenen, exportierten und evaluierten Daten.",
+    "tourSkillNone": "keiner",
+    "tourSkillSaved": "Tour-Skill gespeichert"
   },
   "mobile": {
     "invalid": "Dieser Link ist nicht mehr gültig. Am Bildschirm der Zelle den QR-Code neu scannen.",
@@ -1235,7 +1239,9 @@
       "thresholdOrder": "„Prüfen ab“ muss unter „Akzeptieren ab“ liegen."
     },
     "wizard": "Assistent",
-    "wizardHint": "Spec aus einem Muster-Dataset Schritt für Schritt anlegen"
+    "wizardHint": "Spec aus einem Muster-Dataset Schritt für Schritt anlegen",
+    "secPurpose": "Zweck",
+    "secPurposeHint": "Wie die Critics urteilen, wenn die Spec ohne Block läuft. In GYM gibt die Art des Blocks den Zweck seines Laufs vor."
   },
   "block": {
     "kindLabel": "Art",
@@ -1897,6 +1903,274 @@
       "low": "Abgelehnt: Gesamtscore {total} liegt unter {review}.",
       "noScore": "Prüfen: es gibt noch keinen Score.",
       "error": "Prüfen: der Lauf dieser Episode hatte einen Fehler."
-    }
+    },
+    "howTitle": "So läuft der Wizard",
+    "how": {
+      "sample": "Ein Beispiel-Dataset hochladen, nur für die Zeit des Wizards.",
+      "analysis": "Die Critics analysieren einige Episoden mit einer automatischen Spec.",
+      "task": "Die Aufgabe und ihre Objekte festlegen.",
+      "robot": "Roboter, Arme und Kameras bestätigen.",
+      "workbench": "Video, Critics und dein Urteil je Episode vergleichen und die Spec einstellen.",
+      "save": "Auf denselben Episoden testen und speichern."
+    },
+    "experimental": "Noch nicht ausgiebig getestet. Besser eine bewährte Spec im Spec-Manager anpassen; den Wizard nur, wenn Aufgabe oder Szene deutlich abweichen."
+  },
+  "tour": {
+    "open": "Geführte Tour",
+    "title": "Geführte Tour",
+    "lead": "Ein kompletter Durchlauf an echten Daten, in Kapiteln",
+    "skill": "Die Tour zeigt den Skill „{name}“. Sie ändert nichts, sie zeigt nur.",
+    "noSkill": "Für diese Organisation ist noch kein Tour-Skill gewählt.",
+    "toSettings": "In den Einstellungen wählen",
+    "askAdmin": "Bitte eine Admin-Person, einen Tour-Skill zu wählen.",
+    "unavailable": "Dafür hat der Tour-Skill noch keine Daten.",
+    "start": "Starten",
+    "whole": "Ganze Tour",
+    "next": "Weiter",
+    "prev": "Zurück",
+    "done": "Fertig",
+    "nothing": "Dafür hat der Tour-Skill noch nichts zu zeigen.",
+    "chapters": {
+      "skill": {
+        "title": "Der Skill",
+        "lead": "Was ein Skill ist und was zu ihm gehört"
+      },
+      "recording": {
+        "title": "Einen Block aufnehmen",
+        "lead": "Vom Briefing bis zur Auswahl der Episoden"
+      },
+      "specs": {
+        "title": "Critic-Specs",
+        "lead": "Wie die Critics wissen, was sie prüfen"
+      },
+      "pretrain": {
+        "title": "Pre-Train",
+        "lead": "Die Trainingsdaten des Skills auswählen und exportieren"
+      },
+      "evaluation": {
+        "title": "Policy und Evaluierung",
+        "lead": "Eine trainierte Policy erfassen und testen"
+      },
+      "analysis": {
+        "title": "Analyse",
+        "lead": "Kennzahlen über Zeit, Zellen und Skills"
+      }
+    },
+    "steps": {
+      "skill": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Ein Skill ist ein Anwendungsfall des Roboters, etwa „Produkt aus dem Regal greifen“. Alles, was GYM sammelt, gehört zu einem Skill: Daten, Auswahl, Policies und Ergebnisse."
+        },
+        "create": {
+          "title": "Wo Skills entstehen",
+          "text": "Ein neuer Skill wird beim Start eines Blocks angelegt: einen bestehenden wählen oder einen neuen benennen. Jeder Skill steht für einen Anwendungsfall des Roboters."
+        },
+        "header": {
+          "title": "Der Skill",
+          "text": "Das ist der Skill: die Aufgabe, die der Roboter lernt. Alles darunter gehört zu ihm."
+        },
+        "kpis": {
+          "title": "Kennzahlen",
+          "text": "Die Zahlen über alle Blöcke: aufgenommene und akzeptierte Episoden, Datasets, Policies, die letzte Evaluierung."
+        },
+        "tabs": {
+          "title": "Die Arbeit in Tabs",
+          "text": "Die Tabs folgen der Arbeit: Strategie planen, Blöcke aufnehmen, Trainingsdaten wählen, trainieren, evaluieren."
+        },
+        "spec": {
+          "title": "Die Spec des Skills",
+          "text": "Die Spec, die der Skill standardmäßig verwendet: die zuletzt gewählte. Gewählt wird sie im Upload-Schritt jedes Blocks, für die Analyse jedes Datasets; jedes Dataset behält die Spec, mit der es beurteilt wurde."
+        }
+      },
+      "recording": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Gute Trainingsdaten entstehen geplant: ein Block nimmt Episoden nach Plan auf, die Critics prüfen sie, und nur die guten gehen weiter ins Training."
+        },
+        "runSheet": {
+          "title": "Strategie und Run Sheet",
+          "text": "Optional: die Strategie und ein Run Sheet mit einer Zeile pro Episode. Ein Block kann es als Plan übernehmen."
+        },
+        "blocks": {
+          "title": "Blöcke",
+          "text": "Jede Aufnahme geschieht in einem Block: ein Arbeitsabschnitt in einer Zelle an einem Tag."
+        },
+        "wizard": {
+          "title": "Der Block-Wizard",
+          "text": "Der Wizard führt Schritt für Schritt durch einen Block und speichert jede Eingabe sofort."
+        },
+        "brief": {
+          "title": "Briefing",
+          "text": "Das Ziel und die Szene, gern per Handy fotografiert und diktiert."
+        },
+        "plan": {
+          "title": "Plan",
+          "text": "Schritte und Variationen, von der KI vorgeschlagen oder aus dem Run Sheet übernommen."
+        },
+        "recording": {
+          "title": "Aufnahme",
+          "text": "Beim Aufnehmen hakt die Person die Episoden je Schritt ab; die Uhr zählt die Teleoperationszeit."
+        },
+        "upload": {
+          "title": "Upload",
+          "text": "Das aufgenommene LeRobot-Dataset wird hier hochgeladen. GYM bewahrt es auf und gibt es den Critics."
+        },
+        "summary": {
+          "title": "Die Antwort der Critics",
+          "text": "In einem Satz: wie viele Episoden gut sind und wie viele noch fehlen."
+        },
+        "dataset": {
+          "title": "Je Dataset",
+          "text": "Urteile, Befunde und was beim nächsten Mal anders laufen sollte."
+        },
+        "report": {
+          "title": "Der Bericht",
+          "text": "Der vollständige visuelle Bericht des Laufs, druckbar."
+        },
+        "selection": {
+          "title": "Auswahl",
+          "text": "Welche Episoden dieses Blocks ins Training gehen. Abgelehnte starten ohne Haken; dein Urteil zählt vor dem der Critics."
+        },
+        "override": {
+          "title": "Dein Urteil zählt",
+          "text": "Wo du den Critics nicht folgst, setzt du dein eigenes Urteil mit ✓ oder ✗. Es zählt sofort in allen Kennzahlen und nimmt die Episode in den Export oder heraus; das Urteil der Critics bleibt daneben sichtbar."
+        },
+        "export": {
+          "title": "Export des Blocks",
+          "text": "Die ausgewählten Episoden dieses Blocks, als Manifest oder als ein zusammengeführtes Dataset."
+        }
+      },
+      "specs": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Die Critics prüfen jede Episode automatisch. Die Spec sagt ihnen, was der Roboter tun soll und woran Erfolg zu erkennen ist, damit ihr Urteil über Tage und Zellen hinweg vergleichbar ist."
+        },
+        "skillSpec": {
+          "title": "Die Spec des Skills",
+          "text": "Das ist nur die Voreinstellung des Skills, die zuletzt gewählte Spec; jedes Dataset wird mit der Spec analysiert, die bei seinem Upload gewählt ist. Ohne Spec leiten die Critics eine aus dem Dataset selbst ab. Davon ist abzuraten: Das Urteil ist dann weder auf die Aufgabe zugeschnitten noch zwischen Datasets vergleichbar."
+        },
+        "list": {
+          "title": "Alle Specs",
+          "text": "Die Specs der Organisation, jede mit den Skills, die sie verwenden."
+        },
+        "purpose": {
+          "title": "Zweck",
+          "text": "Aufnahme oder Evaluierung: ob die Episoden als Trainingsdaten oder als Rollouts einer Policy beurteilt werden. In GYM entscheidet die Art des Blocks für seinen Lauf; hier steht die Voreinstellung der Spec für Läufe ohne Block."
+        },
+        "task": {
+          "title": "Die Aufgabe",
+          "text": "Die Aufgabe in einem Satz und ihre Objekte. Das Sprachmodell beurteilt jede Episode daran."
+        },
+        "indicators": {
+          "title": "Woran Erfolg erkannt wird",
+          "text": "Aussagen, die das Modell prüft. Ein Gate muss stimmen, sonst wird die Episode abgelehnt."
+        },
+        "hard": {
+          "title": "Technische Prüfungen",
+          "text": "Prüfungen auf Signalen und Videos, jede mit Gewicht und Schwellen."
+        },
+        "scoring": {
+          "title": "Bewertung",
+          "text": "Wo akzeptieren, prüfen und ablehnen beginnen, und Befunde, die nur Warnungen sind."
+        },
+        "yaml": {
+          "title": "Als YAML",
+          "text": "Dieselbe Spec als YAML, zum Kopieren oder Bearbeiten von Hand."
+        },
+        "wizardNew": {
+          "title": "Der Spec-Wizard",
+          "text": "Am besten baut eine neue Spec auf einer bewährten auf: im Spec-Manager öffnen, anpassen und unter neuem Namen speichern. Eine ganz neue Spec mit dem Wizard lohnt sich nur, wenn Aufgabe oder Szene deutlich abweichen. Der Wizard ist neu und noch nicht ausgiebig getestet."
+        },
+        "wizardSteps": {
+          "title": "Schritt für Schritt",
+          "text": "Die Critics analysieren das Beispiel, dann folgen Aufgabe, Roboter und Kameras. In der Werkbank vergleichst du Video, Critics und dein Urteil, bis sie übereinstimmen."
+        },
+        "wizardOpen": {
+          "title": "Offene Entwürfe",
+          "text": "Ein angefangener Entwurf wartet hier. Getestet und gespeichert, wird er dem Skill direkt zugewiesen."
+        }
+      },
+      "pretrain": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Vor dem Training wird entschieden, mit welchen Daten trainiert wird: aus allen Blöcken eine saubere, vielfältige Auswahl, exportiert als ein Dataset."
+        },
+        "table": {
+          "title": "Die Trainingsdaten",
+          "text": "Alle aufgenommenen Datasets des Skills, eines pro Zeile, mit dem, was davon ausgewählt ist."
+        },
+        "included": {
+          "title": "Dabei oder nicht",
+          "text": "Ohne Haken bleibt ein Dataset als Ganzes aus Export und Kennzahlen heraus. Der Haken im Kopf nimmt alle."
+        },
+        "review": {
+          "title": "Zum Block",
+          "text": "Offene Prüfungen und Haken werden im Auswahlschritt des Blocks geklärt; der Link führt hin."
+        },
+        "positions": {
+          "title": "Positionen",
+          "text": "Wo gegriffen wurde und wie stark es streut: die Vielfalt der Trainingsdaten."
+        },
+        "export": {
+          "title": "Exportieren",
+          "text": "Die Auswahl unter einem Namen exportieren: als Manifest oder als ein LeRobot-Dataset, bereit fürs Training."
+        },
+        "exports": {
+          "title": "Gespeicherte Exporte",
+          "text": "Jeder Export bleibt beim Skill und lässt sich erneut herunterladen."
+        }
+      },
+      "evaluation": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Eine trainierte Policy wird erfasst und in eigenen Blöcken am Roboter getestet. So wird messbar, ob sie die Aufgabe löst und wo sie scheitert."
+        },
+        "policies": {
+          "title": "Policies",
+          "text": "Eine trainierte Policy wird hier erfasst, mit dem Export, aus dem sie trainiert wurde, und wo sie liegt."
+        },
+        "course": {
+          "title": "Evaluierungen",
+          "text": "Jeder Evaluierungsblock testet eine Policy; die Erfolgsquote über die Zeit zeigt den Fortschritt."
+        },
+        "tiles": {
+          "title": "Rollouts",
+          "text": "Die Erfolgsquote mit ihrer Unsicherheit und was noch auf eine Person wartet."
+        },
+        "table": {
+          "title": "Menschliche Prüfung",
+          "text": "Eine Person bestätigt oder überstimmt jeden Rollout und nennt die Fehlerart. Dieses Wort zählt."
+        },
+        "report": {
+          "title": "Evaluierungsbericht",
+          "text": "Mehrere Evaluierungen zusammen gelesen, mit euren Schlussfolgerungen, als Link teilbar."
+        }
+      },
+      "analysis": {
+        "goal": {
+          "title": "Worum es geht",
+          "text": "Die Analyse zeigt, wie die Arbeit vorankommt: Menge und Qualität der Daten, Zeit und die häufigsten Befunde, über Tage, Zellen und Skills."
+        },
+        "filters": {
+          "title": "Filter",
+          "text": "Nach Zeitraum, Skill, Zelle und Collection filtern; die Tour hat den Tour-Skill gewählt."
+        },
+        "totals": {
+          "title": "Auf einen Blick",
+          "text": "Aufnahme und Evaluierung: Episoden, Akzeptanzquote, Zeit."
+        },
+        "perDay": {
+          "title": "Je Tag und Zelle",
+          "text": "Tag für Tag und Zelle für Zelle, um zu sehen, wo sich die Datenqualität bewegt."
+        },
+        "flags": {
+          "title": "Häufigste Befunde",
+          "text": "Die Befunde der Critics, die am häufigsten auftraten."
+        }
+      }
+    },
+    "toChapter": "Weiter im Kapitel {chapter} →",
+    "drag": "Zum Verschieben ziehen; Doppelklick setzt zurück"
   }
 }

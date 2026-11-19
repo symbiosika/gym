@@ -181,9 +181,15 @@ const border = {
       <IconChevronDown class="size-3.5 transition-transform" :class="showDetails ? 'rotate-180' : ''" />
       {{ showDetails ? t('review.detailsHide') : t('review.detailsShow') }}
     </button>
-    <a v-if="reportUrl" :href="reportUrl" target="_blank" rel="noopener" class="text-primary text-sm hover:underline">{{
-      t('review.visualReport')
-    }}</a>
+    <a
+      v-if="reportUrl"
+      data-tour="review-report"
+      :href="reportUrl"
+      target="_blank"
+      rel="noopener"
+      class="text-primary text-sm hover:underline"
+      >{{ t('review.visualReport') }}</a
+    >
   </div>
 
   <div v-if="showDetails" class="mt-1">

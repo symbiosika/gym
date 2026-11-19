@@ -493,6 +493,11 @@ export const skills = pgBaseTable(
     status: text("status").$type<SkillStatus>().notNull().default("active"),
     /** the strategy of the skill: description, files and the run sheet; null until somebody writes one */
     strategy: jsonb("strategy").$type<SkillStrategy>(),
+    /**
+     * The skill the guided tour walks through (lib/gym/tour.ts): at most one
+     * per organisation, chosen by an admin. The tour only reads it.
+     */
+    tourSkill: boolean("tour_skill").notNull().default(false),
     createdBy: uuid("created_by"),
     createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "string" }).notNull().defaultNow(),
@@ -501,6 +506,7 @@ export const skills = pgBaseTable(
     index("gym_skills_tenant_idx").on(table.tenantId),
     index("gym_skills_collection_idx").on(table.collectionId),
     index("gym_skills_status_idx").on(table.tenantId, table.status),
+    uniqueIndex("gym_skills_tour_uq").on(table.tenantId).where(sql`${table.tourSkill}`),
   ],
 );
 

@@ -232,6 +232,7 @@ async function back() {
       <div v-if="!shown.datasets.length" class="gym-empty">{{ t('selection.noneInBlock') }}</div>
       <EpisodeTable
         v-else
+        data-tour="selection-table"
         :selection="shown"
         :selected="selected"
         :busy="verdictBusy"
@@ -241,7 +242,7 @@ async function back() {
       />
 
       <!-- the export: the merged dataset is the one to take, the manifest is for pipelines that read the uploads -->
-      <section class="mt-5 rounded-panel border border-surface-300 p-4 dark:border-surface-800">
+      <section class="mt-5 rounded-panel border border-surface-300 p-4 dark:border-surface-800" data-tour="selection-export">
         <div class="flex flex-wrap items-center gap-2">
           <b class="font-display text-base font-semibold">{{ t('selection.exportTitle') }}</b>
           <span class="text-sm text-surface-500 dark:text-surface-400">{{ t('selection.exportCount', { n: exportCount }) }}</span>

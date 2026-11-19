@@ -202,7 +202,7 @@ async function generateMissing() {
 </script>
 
 <template>
-  <div class="gym-stepbox">
+  <div class="gym-stepbox" data-tour="wizard-plan">
     <h2 class="font-display text-xl font-semibold tracking-tight">
       {{ block.kind === 'evaluation' ? t('plan.titleEvaluation') : t('plan.title') }}
     </h2>

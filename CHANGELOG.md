@@ -10,6 +10,42 @@ raises it, and its merge is tagged `v<version>`:
 
 The versions before 0.9.0 were given afterwards, one per merged pull request.
 
+## 0.13.0
+
+A guided tour through one skill.
+
+- A help button in the header opens the guided tour: six chapters, each
+  startable on its own or all as "Whole tour" (the skill, recording a block,
+  critic specs, Pre-Train, policy and evaluation, analysis), with a short
+  title and one or two sentences per step, in German and English.
+- The tour walks over the tour skill of the organisation, which an owner or
+  admin picks in Settings (`skills.tour_skill`, one per organisation,
+  `GET/PUT tour`). It finds its material there by itself (the newest
+  recording block with judged data, its largest dataset, the newest export,
+  the policy, the newest evaluation with reviewed rollouts, the newest report)
+  and skips what the skill does not have.
+- Every chapter opens with what the activity is for. What a step points at
+  gets a thin green frame and is shown from its top, also inside the spec
+  manager. The popover can be dragged by its title and stays where it was
+  put; a double click puts it back. The recording chapter comes before the
+  critic specs and links on to them, and the person's own verdict in the
+  selection has a step of its own.
+- The tour only looks: it opens pages and highlights elements, the
+  highlighted element cannot be clicked, the block wizard and the spec
+  manager it opens are read-only, and nothing is written.
+- The skill page keeps its tab in the address (`?tab=`), the analysis takes
+  its skill from it (`?skillId=`), and the spec wizard's start page shows the
+  six steps of the wizard.
+- The spec form has the purpose as its first section (recording or
+  evaluation), which only the YAML showed so far; in GYM the kind of the
+  block still decides for its own run. The spec wizard says in red that it
+  is not extensively tested yet and that adapting a proven spec is the
+  better way; the tour says the same, and that the skill's spec is only its
+  default, picked again at every upload, and that the automatic spec is not
+  advised.
+- Looking at the brief or the recording step of a closed block no longer asks
+  for a phone access token, which a closed block refuses with a red banner.
+
 ## 0.12.0
 
 Specs and reports survive a redeploy of the critics; the selection step is the block's.

@@ -65,7 +65,8 @@ watch(
 
 onMounted(async () => {
   try {
-    token.value = await gymApi.accessToken(props.tenantId, props.block.id)
+    // a closed block has no phone link: looking at it (or the guided tour) must not ask for one
+    if (props.block.step !== 'closed') token.value = await gymApi.accessToken(props.tenantId, props.block.id)
     policies.value = await gymApi.policies(props.tenantId, props.block.skillId)
   } catch (e) {
     emit('error', e instanceof Error ? e.message : String(e))
@@ -228,7 +229,7 @@ async function doImport(s: SkillListItem) {
 </script>
 
 <template>
-  <div class="gym-stepbox">
+  <div class="gym-stepbox" data-tour="wizard-brief">
     <h2 class="font-display text-xl font-semibold tracking-tight">
       {{ t('brief.title') }}
     </h2>

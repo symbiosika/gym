@@ -208,7 +208,7 @@ async function back() {
 </script>
 
 <template>
-  <div class="gym-stepbox">
+  <div class="gym-stepbox" data-tour="wizard-upload">
     <h2 class="font-display text-xl font-semibold tracking-tight">
       {{ t('upload.title') }}
     </h2>

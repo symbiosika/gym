@@ -192,6 +192,7 @@ async function removeDataset(id: string, name: string) {
           verdict.tone === 'neutral',
       }"
       role="status"
+      data-tour="review-summary"
     >
       <div class="font-display flex items-center gap-2 text-lg font-semibold text-surface-900 dark:text-surface-0">
         <i v-if="open.length" class="bg-primary size-2.5 animate-pulse rounded-full" aria-hidden="true"></i>
@@ -256,7 +257,7 @@ async function removeDataset(id: string, name: string) {
       <RolloutReview :block-id="block.id" :tenant-id="tenantId" :datasets="block.datasets" @changed="reloadBlock" @error="fail" />
     </section>
 
-    <section v-for="(d, i) in block.datasets" :key="d.id" class="mt-6">
+    <section v-for="(d, i) in block.datasets" :key="d.id" class="mt-6" :data-tour="i === 0 ? 'review-dataset' : undefined">
       <SectionHeader :n="`${t('review.dataset')} ${String(i + 1).padStart(2, '0')}`" :title="d.name">
         <button
           v-if="block.datasets.length > 1 && d.analysis"

@@ -194,7 +194,7 @@ const segment = (active: boolean, tone: 'ok' | 'bad' | 'neutral') =>
     <div v-if="!view" class="py-6 text-center font-mono text-xs text-surface-500">{{ t('app.loading') }} …</div>
     <div v-else-if="!rollouts.length" class="gym-empty">{{ t('rollouts.empty') }}</div>
     <template v-else>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-tour="rollout-tiles">
         <KpiTile
           :label="t('skill.successRate')"
           :value="fmtPercent(totals!.ratePercent)"
@@ -330,7 +330,7 @@ const segment = (active: boolean, tone: 'ok' | 'bad' | 'neutral') =>
       </div>
 
       <!-- 4 · every rollout -->
-      <div class="gym-panel mt-3 overflow-x-auto">
+      <div class="gym-panel mt-3 overflow-x-auto" data-tour="rollout-table">
         <table class="gym-table">
           <thead>
             <tr>
