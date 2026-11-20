@@ -11,6 +11,7 @@ import defineSpecDraftRoutes from "./spec-drafts";
 import defineRobotRoutes from "./robots";
 import defineStrategyRoutes from "./strategy";
 import defineTourRoutes from "./tour";
+import definePromptRoutes from "./prompts";
 
 /** All authenticated gym routes under /tenant/:tenantId/gym/… */
 export default function defineGymRoutes(app: SymbiosikaFrameworkHonoApp, API_BASE_PATH = "") {
@@ -26,4 +27,5 @@ export default function defineGymRoutes(app: SymbiosikaFrameworkHonoApp, API_BAS
   defineRobotRoutes(app, API_BASE_PATH);
   defineStrategyRoutes(app, API_BASE_PATH);
   defineTourRoutes(app, API_BASE_PATH);
+  definePromptRoutes(app, API_BASE_PATH);
 }

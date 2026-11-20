@@ -26,13 +26,14 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
-import { blocks, cells, datasets, dayProtocols, episodes, exports, HUMAN_VERDICTS, type DatasetSelect, type EpisodeSelect, type ExportSelect, type ExportSelection } from "../../db/schema";
+import { blocks, cells, datasets, dayProtocols, episodes, exports, HUMAN_VERDICTS, type DatasetSelect, type EpisodeSelect, type ExportSelect, type ExportSelection, type PromptVariants } from "../../db/schema";
 import { recordAudit, type Actor } from "./audit";
 import { datasetLinks, getDatasetRow, isDatasetStored } from "./datasets";
 import { effectiveVerdict } from "./evaluations";
 import { criticsClient } from "../critics/client";
 import { upgradeStaleSummariesOf } from "../critics/sync";
 import { InvalidInputError, NotFoundError, UpstreamError } from "./errors";
+import { exportPromptsOf } from "./prompts";
 import { aggregatePositions, positionsOf, type EpisodePositions, type SelectionMetrics } from "./selection-metrics";
 import { getSkillRow } from "./skills";
 import { utcRows } from "./time";
@@ -243,11 +244,14 @@ async function selectedSetsOf(tenantId: string, skillId: string, blockId?: strin
   return sets;
 }
 
-export async function createExport(tenantId: string, actor: Actor, skillId: string, name?: string, blockId?: string): Promise<ExportResult> {
-  const skill = await getSkillRow(tenantId, skillId);
-  const selectedSets = await selectedSetsOf(tenantId, skillId, blockId);
-
-  const exportSelection: ExportSelection = {
+/**
+ * What an export saves: per dataset the selected episodes and the prompts it
+ * writes instead of the recorded ones (corrections and the skill's
+ * paraphrases, lib/gym/prompts.ts).
+ */
+function exportSelectionOf(selectedSets: SelectionDataset[], variants: PromptVariants): ExportSelection {
+  const prompts = exportPromptsOf(selectedSets, variants);
+  return {
     datasets: selectedSets.map((d) => ({
       datasetId: d.dataset.id,
       name: d.dataset.name,
@@ -255,9 +259,17 @@ export async function createExport(tenantId: string, actor: Actor, skillId: stri
       criticsJobId: d.dataset.criticsJobId,
       specOverrides: d.dataset.specOverrides ?? null,
       episodeIndexes: d.episodes.map((e) => e.index),
+      ...(prompts.get(d.dataset.id) ? { prompts: prompts.get(d.dataset.id) } : {}),
     })),
     episodes: selectedSets.reduce((a, d) => a + d.episodes.length, 0),
   };
+}
+
+export async function createExport(tenantId: string, actor: Actor, skillId: string, name?: string, blockId?: string): Promise<ExportResult> {
+  const skill = await getSkillRow(tenantId, skillId);
+  const selectedSets = await selectedSetsOf(tenantId, skillId, blockId);
+
+  const exportSelection = exportSelectionOf(selectedSets, skill.promptVariants ?? {});
   const exportName = (name?.trim() || `${skill.name} · export`).slice(0, 300);
   const [record] = await getDb()
     .insert(exports)
@@ -309,17 +321,7 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
     );
   }
 
-  const exportSelection: ExportSelection = {
-    datasets: selectedSets.map((d) => ({
-      datasetId: d.dataset.id,
-      name: d.dataset.name,
-      criticsDatasetName: d.dataset.criticsDatasetName,
-      criticsJobId: d.dataset.criticsJobId,
-      specOverrides: d.dataset.specOverrides ?? null,
-      episodeIndexes: d.episodes.map((e) => e.index),
-    })),
-    episodes: selectedSets.reduce((a, d) => a + d.episodes.length, 0),
-  };
+  const exportSelection = exportSelectionOf(selectedSets, skill.promptVariants ?? {});
   const exportName = (name?.trim() || `${skill.name} · dataset`).slice(0, 300);
   const [record] = await getDb()
     .insert(exports)
@@ -328,6 +330,10 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
 
   // the name the person gave the export is the name of the merged dataset, its folder and its zip
   const datasetName = exportFileStem(name, skill.name, record!.createdAt);
+  const promptsOf = (datasetId: string) => {
+    const prompts = exportSelection.datasets.find((x) => x.datasetId === datasetId)?.prompts;
+    return prompts ? { prompts } : {};
+  };
   // one fresh link per dataset: the critics fetch them for this one merge and
   // keep nothing, so a link is only ever as old as the request
   const sources = await Promise.all(
@@ -337,6 +343,8 @@ export async function createMergedExport(tenantId: string, actor: Actor, skillId
       // a link carries a token, not a name: this is what the merged dataset's
       // manifest shows and what an error from the critics names
       name: d.dataset.criticsDatasetName,
+      // corrected prompts and paraphrases: written into the merged dataset, the upload stays as it is
+      ...promptsOf(d.dataset.id),
     })),
   );
   const response = await criticsClient.merge({ name: datasetName, sources });
@@ -385,6 +393,8 @@ export function buildZip(skillName: string, record: ExportSelect, sets: Selectio
       // the effective verdict; where a person overruled the critics, the critics' word is kept beside it
       verdicts: Object.fromEntries(s.episodes.map((e) => [e.index, effectiveVerdict(e)])),
       criticsVerdicts: Object.fromEntries(s.episodes.filter((e) => e.humanVerdict).map((e) => [e.index, e.verdict])),
+      // episode index → the prompt to train with where it is not the recorded one (corrections, paraphrases)
+      prompts: record.selection.datasets.find((d) => d.datasetId === s.dataset.id)?.prompts ?? {},
     })),
   };
   files["manifest.json"] = strToU8(JSON.stringify(manifest, null, 2));
@@ -528,12 +538,18 @@ export async function createUnfilteredExport(tenantId: string, actor: Actor, dat
   if (!isDatasetStored(ds)) {
     throw new InvalidInputError(`The dataset "${ds.name}" was recorded before GYM kept the uploads, so it cannot be exported. Upload it again to export it.`);
   }
-  const rows = await getDb().select({ index: episodes.index }).from(episodes).where(eq(episodes.datasetId, datasetId)).orderBy(asc(episodes.index));
+  const rows = await getDb()
+    .select({ index: episodes.index, task: episodes.task, promptOverride: episodes.promptOverride })
+    .from(episodes)
+    .where(eq(episodes.datasetId, datasetId))
+    .orderBy(asc(episodes.index));
   if (!rows.length) throw new InvalidInputError("The dataset has no episodes yet");
   const name = safeName(ds.name);
+  // as recorded, but with the prompts a person corrected; paraphrases are for training sets only
+  const prompts = exportPromptsOf([{ dataset: { id: ds.id }, episodes: rows }], {}, false).get(ds.id);
   const response = await criticsClient.merge({
     name,
-    sources: [{ ...(await datasetLinks(tenantId, ds)), episodes: rows.map((e) => e.index), name: ds.criticsDatasetName }],
+    sources: [{ ...(await datasetLinks(tenantId, ds)), episodes: rows.map((e) => e.index), name: ds.criticsDatasetName, ...(prompts ? { prompts } : {}) }],
   });
   if (!response.body) throw new UpstreamError("The data critics returned an empty dataset");
   await recordAudit(tenantId, { skillId: ds.skillId, dayProtocolId: ds.dayProtocolId, blockId: ds.blockId }, actor, "export.unfiltered", {

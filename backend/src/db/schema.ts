@@ -469,6 +469,19 @@ export interface RunSheet {
   importedAt: string;
 }
 
+/**
+ * Paraphrases of one prompt of a skill (augmentation). In a merged export the
+ * episodes that carry the prompt are spread evenly over the variants, in the
+ * order of the selection; with `keepOriginal` the prompt itself is one of them.
+ * Without `keepOriginal` the variants substitute the prompt.
+ */
+export interface PromptVariant {
+  variants: string[];
+  keepOriginal: boolean;
+}
+/** prompt as the episodes carry it (corrected) → its paraphrases */
+export type PromptVariants = Record<string, PromptVariant>;
+
 /** How a skill is to be recorded, as its people wrote it down: a description, pictures and PDFs, and the run sheet. Optional in every part. */
 export interface SkillStrategy {
   /** written description, plain text with line breaks */
@@ -493,6 +506,8 @@ export const skills = pgBaseTable(
     status: text("status").$type<SkillStatus>().notNull().default("active"),
     /** the strategy of the skill: description, files and the run sheet; null until somebody writes one */
     strategy: jsonb("strategy").$type<SkillStrategy>(),
+    /** paraphrases per prompt, spread evenly over the episodes in a merged export (lib/gym/prompts.ts) */
+    promptVariants: jsonb("prompt_variants").$type<PromptVariants>().notNull().default({}),
     /**
      * The skill the guided tour walks through (lib/gym/tour.ts): at most one
      * per organisation, chosen by an admin. The tour only reads it.
@@ -847,7 +862,14 @@ export const episodes = pgBaseTable(
     datasetId: uuid("dataset_id").references(() => datasets.id, { onDelete: "cascade" }).notNull(),
     /** episode_index inside the dataset */
     index: integer("index").notNull(),
+    /** the prompt the episode was recorded with, as the critics read it */
     task: text("task").notNull().default(""),
+    /**
+     * The prompt a person set instead (lib/gym/prompts.ts), e.g. after the
+     * prompt check proposed it; null = the recorded one stands. The uploaded
+     * dataset is never rewritten: a merged export writes this prompt.
+     */
+    promptOverride: text("prompt_override"),
     frames: integer("frames"),
     durationSeconds: real("duration_seconds"),
     /** the critics' verdict */
@@ -892,7 +914,16 @@ export const episodes = pgBaseTable(
 // ---------------------------------------------------------------------------
 
 export interface ExportSelection {
-  datasets: { datasetId: string; name: string; criticsDatasetName: string; criticsJobId: string | null; specOverrides?: SpecOverrides | null; episodeIndexes: number[] }[];
+  datasets: {
+    datasetId: string;
+    name: string;
+    criticsDatasetName: string;
+    criticsJobId: string | null;
+    specOverrides?: SpecOverrides | null;
+    episodeIndexes: number[];
+    /** episode index → the prompt written instead of the recorded one (corrections and paraphrases); absent = all as recorded */
+    prompts?: Record<string, string>;
+  }[];
   episodes: number;
 }
 
