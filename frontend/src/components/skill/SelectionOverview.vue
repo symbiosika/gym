@@ -10,6 +10,7 @@ import type { SelectionOverview, SelectionOverviewRow, SelectionView } from '@/t
 import EpisodeTable from '@/components/EpisodeTable.vue'
 import SelectionExportBar from '@/components/skill/SelectionExportBar.vue'
 import SelectionMetrics from '@/components/skill/SelectionMetrics.vue'
+import SelectionShortcuts from '@/components/skill/SelectionShortcuts.vue'
 import IconChevronDown from '~icons/carbon/chevron-down'
 import IconChevronRight from '~icons/carbon/chevron-right'
 import IconDownload from '~icons/carbon/download'
@@ -55,9 +56,12 @@ const selectionStepOf = (row: SelectionOverviewRow) => ({
   query: { step: 'selection' },
 })
 
+/** counts the readings of the overview: the shortcut figures follow every change of the selection */
+const loads = ref(0)
 async function load() {
   try {
     overview.value = await gymApi.selectionOverview(props.tenantId, props.skillId)
+    loads.value += 1
   } catch (e) {
     fail(e)
   }
@@ -76,6 +80,12 @@ watch(
 
 const datasetNames = computed(() =>
   Object.fromEntries((overview.value?.datasets ?? []).map((d) => [d.dataset.id, d.dataset.name])),
+)
+/** the datasets that are part of the selection, for the scope of the shortcut figures */
+const includedNames = computed(() =>
+  Object.fromEntries(
+    (overview.value?.datasets ?? []).filter((d) => d.dataset.included && d.selected).map((d) => [d.dataset.id, d.dataset.name]),
+  ),
 )
 const selectedCount = computed(() => overview.value?.totals.selected ?? 0)
 /** the tick in the column head: all datasets in, none, or some (indeterminate) */
@@ -304,6 +314,14 @@ async function exportAll(row: SelectionOverviewRow) {
       :metrics="overview.metrics"
       :points="overview.points"
       :names="datasetNames"
+    />
+
+    <SelectionShortcuts
+      data-tour="pretrain-shortcuts"
+      :tenant-id="tenantId"
+      :skill-id="skillId"
+      :names="includedNames"
+      :version="loads"
     />
 
     <SelectionExportBar v-model:name="exportName" :count="selectedCount" :busy="busy" @export="exportSelection" />

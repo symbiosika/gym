@@ -476,13 +476,25 @@ export interface ExportRecord {
       criticsDatasetName: string
       criticsJobId: string | null
       episodeIndexes: number[]
+      /** episode index → the prompt written instead of the recorded one */
+      prompts?: Record<string, string>
     }[]
     episodes: number
   }
   createdAt: string
 }
 
+/** Paraphrases of one prompt, spread evenly over its episodes in a merged export. */
+export interface PromptVariant {
+  variants: string[]
+  /** the prompt itself stays one of the variants; off: the variants substitute it */
+  keepOriginal: boolean
+}
+/** prompt → its paraphrases */
+export type PromptVariants = Record<string, PromptVariant>
+
 export interface SkillView extends SkillListItem {
+  promptVariants: PromptVariants
   blocks_: BlockView[]
   exports: ExportRecord[]
   policies_: PolicyRecord[]
@@ -1160,4 +1172,98 @@ export interface TourMaterial {
   reportId: string | null
   /** the skill names a spec that is stored, so the spec manager can open it */
   specStored: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Shortcuts and prompts (the data critics' /analyses, lib/gym/shortcuts.ts and prompts.ts)
+// ---------------------------------------------------------------------------
+
+/** A held-out-scene test of the critics: can the class be told from a signal for scenes never seen. */
+export interface CueTest {
+  accuracy: number
+  /** share of the most frequent class */
+  chance: number
+  lift: number
+  n: number
+  classes: number
+  scenes: number
+  method: 'knn' | 'logistic'
+}
+
+export interface ShortcutAnalysis {
+  n: number
+  prompts: Record<string, number>
+  arms: Record<string, number>
+  scenes: { n: number; threshold: number; method: string; episodes_per_scene: Record<string, number> }
+  background: { prompt: CueTest | null; arm: CueTest | null }
+  start_cue: { arm: CueTest | null; prompt: CueTest | null }
+  end_cue: { prompt: CueTest | null }
+  counterfactual: {
+    scenes: number
+    scenes_multi_prompt: number
+    episodes_with_partner: number
+    prompts_per_scene: Record<string, number>
+    answered_by_arm: number | null
+  } | null
+  layout: {
+    cell_cm: number
+    cells: number
+    cells_multi_prompt: number
+    episodes_in_shared_cells: number
+    per_prompt: Record<string, { n: number; cells: number; std_cm: number[] }>
+    position_cue: CueTest | null
+  } | null
+  evaluation: {
+    n: number
+    in_range: number
+    distance_ratio_median: number
+    predicted_arm: Record<string, number> | null
+    arm_confidence: number | null
+  } | null
+  /** the critics' findings in their words */
+  flags: Record<string, string>
+}
+
+export interface SelectionShortcuts {
+  skillId: string
+  datasetId: string | null
+  datasets: number
+  episodes: number
+  /** selected episodes analysed before the critics wrote the features: left out */
+  withoutFeatures: number
+  evaluationEpisodes: number
+  analysis: ShortcutAnalysis | null
+}
+
+export type PromptCheckStatus = 'ok' | 'propose' | 'review' | 'no_signature' | 'not_analysed'
+
+export interface PromptCheckEpisode {
+  episodeId: string
+  index: number
+  /** recorded */
+  task: string
+  promptOverride: string | null
+  /** what it counts with now */
+  prompt: string
+  status: PromptCheckStatus
+  proposed: string | null
+  confidence: number | null
+  votes: Record<string, number>
+  group: number | null
+  reason: 'few_examples' | 'look_alike' | 'uncertain' | null
+}
+
+export interface PromptCheckView {
+  datasetId: string
+  datasetName: string
+  skillId: string
+  mode: 'reference' | 'groups' | null
+  candidates: string[]
+  referencePrompts: Record<string, number>
+  confusable: { prompts: string[]; rate: number }[]
+  episodes: PromptCheckEpisode[]
+  counts: Partial<Record<PromptCheckStatus, number>>
+  variants: PromptVariants
+  /** selected episodes per prompt over the skill's selection */
+  selectionCounts: Record<string, number>
 }

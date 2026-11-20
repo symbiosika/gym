@@ -558,7 +558,46 @@
       "toSelection": "Zum Auswahlschritt des Blocks: Haken setzen und offene Prüfungen klären",
       "selectionStep": "Auswahl",
       "includeAll": "Alle Datasets in die Auswahl nehmen oder alle herausnehmen",
-      "exportCount": "{n} Episoden über den Skill ausgewählt"
+      "exportCount": "{n} Episoden über den Skill ausgewählt",
+      "shortcuts": {
+        "title": "Abkürzungen über die Auswahl",
+        "base": "{datasets} Datasets · {episodes} Episoden",
+        "rollouts": "{n} Rollouts zum Vergleich",
+        "scope": "Über welche Episoden",
+        "wholeSelection": "Ganze Auswahl",
+        "failed": "Die Data Critics konnten die Abkürzungen nicht berechnen:",
+        "noFeatures": "Die {n} ausgewählten Episoden wurden analysiert, bevor die Critics diese Merkmale gemessen haben. Ein neuer Lauf misst sie.",
+        "notTestable": "nicht prüfbar (eine Klasse oder eine Szene)",
+        "chance": "Zufall {chance} · {n} Episoden · {scenes} Szenen",
+        "tile": {
+          "backgroundPrompt": "Erstes Bild verrät Prompt",
+          "backgroundArm": "Erstes Bild verrät Arm",
+          "startArm": "Startpose verrät Arm",
+          "startPrompt": "Startpose verrät Prompt",
+          "positionPrompt": "Greifposition verrät Prompt",
+          "counterfactual": "Szene mit anderem Prompt"
+        },
+        "scenesMulti": "{share} von {scenes} Szenen mit mehreren Prompts",
+        "onePrompt": "nur ein Prompt in der Auswahl",
+        "flag": {
+          "BACKGROUND_CUE": "Hintergrund",
+          "START_CUE": "Startpose",
+          "FEW_COUNTERFACTUALS": "Wenig Gegenbeispiele",
+          "POSITION_CUE": "Position",
+          "EVAL_START_OUT_OF_RANGE": "Evaluierungsstart",
+          "EVAL_START_CUE": "Evaluierungsstart"
+        },
+        "scenes": "Szenen",
+        "scenesFound": "{n} Szenen (gleiches erstes Bild, aufeinanderfolgend):",
+        "answeredByArm": "In Szenen mit mehreren Prompts legt der Arm den Prompt bei {share} der Episoden schon fest.",
+        "evaluation": "{n} Rollouts: {share} starten innerhalb der aufgenommenen Startposen (Median {ratio} × der üblichen Lücke)",
+        "evaluationArm": "Startpose sieht aus wie: {arms}",
+        "without": "{n} ausgewählte Episoden ohne diese Merkmale (älterer Lauf) sind nicht mitgezählt.",
+        "prompt": "Prompt",
+        "cells": "Zellen ({cm} cm)",
+        "spread": "Std x / y (cm)",
+        "sharedCells": "{share} der {cells} Zellen hielten mehr als ein Ziel · {episodes} der Episoden griffen in einer solchen Zelle"
+      }
     },
     "cell": "Zelle",
     "name": "Name",
@@ -941,6 +980,11 @@
       "Deine Einschätzung",
       "Sag bei ein paar Episoden, ob sie gut oder schlecht sind. Dann siehst du, wo der Spec anders entscheidet als du.",
       "E3 ist gut, E7 ist schlecht: der Spec sollte E3 akzeptieren und E7 nicht."
+    ],
+    "selectionShortcuts": [
+      "Abkürzungen über die Auswahl",
+      "Was eine Policy lernen könnte, statt den Prompt zu lesen. Die Data Critics halten ganze Szenen zurück und prüfen, wie oft das erste Kamerabild, die Startpose des Roboters oder die Greifposition den Prompt oder den Arm trotzdem verraten. Liegt die Trefferquote weit über dem Zufall, steckt die Antwort in der Szene, nicht im Prompt. Dazu: wie viele Szenen mit mehr als einem Prompt aufgenommen wurden, und ob die Rollouts der Evaluierung von Posen starten, die die Aufnahmen kennen. GYM zeigt nur, was die Critics berechnen.",
+      "Startpose verrät Arm 97 % bei 52 % Zufall: Die Policy weiß den Arm, bevor sie hinschaut."
     ]
   },
   "profile": {
@@ -2068,7 +2112,7 @@
         },
         "hard": {
           "title": "Technische Prüfungen",
-          "text": "Prüfungen auf Signalen und Videos, jede mit Gewicht und Schwellen."
+          "text": "Prüfungen auf Signalen und Videos, jede mit Gewicht und Schwellen. Die Diversitätsprüfung misst zusätzlich je Episode Startpose, erstes Bild und das gegriffene Objekt: daraus berechnen die Critics die Abkürzungen im Pre-Train und prüfen die Prompts."
         },
         "scoring": {
           "title": "Bewertung",
@@ -2077,6 +2121,10 @@
         "yaml": {
           "title": "Als YAML",
           "text": "Dieselbe Spec als YAML, zum Kopieren oder Bearbeiten von Hand."
+        },
+        "prompts": {
+          "title": "Passen die Prompts?",
+          "text": "Nach dem Upload vergleichen die Critics, was in jeder Episode gegriffen wurde, mit den anderen Datasets des Skills: passt, Vorschlag oder prüfen. Ein Dataset mit Platzhalter-Prompt kommt in Gruppen zurück, die du einmal benennst. Dort stehen auch die Paraphrasen, die der Export gleichmäßig verteilt."
         },
         "wizardNew": {
           "title": "Der Spec-Wizard",
@@ -2111,6 +2159,10 @@
         "positions": {
           "title": "Positionen",
           "text": "Wo gegriffen wurde und wie stark es streut: die Vielfalt der Trainingsdaten."
+        },
+        "shortcuts": {
+          "title": "Abkürzungen",
+          "text": "Verraten Hintergrund, Startpose oder Greifposition schon den Prompt oder den Arm? Die Critics halten ganze Szenen zurück und vergleichen mit dem Zufall. Weit darüber lernt die Policy die Szene statt des Prompts; dazu, wie oft eine Szene mehrere Prompts hat und ob die Evaluierung von bekannten Posen startet."
         },
         "export": {
           "title": "Exportieren",
@@ -2172,5 +2224,53 @@
     },
     "toChapter": "Weiter im Kapitel {chapter} →",
     "drag": "Zum Verschieben ziehen; Doppelklick setzt zurück"
+  },
+  "prompts": {
+    "line": "Prompts",
+    "lineHint": "Passt jeder Prompt zu dem, was gegriffen wurde? Korrekturen und Paraphrasen für den Export.",
+    "open": "Prompts prüfen",
+    "title": "Prompts",
+    "hint": "Prüfung durch die Data Critics, Korrektur und Paraphrasen",
+    "tabCheck": "Prüfen",
+    "tabVariants": "Paraphrasen",
+    "recheck": "Neu prüfen",
+    "failed": "Die Prüfung ging nicht:",
+    "lead": "Die Critics vergleichen, wie das gegriffene Objekt jeder Episode aussieht, mit den anderen Datasets der Skill. Nichts ändert sich, bis du speicherst; der Upload bleibt, wie er ist, der Export schreibt den Prompt.",
+    "leadGroups": "Für dieses Dataset gibt es nichts zum Vergleichen (ein Platzhalter-Prompt). Die Critics haben die Episoden nach Aussehen gruppiert: benenne jede Gruppe einmal und prüfe die Zuordnung.",
+    "notAnalysed": "Dieses Dataset wurde analysiert, bevor die Critics das Aussehen gemessen haben. Prompts lassen sich trotzdem von Hand setzen.",
+    "status": {
+      "ok": "passt",
+      "propose": "Vorschlag",
+      "review": "prüfen",
+      "no_signature": "kein Bild",
+      "not_analysed": "nicht analysiert"
+    },
+    "reason": {
+      "few_examples": "zu wenige Beispiele für diesen Prompt",
+      "look_alike": "zwei Prompts sehen sich zu ähnlich",
+      "uncertain": "keine klare Mehrheit"
+    },
+    "confusable": "verwechselbar ({rate}):",
+    "takeProposals": "{n} Vorschläge übernehmen",
+    "take": "übernehmen",
+    "group": "Gruppe {n}",
+    "groupEpisodes": "{n} Episoden",
+    "nameGroup": "Prompt für die Gruppe",
+    "recorded": "Aufgenommen",
+    "critics": "Critics",
+    "prompt": "Prompt",
+    "corrected": "korrigiert ·",
+    "backToRecorded": "aufgenommenen zurück",
+    "unsaved": "{n} Änderungen nicht gespeichert",
+    "save": "Prompts speichern",
+    "saved": "{n} Prompts gespeichert",
+    "leadVariants": "Paraphrasen gehören zur Skill. Im zusammengeführten Export werden die Episoden eines Prompts der Reihe nach auf seine Varianten verteilt, gleichmäßig. Eine Variante pro Zeile.",
+    "noPrompts": "In der Auswahl ist noch keine Episode.",
+    "inSelection": "{n} Episoden in der Auswahl",
+    "variantsPlaceholder": "eine Paraphrase pro Zeile",
+    "keepOriginal": "Originalprompt bleibt eine Variante",
+    "spread": "Verteilung: {parts}",
+    "saveVariants": "Paraphrasen speichern",
+    "variantsSaved": "Paraphrasen gespeichert"
   }
 }

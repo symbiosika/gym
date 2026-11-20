@@ -20,7 +20,18 @@ export const fixtureSelection = () => JSON.parse(readFileSync(path.join(FIXTURES
 export interface MergeCall {
   name: string;
   /** a link to the zip, or (`dataset_parts`) one link per part of it in order */
-  sources: { dataset?: string; dataset_parts?: string[]; episodes: number[]; name?: string }[];
+  sources: { dataset?: string; dataset_parts?: string[]; episodes: number[]; name?: string; prompts?: Record<string, string> }[];
+}
+
+/** A call to the analyses over a selection (`/analyses/shortcuts`, `/analyses/prompts`), as GYM sent it. */
+export interface AnalysisCall {
+  path: "/analyses/shortcuts" | "/analyses/prompts";
+  body: {
+    episodes: { id: string; dataset: string; order: number; prompt: string | null; metrics: Record<string, unknown> }[];
+    evaluation?: { id: string; metrics: Record<string, unknown> }[];
+    reference?: { id: string; prompt: string | null }[];
+    candidates?: string[];
+  };
 }
 
 /** What the stand-in pulled from a link GYM handed it. */
@@ -40,6 +51,7 @@ export interface FakeCritics {
   /** `dataset` is the link to the zip, or the first of `parts` for a dataset stored in parts */
   jobs: { id: string; dataset: string; parts: string[] | null; spec: unknown; spec_overrides: unknown; purpose: unknown; options: unknown; storeAutoSpec: boolean; reads: number; overrides: { ignore_flags: string[]; review_flags: string[]; disabled_critics: string[] } }[];
   merges: MergeCall[];
+  analyses: AnalysisCall[];
   deleted: string[];
   /** specs stored through PUT /specs/{name}, next to the built-in one */
   specs: { name: string; spec: Record<string, unknown> }[];
@@ -49,7 +61,7 @@ export interface FakeCritics {
 }
 
 export function startFakeCritics(): FakeCritics {
-  const state: FakeCritics = { url: "", uploads: [], fetched: [], jobs: [], merges: [], deleted: [], specs: [], failMergeWith: null, stop: () => undefined };
+  const state: FakeCritics = { url: "", uploads: [], fetched: [], jobs: [], merges: [], analyses: [], deleted: [], specs: [], failMergeWith: null, stop: () => undefined };
 
   /**
    * Follow a source the way the service does. A source that is not a link is
@@ -160,6 +172,42 @@ export function startFakeCritics(): FakeCritics {
         const name = url.searchParams.get("name") ?? "dataset";
         state.uploads.push({ name, bytes: file.size, fileName: file.name });
         return json({ name, path: `/data/${name}`, robot_type: "test_bot", episodes: 4, fps: 10, cameras: ["observation.images.front"], task: "put the red block in the box", version: "v2.1" }, 201);
+      }
+      if (p === "/analyses/shortcuts" && req.method === "POST") {
+        const body = (await req.json()) as AnalysisCall["body"];
+        state.analyses.push({ path: p, body });
+        // the shape of lerobot_critics.shortcuts.analyse; the numbers do not matter here
+        const prompts: Record<string, number> = {};
+        for (const e of body.episodes) if (e.prompt) prompts[e.prompt] = (prompts[e.prompt] ?? 0) + 1;
+        const cue = { accuracy: 0.95, chance: 0.5, lift: 0.9, n: body.episodes.length, classes: 2, scenes: 3, method: "logistic" };
+        return json({
+          n: body.episodes.length,
+          prompts,
+          arms: { right: body.episodes.length },
+          scenes: { n: 3, threshold: 0.07, method: "auto", episodes_per_scene: { "2": 1 } },
+          background: { prompt: null, arm: null },
+          start_cue: { arm: cue, prompt: null },
+          end_cue: { prompt: null },
+          counterfactual: null,
+          layout: null,
+          evaluation: body.evaluation?.length ? { n: body.evaluation.length, in_range: 1, distance_ratio_median: 0.8, predicted_arm: { right: body.evaluation.length }, arm_confidence: 0.9 } : null,
+          flags: { START_CUE: "The robot state in the first frame tells the arm in 95% of the episodes." },
+        });
+      }
+      if (p === "/analyses/prompts" && req.method === "POST") {
+        const body = (await req.json()) as AnalysisCall["body"];
+        state.analyses.push({ path: p, body });
+        // an episode whose prompt is "wrong prompt" picked something else: the first other candidate
+        const other = (body.candidates ?? []).find((c) => c !== "wrong prompt") ?? null;
+        return json({
+          mode: "reference",
+          prompts: {},
+          candidates: body.candidates ?? [],
+          confusable: [],
+          episodes: body.episodes.map((e) =>
+            e.prompt === "wrong prompt" ? { id: e.id, prompt: e.prompt, status: "propose", proposed: other, confidence: 0.9, votes: other ? { [other]: 0.9 } : {} } : { id: e.id, prompt: e.prompt, status: "ok", confidence: 0.8, votes: { [e.prompt ?? ""]: 0.8 } },
+          ),
+        });
       }
       if (p === "/merge" && req.method === "POST") {
         const body = (await req.json()) as MergeCall;

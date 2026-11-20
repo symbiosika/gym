@@ -10,6 +10,37 @@ raises it, and its merge is tagged `v<version>`:
 
 The versions before 0.9.0 were given afterwards, one per merged pull request.
 
+## 0.14.0
+
+Shortcuts over the selection, and prompts that fit what was picked.
+
+- The `diversity` critic writes, per episode, the robot state in the first
+  and the last frame, a small picture of the first camera frame and the
+  colours of what was picked (`cue_features`). The critics' new
+  `lerobot_critics/shortcuts.py` tests with whole scenes held out whether the
+  background, the start pose or the grasp position already tell the prompt or
+  the arm, how many scenes carry more than one prompt, and whether the
+  rollouts of an evaluation start among the recorded start poses. New run
+  findings `BACKGROUND_CUE`, `START_CUE`, `FEW_COUNTERFACTUALS`,
+  `POSITION_CUE`, `EVAL_START_OUT_OF_RANGE`, `EVAL_START_CUE`, also in the
+  session profile.
+- The critics answer over any selection without keeping anything:
+  `POST /analyses/shortcuts` and `POST /analyses/prompts`. `/merge` writes a
+  prompt per episode instead of the recorded one (`sources[].prompts`).
+- Pre-Train shows the shortcut figures over the selection or one dataset of it
+  (`GET skills/:id/selection/shortcuts`), with the evaluation's rollouts
+  beside it.
+- The upload step opens a prompt tool: the critics' check of every episode's
+  prompt against the skill's other datasets (fits, proposal, review; a
+  stand-in prompt comes back as groups to name), corrections per episode
+  (`episodes.prompt_override`, `GET/PUT datasets/:id/prompts`) and
+  paraphrases per prompt of the skill (`skills.prompt_variants`,
+  `PUT skills/:id/prompt-variants`), spread evenly in a merged export. The
+  upload is never rewritten; the light export lists the prompts in its
+  manifest, the unfiltered download carries the corrections.
+- The guided tour explains the prompt check (critic specs) and the shortcuts
+  (Pre-Train).
+
 ## 0.13.0
 
 A guided tour through one skill.

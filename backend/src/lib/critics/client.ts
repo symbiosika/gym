@@ -264,9 +264,100 @@ export interface CriticsSelection {
 /** What to merge: per source dataset the episodes of it that were selected. */
 export interface MergeRequest {
   /** per source a link to the zip (`dataset`) or one link per part of it (`dataset_parts`) */
-  sources: (({ dataset: string } | { dataset_parts: string[] }) & { episodes: number[]; name?: string })[];
+  sources: (({ dataset: string } | { dataset_parts: string[] }) & {
+    episodes: number[];
+    name?: string;
+    /** episode index → the prompt to write instead of the recorded one; the source is never changed */
+    prompts?: Record<string, string>;
+  })[];
   name: string;
   with_videos?: boolean;
+}
+
+/**
+ * One episode as the critics' analyses over a selection read it: the metrics
+ * of its `diversity` result as mirrored, and the prompt it counts with now.
+ */
+export interface AnalysisEpisode {
+  id: string;
+  /** scenes never span two datasets */
+  dataset: string;
+  /** its index in the dataset */
+  order: number;
+  prompt: string | null;
+  metrics: Record<string, unknown>;
+}
+
+/** A held-out-scene test: can `y` be told from a signal for scenes the model never saw. */
+export interface CueTest {
+  accuracy: number;
+  /** the share of the most frequent class */
+  chance: number;
+  /** (accuracy - chance) / (1 - chance), 0..1 */
+  lift: number;
+  n: number;
+  classes: number;
+  scenes: number;
+  method: "knn" | "logistic";
+}
+
+/** The critics' shortcut figures over a selection (lerobot_critics.shortcuts.analyse). */
+export interface ShortcutAnalysis {
+  n: number;
+  prompts: Record<string, number>;
+  arms: Record<string, number>;
+  scenes: { n: number; threshold: number; method: string; episodes_per_scene: Record<string, number> };
+  background: { prompt: CueTest | null; arm: CueTest | null };
+  start_cue: { arm: CueTest | null; prompt: CueTest | null };
+  end_cue: { prompt: CueTest | null };
+  counterfactual: {
+    scenes: number;
+    scenes_multi_prompt: number;
+    episodes_with_partner: number;
+    prompts_per_scene: Record<string, number>;
+    answered_by_arm: number | null;
+  } | null;
+  layout: {
+    cell_cm: number;
+    cells: number;
+    cells_multi_prompt: number;
+    episodes_in_shared_cells: number;
+    per_prompt: Record<string, { n: number; cells: number; std_cm: number[] }>;
+    position_cue: CueTest | null;
+  } | null;
+  evaluation: {
+    n: number;
+    in_range: number;
+    distance_ratio_median: number;
+    predicted_arm: Record<string, number> | null;
+    arm_confidence: number | null;
+  } | null;
+  flags: Record<string, string>;
+}
+
+export type PromptCheckStatus = "ok" | "propose" | "review" | "no_signature";
+
+/** The critics' word on one episode's prompt (lerobot_critics.shortcuts.align_prompts). */
+export interface PromptCheckRow {
+  id: string;
+  prompt: string | null;
+  status: PromptCheckStatus;
+  proposed?: string | null;
+  confidence?: number;
+  votes?: Record<string, number>;
+  /** mode "groups": the appearance group the episode fell into */
+  group?: number | null;
+  reason?: "few_examples" | "look_alike" | "uncertain";
+}
+
+export interface PromptCheck {
+  /** "reference": checked against other episodes' prompts; "groups": grouped by appearance for a person to name */
+  mode: "reference" | "groups";
+  prompts: Record<string, number>;
+  candidates: string[];
+  confusable?: { prompts: string[]; rate: number }[];
+  episodes: PromptCheckRow[];
+  counts?: Record<string, number>;
 }
 
 export const criticsBaseUrl = (): string => process.env.CRITICS_URL?.trim().replace(/\/+$/, "") || DEFAULT_CRITICS_URL;
@@ -416,6 +507,14 @@ export const criticsClient = {
    * episodes are renumbered without gaps, the task tables are joined and the
    * result is a v2.1 dataset that goes straight into training.
    */
+  /** The shortcut figures over a selection: nothing is fetched, nothing kept (`POST /analyses/shortcuts`). */
+  analyseShortcuts: (body: { episodes: AnalysisEpisode[]; evaluation?: AnalysisEpisode[] }) =>
+    json<ShortcutAnalysis>(`/analyses/shortcuts`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+
+  /** Does each episode's prompt fit what it picked, against reference episodes (`POST /analyses/prompts`). */
+  analysePrompts: (body: { episodes: AnalysisEpisode[]; reference: AnalysisEpisode[]; candidates: string[] }) =>
+    json<PromptCheck>(`/analyses/prompts`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+
   merge: (body: MergeRequest) =>
     request(`/merge`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
 
