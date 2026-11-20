@@ -6,6 +6,9 @@
 import { fetcher, FetcherError } from '@/utils/fetcher'
 import type {
   AccessTokenInfo,
+  PromptCheckView,
+  PromptVariants,
+  SelectionShortcuts,
   AiInfo,
   AuditEntry,
   BlockKind,
@@ -238,6 +241,19 @@ export const gymApi = {
   /** the selection one row per dataset, with the position figures over what is selected */
   selectionOverview: (t: string, skillId: string) =>
     fetcher.get<SelectionOverview>(`${base(t)}/skills/${skillId}/selection/overview`),
+  /** what a policy could learn instead of the prompt, over the selection or one dataset of it (the critics' figures) */
+  selectionShortcuts: (t: string, skillId: string, datasetId?: string | null) =>
+    fetcher.get<SelectionShortcuts>(
+      `${base(t)}/skills/${skillId}/selection/shortcuts${datasetId ? `?datasetId=${encodeURIComponent(datasetId)}` : ''}`,
+    ),
+  /** the critics' prompt check of a dataset against the skill's other datasets */
+  datasetPrompts: (t: string, id: string) => fetcher.get<PromptCheckView>(`${base(t)}/datasets/${id}/prompts`),
+  /** set the prompt of episodes; null gives an episode its recorded prompt back */
+  setDatasetPrompts: (t: string, id: string, episodes: { index: number; prompt: string | null }[]) =>
+    fetcher.put<{ changed: number }>(`${base(t)}/datasets/${id}/prompts`, { episodes }),
+  /** replace the skill's paraphrases */
+  setPromptVariants: (t: string, skillId: string, variants: PromptVariants) =>
+    fetcher.put<PromptVariants>(`${base(t)}/skills/${skillId}/prompt-variants`, variants),
   /** take a recording dataset out of the skill's selection as a whole, or back in */
   setDatasetIncluded: (t: string, id: string, included: boolean) =>
     fetcher.put<DatasetView>(`${base(t)}/datasets/${id}/included`, { included }),

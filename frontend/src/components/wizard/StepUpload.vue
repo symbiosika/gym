@@ -12,6 +12,7 @@ import IconClose from '~icons/carbon/close'
 import IconChevron from '~icons/carbon/chevron-down'
 import IconTrash from '~icons/carbon/trash-can'
 import SpecPicker from '@/components/SpecPicker.vue'
+import PromptTool from '@/components/wizard/PromptTool.vue'
 
 /**
  * Step 4: upload the LeRobot datasets of the recording, each as one zip (data,
@@ -61,6 +62,10 @@ const hot = ref(false)
 const busy = ref(false)
 const specBusy = ref(false)
 const specOpen = ref(false)
+/** the prompt tool: the critics' prompt check and the skill's paraphrases */
+const promptsOpen = ref(false)
+/** the block's datasets the critics have judged: what the prompt check can look at */
+const judged = computed(() => props.block.datasets.filter((d) => d.analysisStatus === 'done'))
 const removing = ref('')
 const input = ref<HTMLInputElement | null>(null)
 let seq = 0
@@ -387,6 +392,28 @@ async function back() {
         />
       </FormField>
     </div>
+
+    <!-- the prompts the episodes are trained with: checked by the critics, corrected and paraphrased here -->
+    <div
+      v-if="block.kind === 'recording' && judged.length"
+      class="mt-3 rounded-panel border border-surface-300 px-3.5 py-2.5 dark:border-surface-800"
+      data-tour="upload-prompts"
+    >
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="gym-field mb-0">{{ t('prompts.line') }}</span>
+        <span class="text-surface-600 dark:text-surface-300">{{ t('prompts.lineHint') }}</span>
+        <span class="grow"></span>
+        <button type="button" class="text-primary cursor-pointer text-sm hover:underline" @click="promptsOpen = true">
+          {{ t('prompts.open') }}
+        </button>
+      </div>
+    </div>
+    <PromptTool
+      v-model:visible="promptsOpen"
+      :tenant-id="tenantId"
+      :skill-id="block.skillId"
+      :datasets="judged.map((d) => ({ id: d.id, name: d.name }))"
+    />
 
     <div class="gym-stepnav">
       <!-- explicit: this opens the recording again and its clock runs -->
