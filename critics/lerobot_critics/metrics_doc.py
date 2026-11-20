@@ -1126,6 +1126,15 @@ _m(
     "higher",
 )
 
+_m(
+    "diversity",
+    "cue_features",
+    "Shortcut features",
+    "mixed",
+    "What the shortcut figures read of this episode: the prompt, the robot state in the first and the last frame without a dropout (start_state, end_state, over state_keys), a 24 x 18 picture of the scene camera's first frame (thumb) and a colour signature of what was picked (look: the colours of the pixels that changed between the scene camera's first and last frame, and of the middle of the grasping arm's wrist camera at the end). Read by the run summary (shortcuts) and by POST /analyses/shortcuts and /analyses/prompts.",
+    "first/last valid state row; cv2.INTER_AREA thumbnail; 12 hue bins weighted by saturation + 6 brightness bins + saturated share per part",
+)
+
 # ---------------------------------------------------------------- lookup
 METRIC_DOCS: dict[tuple[str, str], MetricDoc] = {(_d.critic, _d.key): _d for _d in _DOCS}
 

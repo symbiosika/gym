@@ -46,6 +46,8 @@ class MergeSource:
     episodes: list[int]
     #: what to call it in the manifest; defaults to the directory name
     name: str = ""
+    #: the prompt (task) to write for an episode instead of the one it was recorded with
+    prompts: dict[int, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.root = Path(self.root)
@@ -273,7 +275,7 @@ def merge_datasets(
         for ep in source.episodes:
             df = ds.load_frame_table(ep).copy()
             n = len(df)
-            task = ds.episode(ep).task
+            task = source.prompts.get(ep) or ds.episode(ep).task
             if task not in task_index:
                 task_index[task] = len(tasks)
                 tasks.append(task)
