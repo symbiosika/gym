@@ -38,8 +38,29 @@ Shortcuts over the selection, and prompts that fit what was picked.
   `PUT skills/:id/prompt-variants`), spread evenly in a merged export. The
   upload is never rewritten; the light export lists the prompts in its
   manifest, the unfiltered download carries the corrections.
+- A recording is analysed in two steps. The upload starts a measuring pass
+  (the hard critics alone, no model, no contact sheets; `measuring`, then
+  `measured`) and the block stays at the upload, where the prompts can be
+  checked and corrected. "Start analysis" (the step to the review) starts the
+  full run with the corrected prompts: the critics judge every episode, the
+  VLM among them, against the prompt it is trained with (`options.prompts`;
+  the report keeps `recorded_task`). Only the episodes of a full run count in
+  the figures, the selection and the exports (`datasets.analysis_pass`).
+  Prompts corrected after an analysis can be handed over by analysing the
+  dataset again (`POST datasets/:id/analyse`), offered in the prompt tool.
+  Rollouts are analysed at once, as before.
+- The shortcut tiles say how to read them: the hit rate on held-out scenes
+  against chance, the share of the most frequent answer. A spider plot beside
+  them draws the same tests, the hit rate as a shape and chance as a dashed
+  ring, the critics' findings marked on their axis.
+- The prompt check compares against the skill's other datasets or the ones
+  a person picks (`GET datasets/:id/prompts?reference=`), so datasets whose
+  prompts are not aligned yet do not teach it wrong ones. Yellow dots show
+  while the critics measure a dataset or compute the check.
+- Pre-Train names the evaluation datasets (day, policy, rollouts) whose start
+  poses are compared with the recordings.
 - The guided tour explains the prompt check (critic specs) and the shortcuts
-  (Pre-Train).
+  (Pre-Train), and the two steps of the upload.
 
 ## 0.13.0
 
