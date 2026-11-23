@@ -16,7 +16,7 @@
  */
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@framework/lib/db/db-connection";
-import { blocks, datasets, episodes } from "../../db/schema";
+import { blocks, datasets, dayProtocols, episodes, policies } from "../../db/schema";
 import { criticsClient, type AnalysisEpisode, type ShortcutAnalysis } from "../critics/client";
 import { getSelection, selectedOf } from "./exports";
 import { NotFoundError } from "./errors";
@@ -33,6 +33,8 @@ export interface SelectionShortcuts {
   withoutFeatures: number;
   /** rollouts of the skill's evaluation blocks whose start poses are compared */
   evaluationEpisodes: number;
+  /** the evaluation datasets those rollouts come from, with the day and the policy tested; only ones carrying the features */
+  evaluationDatasets: { id: string; name: string; date: string; policyName: string | null; episodes: number }[];
   /** the critics' answer; null when no selected episode carries the features */
   analysis: ShortcutAnalysis | null;
 }
@@ -65,10 +67,13 @@ export async function getSelectionShortcuts(tenantId: string, skillId: string, d
 
   // the rollouts of the skill's evaluations: compared, never selected
   const evalSets = await getDb()
-    .select({ id: datasets.id, report: datasets.report })
+    .select({ id: datasets.id, name: datasets.name, report: datasets.report, date: dayProtocols.date, policyName: policies.name })
     .from(datasets)
     .innerJoin(blocks, eq(blocks.id, datasets.blockId))
-    .where(and(eq(datasets.tenantId, tenantId), eq(datasets.skillId, skillId), eq(blocks.kind, "evaluation")));
+    .innerJoin(dayProtocols, eq(dayProtocols.id, datasets.dayProtocolId))
+    .leftJoin(policies, eq(policies.id, blocks.policyId))
+    .where(and(eq(datasets.tenantId, tenantId), eq(datasets.skillId, skillId), eq(blocks.kind, "evaluation")))
+    .orderBy(asc(dayProtocols.date), asc(datasets.createdAt));
   const evalEpisodes = evalSets.length
     ? await getDb()
         .select()
@@ -89,6 +94,9 @@ export async function getSelectionShortcuts(tenantId: string, skillId: string, d
     episodes: withFeatures.length,
     withoutFeatures: selected.length - withFeatures.length,
     evaluationEpisodes: evaluation.length,
+    evaluationDatasets: evalSets
+      .map((d) => ({ id: d.id, name: d.name, date: d.date, policyName: d.policyName ?? null, episodes: evaluation.filter((e) => e.dataset === d.id).length }))
+      .filter((d) => d.episodes > 0),
     analysis,
   };
 }

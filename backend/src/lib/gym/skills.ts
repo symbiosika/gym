@@ -130,7 +130,8 @@ async function evaluationsOf(tenantId: string, skillIds: string[]): Promise<Map<
       rejected: sql<number>`count(*) filter (where ${effectiveVerdictSql} = 'reject')`,
     })
     .from(datasets)
-    .leftJoin(episodes, eq(episodes.datasetId, datasets.id))
+    // the episodes of a measuring pass are not judged yet
+    .leftJoin(episodes, and(eq(episodes.datasetId, datasets.id), eq(datasets.analysisPass, "full")))
     .where(inArray(datasets.blockId, rows.map((r) => r.block.id)))
     .groupBy(datasets.blockId);
   const byBlock = new Map(agg.map((a) => [a.blockId, a]));
@@ -215,7 +216,7 @@ export async function listSkills(tenantId: string, filter: ListFilter = {}): Pro
     .from(episodes)
     .innerJoin(datasets, eq(datasets.id, episodes.datasetId))
     .innerJoin(blocks, eq(blocks.id, datasets.blockId))
-    .where(and(inArray(episodes.skillId, ids), eq(blocks.kind, "recording")))
+    .where(and(inArray(episodes.skillId, ids), eq(blocks.kind, "recording"), eq(datasets.analysisPass, "full")))
     .groupBy(episodes.skillId);
   const polAgg = await getDb()
     .select({ skillId: policies.skillId, n: sql<number>`count(*)` })

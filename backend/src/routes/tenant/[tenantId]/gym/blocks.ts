@@ -7,7 +7,7 @@
  *   DELETE /tenant/:tenantId/gym/blocks/:id                  with its datasets; the day stays
  *   PUT    /tenant/:tenantId/gym/blocks/:id/brief            { sceneText?, targetEpisodes?, kind?, policyId? }
  *   POST   /tenant/:tenantId/gym/blocks/:id/import           { skillId } copy inputs from another skill
- *   PUT    /tenant/:tenantId/gym/blocks/:id/step             { step }
+ *   PUT    /tenant/:tenantId/gym/blocks/:id/step             { step }; "review" starts the analysis of a recording's measured datasets
  *   POST   /tenant/:tenantId/gym/blocks/:id/close
  *   GET    /tenant/:tenantId/gym/blocks/:id/access-token     token and URLs for the mobile views
  *   GET    /tenant/:tenantId/gym/blocks/:id/scene-image
@@ -42,6 +42,7 @@
  *   POST   /tenant/:tenantId/gym/blocks/:id/follow-up?lang
  *   GET    /tenant/:tenantId/gym/datasets/:id
  *   PUT    /tenant/:tenantId/gym/datasets/:id/included           { included }: in or out of the skill's selection as a whole
+ *   POST   /tenant/:tenantId/gym/datasets/:id/analyse            start the analysis (again), with the corrected prompts
  *   POST   /tenant/:tenantId/gym/datasets/:id/export-unfiltered  the dataset with all its episodes, as a zip
  *   DELETE /tenant/:tenantId/gym/datasets/:id
  */
@@ -61,7 +62,7 @@ import {
   listUploads,
   putChunk,
 } from "../../../../lib/gym/dataset-uploads";
-import { deleteDataset, getDataset, setDatasetIncluded, uploadDataset } from "../../../../lib/gym/datasets";
+import { analyseDataset, deleteDataset, getDataset, setDatasetIncluded, uploadDataset } from "../../../../lib/gym/datasets";
 import { createUnfilteredExport } from "../../../../lib/gym/exports";
 import { toDayView } from "../../../../lib/gym/day-protocols";
 import {
@@ -546,6 +547,16 @@ export default function defineBlockRoutes(app: SymbiosikaFrameworkHonoApp, API_B
         const { tenantId, id } = c.req.valid("param");
         const { included } = v.parse(v.object({ included: v.boolean() }), await c.req.json());
         return c.json(await setDatasetIncluded(tenantId, await actorOf(c), id, included));
+      } catch (e) { throw toHttpError(e); }
+    });
+
+  app.post(`${dsBase}/:id/analyse`, ...guard,
+    describeRoute({ tags: ["gym"], summary: "Start the analysis of a dataset (again), with the prompts corrected since", responses: ok }),
+    validator("param", tenantIdParam), isTenantMember,
+    async (c) => {
+      try {
+        const { tenantId, id } = c.req.valid("param");
+        return c.json(await analyseDataset(tenantId, await actorOf(c), id));
       } catch (e) { throw toHttpError(e); }
     });
 

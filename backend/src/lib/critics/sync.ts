@@ -17,7 +17,7 @@ import { criticsClient, CriticsError, type CriticsJob } from "./client";
 import { keepReportCopy } from "./report-copy";
 import { defaultSelected, episodeRows, SUMMARY_VERSION, summarize } from "./summary";
 
-const OPEN_STATUSES = ["queued", "running"] as const;
+const OPEN_STATUSES = ["measuring", "queued", "running"] as const;
 
 /** Bring one dataset up to date with its critics job. Returns the (possibly updated) row. */
 export async function syncDataset(row: DatasetSelect): Promise<DatasetSelect> {
@@ -36,7 +36,8 @@ export async function syncDataset(row: DatasetSelect): Promise<DatasetSelect> {
 
   if (job.status === "failed") return await fail(row, job.error ?? "The critics run failed");
   if (job.status !== "done") {
-    const status = job.status === "queued" ? "queued" : "running";
+    // a measuring pass stays "measuring" until it is mirrored
+    const status = row.analysisStatus === "measuring" ? "measuring" : job.status === "queued" ? "queued" : "running";
     if (status !== row.analysisStatus || JSON.stringify(job.progress ?? {}) !== JSON.stringify(row.progress ?? {})) {
       const [updated] = await getDb()
         .update(datasets)
@@ -48,7 +49,9 @@ export async function syncDataset(row: DatasetSelect): Promise<DatasetSelect> {
     return row;
   }
 
-  return mirrorResult(row, job.progress ?? {}, "dataset.analysed");
+  return row.analysisStatus === "measuring"
+    ? mirrorResult(row, job.progress ?? {}, "dataset.measured", "measure")
+    : mirrorResult(row, job.progress ?? {}, "dataset.analysed", "full");
 }
 
 /**
@@ -70,15 +73,24 @@ export function selectedAfter(previous: { verdict: string; selected: boolean } |
  * Copy report.json and selection.json of a finished run onto the dataset and
  * bring the episode rows in line with it. The rows are updated in place, so
  * an episode keeps its id and everything a person wrote on it (human verdict,
- * failure code, note, variation) when the critics judge it again.
+ * failure code, note, variation, corrected prompt) when the critics judge it
+ * again. A measuring pass leaves the dataset `measured`; the analysis after
+ * it starts the selection afresh, from its own verdicts.
  */
-async function mirrorResult(row: DatasetSelect, progress: Record<string, { done: number; total: number }>, action: string): Promise<DatasetSelect> {
+async function mirrorResult(
+  row: DatasetSelect,
+  progress: Record<string, { done: number; total: number }>,
+  action: string,
+  pass: DatasetSelect["analysisPass"] = row.analysisPass,
+): Promise<DatasetSelect> {
   const [report, selection] = [await criticsClient.report(row.criticsJobId!), await criticsClient.selection(row.criticsJobId!)];
   const summary = summarize(row.criticsJobId!, report, selection);
   const rows = episodeRows(report, selection);
   const db = getDb();
   const existing = await db.select().from(episodes).where(eq(episodes.datasetId, row.id));
   const byIndex = new Map(existing.map((e) => [e.index, e]));
+  // the verdicts of a measuring pass were never anyone's choice: the first analysis decides afresh
+  const fresh = pass === "full" && row.analysisPass === "measure";
   const seen = new Set<number>();
   for (const e of rows) {
     seen.add(e.index);
@@ -95,7 +107,7 @@ async function mirrorResult(row: DatasetSelect, progress: Record<string, { done:
       reason: e.reason,
       criticScores: e.criticScores,
       error: e.error,
-      selected: selectedAfter(prev, e.verdict),
+      selected: selectedAfter(fresh ? undefined : prev, e.verdict),
     };
     if (prev) await db.update(episodes).set(values).where(eq(episodes.id, prev.id));
     else await db.insert(episodes).values({ tenantId: row.tenantId, skillId: row.skillId, datasetId: row.id, index: e.index, ...values });
@@ -106,7 +118,8 @@ async function mirrorResult(row: DatasetSelect, progress: Record<string, { done:
   const [updated] = await db
     .update(datasets)
     .set({
-      analysisStatus: "done",
+      analysisStatus: pass === "measure" ? "measured" : "done",
+      analysisPass: pass,
       progress,
       analysis: summary,
       report,
@@ -117,8 +130,8 @@ async function mirrorResult(row: DatasetSelect, progress: Record<string, { done:
     })
     .where(eq(datasets.id, row.id))
     .returning();
-  // the report link must outlive the critics' job directory
-  const reportHtmlRef = await keepReportCopy(updated!);
+  // the report link must outlive the critics' job directory; a measuring pass has no report worth keeping
+  const reportHtmlRef = pass === "full" ? await keepReportCopy(updated!) : null;
   await recordAudit(
     row.tenantId,
     { skillId: row.skillId, dayProtocolId: row.dayProtocolId, blockId: row.blockId },

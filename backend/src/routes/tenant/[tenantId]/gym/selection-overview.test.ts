@@ -88,7 +88,9 @@ describe("The skill's episodes as datasets", () => {
     const up = await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, zipUpload("cup_tray_a.zip"));
     expect(up.status).toBe(201);
     datasetId = up.jsonResponse.id;
-    // reading the block syncs the critics run: four episodes, two accepted and selected, two rejected
+    // measured, then analysed on the way to the review: four episodes, two accepted and selected, two rejected
+    await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
+    await testFetcher.put(app, `${base}/blocks/${blockId}/step`, token, { step: "review" });
     const block = await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
     expect(block.jsonResponse.datasets[0].analysisStatus).toBe("done");
   });

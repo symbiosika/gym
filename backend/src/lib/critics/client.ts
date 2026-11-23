@@ -123,6 +123,8 @@ export interface CriticsRunOptions {
   run_soft?: boolean;
   contact_sheets?: boolean;
   workers?: number;
+  /** corrected prompts { episode index: prompt }: every critic judges the episode against this one */
+  prompts?: Record<string, string> | null;
 }
 
 /** One critic's result inside an episode of report.json (lerobot_critics.critics.base.CriticResult). */
@@ -157,7 +159,10 @@ export interface EpisodeScore {
 /** lerobot_critics.runner.EpisodeReport */
 export interface EpisodeReport {
   episode: number;
+  /** the task the episode was judged with: a corrected prompt if the run was handed one */
   task: string;
+  /** the task recorded in the dataset, when the run judged against a corrected prompt */
+  recorded_task?: string | null;
   length: number;
   duration_s: number;
   hard: CriticResult[];

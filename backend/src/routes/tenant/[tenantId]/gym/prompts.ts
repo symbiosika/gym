@@ -5,7 +5,7 @@
  *
  *   GET /tenant/:tenantId/gym/skills/:id/selection/shortcuts?datasetId  the shortcut figures over the selection (or one dataset of it)
  *   PUT /tenant/:tenantId/gym/skills/:id/prompt-variants                { [prompt]: { variants, keepOriginal } }: the skill's paraphrases
- *   GET /tenant/:tenantId/gym/datasets/:id/prompts                      the prompt check of a dataset
+ *   GET /tenant/:tenantId/gym/datasets/:id/prompts?reference=id,id      the prompt check of a dataset, against the skill's other datasets or the ones named
  *   PUT /tenant/:tenantId/gym/datasets/:id/prompts                      { episodes: [{ index, prompt|null }] }: set or give back prompts
  */
 import type { SymbiosikaFrameworkHonoApp } from "@framework/types";
@@ -18,6 +18,17 @@ import { getSelectionShortcuts } from "../../../../lib/gym/shortcuts";
 import { actorOf, ok, tenantIdParam, toHttpError } from "./_shared";
 
 const shortcutQuery = v.object({ datasetId: v.optional(v.pipe(v.string(), v.uuid())) });
+/** the reference of a prompt check: dataset ids, comma separated; absent = every other recording dataset of the skill, empty = none */
+const promptQuery = v.object({
+  reference: v.optional(
+    v.pipe(
+      v.string(),
+      v.transform((s) => s.split(",").map((x) => x.trim()).filter(Boolean)),
+      v.array(v.pipe(v.string(), v.uuid())),
+      v.maxLength(500),
+    ),
+  ),
+});
 
 export default function definePromptRoutes(app: SymbiosikaFrameworkHonoApp, API_BASE_PATH = "") {
   const skills = `${API_BASE_PATH}/tenant/:tenantId/gym/skills`;
@@ -46,11 +57,11 @@ export default function definePromptRoutes(app: SymbiosikaFrameworkHonoApp, API_
 
   app.get(`${ds}/:id/prompts`, ...guard,
     describeRoute({ tags: ["gym"], summary: "Does every episode's prompt fit what it picked? (the critics' prompt check)", responses: ok }),
-    validator("param", tenantIdParam), isTenantMember,
+    validator("param", tenantIdParam), validator("query", promptQuery), isTenantMember,
     async (c) => {
       try {
         const { tenantId, id } = c.req.valid("param");
-        return c.json(await getPromptCheck(tenantId, id));
+        return c.json(await getPromptCheck(tenantId, id, c.req.valid("query").reference ?? null));
       } catch (e) { throw toHttpError(e); }
     });
 

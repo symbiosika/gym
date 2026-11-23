@@ -22,10 +22,10 @@
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
-import { blocks, datasets, episodes, skills, type EpisodeSelect, type PromptVariants } from "../../db/schema";
+import { blocks, datasets, episodes, skills, type DatasetSelect, type EpisodeSelect, type PromptVariants } from "../../db/schema";
 import { criticsClient, type AnalysisEpisode, type DatasetReport, type PromptCheck, type PromptCheckRow } from "../critics/client";
 import { recordAudit, type Actor } from "./audit";
-import { getDatasetRow } from "./datasets";
+import { correctedPromptsOf, getDatasetRow } from "./datasets";
 import { effectiveVerdict } from "./evaluations";
 import { InvalidInputError } from "./errors";
 import { columnOf } from "./run-sheet";
@@ -128,7 +128,29 @@ export interface PromptCheckView {
   variants: PromptVariants;
   /** selected episodes per prompt over the skill's selection: what the variants are spread over */
   selectionCounts: Record<string, number>;
+  /** where the dataset stands with the critics: `measured` waits for the analysis the operator starts */
+  analysisStatus: DatasetSelect["analysisStatus"];
+  /**
+   * The skill's other recording datasets the check can compare against, in
+   * the order they were uploaded, with whether they are compared against now
+   * (`used`). `reference` (episodes not rejected, with the features) is what
+   * the critics are handed of each.
+   */
+  referenceDatasets: { id: string; name: string; episodes: number; reference: number; used: boolean }[];
+  /**
+   * The prompts were corrected since the dataset's analysis: its verdicts were
+   * judged with others. Analysing it again (`POST datasets/:id/analyse`) hands
+   * the critics the prompts it counts with now.
+   */
+  promptsChangedSinceAnalysis: boolean;
 }
+
+/** Two sets of corrected prompts ({ episode index: prompt }), null and {} alike. */
+const samePrompts = (a: Record<string, string> | null | undefined, b: Record<string, string> | null | undefined): boolean => {
+  const [x, y] = [a ?? {}, b ?? {}];
+  const keys = Object.keys(x);
+  return keys.length === Object.keys(y).length && keys.every((k) => x[k] === y[k]);
+};
 
 /** Every prompt the skill knows by name, for the person to pick from. */
 async function candidatePrompts(skill: { strategy: { runSheet: { columns: string[]; rows: Record<string, string>[] } | null } | null; promptVariants: PromptVariants }, known: string[]): Promise<string[]> {
@@ -145,7 +167,7 @@ async function candidatePrompts(skill: { strategy: { runSheet: { columns: string
  * recording datasets, judged by the critics. The reference leaves out what a
  * person or the critics rejected; a rejected episode is often a failed grasp.
  */
-export async function getPromptCheck(tenantId: string, datasetId: string): Promise<PromptCheckView> {
+export async function getPromptCheck(tenantId: string, datasetId: string, referenceIds?: string[] | null): Promise<PromptCheckView> {
   const ds = await getDatasetRow(tenantId, datasetId);
   const skill = await getSkillRow(tenantId, ds.skillId);
   const own = await getDb()
@@ -153,18 +175,24 @@ export async function getPromptCheck(tenantId: string, datasetId: string): Promi
     .from(episodes)
     .where(and(eq(episodes.tenantId, tenantId), eq(episodes.datasetId, datasetId)))
     .orderBy(asc(episodes.index));
-  const others = await getDb()
-    .select({ id: datasets.id, report: datasets.report })
+  const allOthers = await getDb()
+    .select({ id: datasets.id, name: datasets.name, report: datasets.report, analysisStatus: datasets.analysisStatus, createdAt: datasets.createdAt })
     .from(datasets)
     .innerJoin(blocks, eq(blocks.id, datasets.blockId))
-    .where(and(eq(datasets.tenantId, tenantId), eq(datasets.skillId, ds.skillId), ne(datasets.id, datasetId), eq(blocks.kind, "recording")));
-  const otherEpisodes = others.length
+    .where(and(eq(datasets.tenantId, tenantId), eq(datasets.skillId, ds.skillId), ne(datasets.id, datasetId), eq(blocks.kind, "recording")))
+    .orderBy(asc(datasets.createdAt));
+  // the person picks the reference: datasets whose prompts are not aligned yet would teach the check wrong ones
+  const picked = referenceIds ? new Set(referenceIds) : null;
+  const others = picked ? allOthers.filter((o) => picked.has(o.id)) : allOthers;
+  const otherEpisodes = allOthers.length
     ? await getDb()
         .select()
         .from(episodes)
-        .where(and(eq(episodes.tenantId, tenantId), inArray(episodes.datasetId, others.map((o) => o.id))))
+        .where(and(eq(episodes.tenantId, tenantId), inArray(episodes.datasetId, allOthers.map((o) => o.id))))
         .orderBy(asc(episodes.index))
     : [];
+  const usedIds = new Set(others.map((o) => o.id));
+  const referenceEpisodes = otherEpisodes.filter((e) => usedIds.has(e.datasetId));
   const reportOf = new Map(others.map((o) => [o.id, o.report]));
 
   const wire = (e: EpisodeSelect, report: DatasetReport | null | undefined): AnalysisEpisode => ({
@@ -175,7 +203,7 @@ export async function getPromptCheck(tenantId: string, datasetId: string): Promi
     metrics: diversityMetricsOf(report, e.index),
   });
   const targets = own.map((e) => wire(e, ds.report));
-  const reference = otherEpisodes
+  const reference = referenceEpisodes
     .filter((e) => effectiveVerdict(e) !== "reject")
     .map((e) => wire(e, reportOf.get(e.datasetId)))
     .filter((e) => hasCueFeatures(e.metrics));
@@ -216,6 +244,18 @@ export async function getPromptCheck(tenantId: string, datasetId: string): Promi
     counts,
     variants: skill.promptVariants ?? {},
     selectionCounts: await selectionCounts(tenantId, ds.skillId),
+    analysisStatus: ds.analysisStatus,
+    referenceDatasets: allOthers.map((o) => {
+      const own = otherEpisodes.filter((e) => e.datasetId === o.id);
+      return {
+        id: o.id,
+        name: o.name,
+        episodes: own.length,
+        reference: own.filter((e) => effectiveVerdict(e) !== "reject" && hasCueFeatures(diversityMetricsOf(o.report, e.index))).length,
+        used: usedIds.has(o.id),
+      };
+    }),
+    promptsChangedSinceAnalysis: ds.analysisPass === "full" && ds.analysisStatus === "done" && !samePrompts(await correctedPromptsOf(datasetId), ds.analysedPrompts),
   };
 }
 

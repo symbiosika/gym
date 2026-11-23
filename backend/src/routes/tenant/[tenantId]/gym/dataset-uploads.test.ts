@@ -219,9 +219,9 @@ describe("Chunked dataset uploads", () => {
     const joined = (done.jsonResponse.storageParts as string[]).flatMap((ref) => [...byName.get(ref)!]);
     expect(new Uint8Array(joined)).toEqual(ZIP);
 
-    // the block moved on, exactly as after a single-request upload
+    // the block is where it is after a single-request upload: a recording waits for its analysis there
     const block = await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
-    expect(block.jsonResponse.step).toBe("review");
+    expect(block.jsonResponse.step).toBe("upload");
     expect(block.jsonResponse.datasets).toHaveLength(1);
 
     // nothing is left of the upload itself: no row, no chunk row, no scratch file

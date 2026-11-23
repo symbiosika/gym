@@ -97,10 +97,22 @@ export type BlockStep = (typeof BLOCK_STEPS)[number];
 
 /**
  * Where a dataset stands with the critics service: uploaded and queued,
- * running, done (report and selection mirrored), or failed.
+ * running, done (report and selection mirrored), or failed. A recording is
+ * first measured (`measuring`, then `measured`): the hard critics alone, no
+ * model, so the prompts can be checked and corrected before the analysis the
+ * operator starts judges the episodes with them.
  */
-export const DATASET_ANALYSIS_STATUSES = ["queued", "running", "done", "failed"] as const;
+export const DATASET_ANALYSIS_STATUSES = ["measuring", "measured", "queued", "running", "done", "failed"] as const;
 export type DatasetAnalysisStatus = (typeof DATASET_ANALYSIS_STATUSES)[number];
+
+/**
+ * Which run the mirrored episodes of a dataset come from: `measure` (the hard
+ * critics alone, before the analysis was started) or `full` (the analysis).
+ * Only episodes of a full run count anywhere: the figures, the selection, the
+ * exports. It turns `full` when the analysis is mirrored, not when it starts.
+ */
+export const DATASET_ANALYSIS_PASSES = ["measure", "full"] as const;
+export type DatasetAnalysisPass = (typeof DATASET_ANALYSIS_PASSES)[number];
 
 /**
  * The human's verdict on an episode: on a rollout of an evaluation block in
@@ -679,6 +691,10 @@ export const datasets = pgBaseTable(
     criticsJobId: text("critics_job_id"),
     criticSpecName: text("critic_spec_name"),
     analysisStatus: text("analysis_status").$type<DatasetAnalysisStatus>().notNull().default("queued"),
+    /** the run the mirrored episodes come from; only `full` counts (DATASET_ANALYSIS_PASSES) */
+    analysisPass: text("analysis_pass").$type<DatasetAnalysisPass>().notNull().default("full"),
+    /** the corrected prompts the analysis was started with ({ episode index: prompt }), null without any */
+    analysedPrompts: jsonb("analysed_prompts").$type<Record<string, string>>(),
     /** progress of the critics job while running: stage → done/total */
     progress: jsonb("progress").$type<Record<string, { done: number; total: number }>>(),
     /** the compact summary for the operator and the key figures */

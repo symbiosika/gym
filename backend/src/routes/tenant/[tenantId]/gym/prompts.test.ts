@@ -81,11 +81,16 @@ describe("Prompts and shortcuts", () => {
     cellId = (await testFetcher.post(app, `${base}/cells`, token, { name: "Prompt cell" })).jsonResponse.id;
     skillId = (await testFetcher.post(app, `${base}/skills`, token, { name: "Pick from shelf" })).jsonResponse.id;
     blockId = (await testFetcher.post(app, `${base}/blocks`, token, { cellId, skillId, kind: "recording", date: "2026-11-16" })).jsonResponse.block.id;
+    // dataset A is analysed: four episodes, 0 and 1 accepted and selected, 2 and 3 rejected
     dsA = (await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, zipUpload("shelf_a.zip"))).jsonResponse.id;
+    await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
+    await testFetcher.put(app, `${base}/blocks/${blockId}/step`, token, { step: "review" });
+    await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
+    // dataset B is only measured: its prompts are checked before the analysis
     dsB = (await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, zipUpload("shelf_b.zip"))).jsonResponse.id;
-    // reading the block syncs the runs: four episodes each, 0 and 1 accepted and selected, 2 and 3 rejected
     const block = await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
-    expect(block.jsonResponse.datasets.map((d: { analysisStatus: string }) => d.analysisStatus)).toEqual(["done", "done"]);
+    expect(block.jsonResponse.step).toBe("upload");
+    expect(block.jsonResponse.datasets.map((d: { analysisStatus: string }) => d.analysisStatus)).toEqual(["done", "measured"]);
     await giveFeatures(dsA);
     await giveFeatures(dsB);
     // dataset B was recorded under a stand-in prompt for its first episode
@@ -106,6 +111,9 @@ describe("Prompts and shortcuts", () => {
     expect(res.status).toBe(200);
     const view = res.jsonResponse;
     expect(view.mode).toBe("reference");
+    // measured only: checked before the analysis
+    expect(view.analysisStatus).toBe("measured");
+    expect(view.promptsChangedSinceAnalysis).toBe(false);
     expect(view.episodes).toHaveLength(4);
     expect(view.episodes[0]).toMatchObject({ index: 0, task: "wrong prompt", promptOverride: null, prompt: "wrong prompt", status: "propose", proposed: RED });
     expect(view.episodes[1]).toMatchObject({ index: 1, status: "ok", proposed: null });
@@ -119,6 +127,18 @@ describe("Prompts and shortcuts", () => {
     // the reference is the other dataset, without what was rejected
     const aEps = await episodesOf(dsA);
     expect(call.body.reference!.map((e) => e.id).sort()).toEqual(aEps.filter((e) => e.verdict !== "reject").map((e) => e.id).sort());
+
+    // the datasets the check can compare against, all of them used unless the person picks
+    expect(view.referenceDatasets).toEqual([{ id: dsA, name: "shelf_a", episodes: 4, reference: 2, used: true }]);
+
+    // the person picks the reference: none leaves the critics without one (they group by look instead)
+    const none = (await testFetcher.get(app, `${base}/datasets/${dsB}/prompts?reference=`, token)).jsonResponse;
+    expect(critics.analyses.at(-1)!.body.reference).toEqual([]);
+    expect(none.referenceDatasets[0].used).toBe(false);
+    const picked = (await testFetcher.get(app, `${base}/datasets/${dsB}/prompts?reference=${dsA}`, token)).jsonResponse;
+    expect(picked.referenceDatasets[0].used).toBe(true);
+    expect(critics.analyses.at(-1)!.body.reference).toHaveLength(2);
+    expect((await testFetcher.get(app, `${base}/datasets/${dsB}/prompts?reference=nope`, token)).status).toBe(400);
 
     expect((await testFetcher.get(app, `${base}/datasets/${dsB}/prompts`, undefined)).status).toBe(401);
     expect((await testFetcher.get(app, `${base}/datasets/${dsB}/prompts`, token2)).status).toBe(403);
@@ -145,6 +165,40 @@ describe("Prompts and shortcuts", () => {
 
     expect((await testFetcher.put(app, `${base}/datasets/${dsB}/prompts`, token, { episodes: [{ index: 9, prompt: RED }] })).status).toBe(400);
     expect((await testFetcher.put(app, `${base}/datasets/${dsB}/prompts`, token, { episodes: [{ index: "x" }] })).status).toBe(400);
+  });
+
+  test("the analysis started afterwards judges with the corrected prompts; the recorded task stays the episode's", async () => {
+    const before = critics.jobs.length;
+    const res = await testFetcher.put(app, `${base}/blocks/${blockId}/step`, token, { step: "review" });
+    expect(res.status).toBe(200);
+    // only the measured dataset is analysed, with its one correction
+    expect(critics.jobs.length).toBe(before + 1);
+    expect(critics.jobs.at(-1)!.options).toEqual({ run_hard: true, run_soft: true, contact_sheets: true, prompts: { "0": RED } });
+    await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
+    const [row] = await getDb().select().from(datasets).where(eq(datasets.id, dsB));
+    expect(row).toMatchObject({ analysisStatus: "done", analysisPass: "full", analysedPrompts: { "0": RED } });
+    // the critics judged episode 0 with the corrected prompt and said what was recorded
+    expect((row!.report as DatasetReport).episodes[0]).toMatchObject({ task: RED, recorded_task: RED });
+    const rows = await episodesOf(dsB);
+    expect(rows[0]!.promptOverride).toBe(RED);
+    expect(await actions()).toContain("dataset.analysis_started");
+    await giveFeatures(dsB);
+
+    expect((await testFetcher.get(app, `${base}/datasets/${dsB}/prompts`, token)).jsonResponse).toMatchObject({ analysisStatus: "done", promptsChangedSinceAnalysis: false });
+    // a correction after the analysis: the dataset is analysed again on request, never on its own
+    await testFetcher.put(app, `${base}/datasets/${dsB}/prompts`, token, { episodes: [{ index: 3, prompt: "pick the blue cup" }] });
+    expect(critics.jobs.length).toBe(before + 1);
+    expect((await testFetcher.get(app, `${base}/datasets/${dsB}/prompts`, token)).jsonResponse.promptsChangedSinceAnalysis).toBe(true);
+    const again = await testFetcher.post(app, `${base}/datasets/${dsB}/analyse`, token, {});
+    expect(again.status).toBe(200);
+    expect(again.jsonResponse.analysedPrompts).toEqual({ "0": RED, "3": "pick the blue cup" });
+    expect((await testFetcher.post(app, `${base}/datasets/${dsB}/analyse`, token, {})).status).toBe(409);
+    await testFetcher.get(app, `${base}/datasets/${dsB}`, token);
+    await testFetcher.put(app, `${base}/datasets/${dsB}/prompts`, token, { episodes: [{ index: 3, prompt: null }] });
+    await giveFeatures(dsB);
+    // the fixture's report records RED for every episode: the stand-in prompt of B comes back for what follows
+    await getDb().update(episodes).set({ task: "wrong prompt" }).where(and(eq(episodes.datasetId, dsB), eq(episodes.index, 0)));
+    expect((await testFetcher.post(app, `${base}/datasets/${dsB}/analyse`, token2, {})).status).toBe(403);
   });
 
   test("paraphrases are the skill's: empty lists are dropped, the prompt itself never counts as its own variant", async () => {
@@ -212,6 +266,8 @@ describe("Prompts and shortcuts", () => {
     await giveFeatures(up.jsonResponse.id);
     const withEval = await testFetcher.get(app, `${base}/skills/${skillId}/selection/shortcuts`, token);
     expect(withEval.jsonResponse).toMatchObject({ episodes: 4, evaluationEpisodes: 4 });
+    // which evaluation the start poses are compared with: the dataset, its day and the policy tested
+    expect(withEval.jsonResponse.evaluationDatasets).toEqual([{ id: up.jsonResponse.id, name: "rollouts", date: "2026-11-16", policyName: "v1", episodes: 4 }]);
     call = critics.analyses.at(-1)!;
     expect(call.body.evaluation).toHaveLength(4);
     expect(withEval.jsonResponse.analysis.evaluation.n).toBe(4);

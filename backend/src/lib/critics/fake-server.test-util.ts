@@ -259,10 +259,16 @@ export function startFakeCritics(): FakeCritics {
         }
         if (rest === "/report") {
           // a run over episodes picked by number answers with those episodes (made from the fixture's)
-          const picked = (job.options as { episodes?: number[] } | null)?.episodes;
-          const episodes = picked
+          const options = job.options as { episodes?: number[]; prompts?: Record<string, string> } | null;
+          const picked = options?.episodes;
+          const judged = picked
             ? picked.map((n) => ({ ...structuredClone(current.report.episodes[n % current.report.episodes.length]), episode: n }))
             : current.report.episodes;
+          // corrected prompts: the episode is judged with one, the recorded task is kept beside it
+          const prompts = options?.prompts ?? {};
+          const episodes = judged.map((e: { episode: number; task: string }) =>
+            prompts[String(e.episode)] ? { ...e, task: prompts[String(e.episode)], recorded_task: e.task } : e,
+          );
           return json({ ...current.report, episodes, dataset_episodes: 200, dataset_name: job.dataset, spec_name: typeof job.spec === "string" ? job.spec : report.spec_name });
         }
         const videos = /^\/episodes\/(\d+)\/videos$/.exec(rest);

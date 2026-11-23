@@ -104,7 +104,8 @@ export async function getSelection(tenantId: string, skillId: string): Promise<S
     .innerJoin(blocks, eq(blocks.id, datasets.blockId))
     .innerJoin(dayProtocols, eq(dayProtocols.id, datasets.dayProtocolId))
     .innerJoin(cells, eq(cells.id, dayProtocols.cellId))
-    .where(and(eq(datasets.skillId, skillId), eq(datasets.tenantId, tenantId), eq(blocks.kind, "recording")))
+    // a dataset only measured so far is not judged yet: it enters the selection with its analysis
+    .where(and(eq(datasets.skillId, skillId), eq(datasets.tenantId, tenantId), eq(blocks.kind, "recording"), eq(datasets.analysisPass, "full")))
     .orderBy(asc(datasets.createdAt));
   const epRows = dsRows.length
     ? await getDb()

@@ -50,6 +50,7 @@ import { ensureDay, getDayRow } from "./day-protocols";
 import { ConflictError, InvalidInputError, NotFoundError, TokenError, UpstreamError } from "./errors";
 import { formatEpisodeSelection, parseEpisodeSelection } from "./episode-selection";
 import { planStepsFromRunSheet, RUN_SHEET_MAX_ROWS } from "./run-sheet";
+import { analyseBlock } from "./datasets";
 import { effectiveVerdictSql } from "./evaluations";
 import { getPolicyRow, getSkillRow } from "./skills";
 import { blockTimes, closeIntervals, openInterval, teleopMinutes as teleopMinutesOf, type BlockTimes } from "./teleop";
@@ -122,7 +123,8 @@ async function totalsFor(blockIds: string[]): Promise<Map<string, EpisodeTotals>
     })
     .from(datasets)
     .innerJoin(episodes, eq(episodes.datasetId, datasets.id))
-    .where(inArray(datasets.blockId, blockIds))
+    // the episodes of a measuring pass are not judged yet
+    .where(and(inArray(datasets.blockId, blockIds), eq(datasets.analysisPass, "full")))
     .groupBy(datasets.blockId);
   for (const r of rows) {
     out.set(r.blockId, {
@@ -417,6 +419,9 @@ export async function setStep(tenantId: string, actor: Actor, id: string, step: 
   if (step === "closed") return closeBlock(tenantId, actor, id);
   if (step === "recording") return startRecording(tenantId, actor, id);
   if (step === "selection" && row.kind === "evaluation") throw new ConflictError("An evaluation has no episode selection");
+  // the review of a recording is where its analysis starts: every dataset only measured so far
+  // is analysed now, with the prompts corrected at the upload (lib/gym/datasets.ts)
+  if (step === "review" && row.kind === "recording") await analyseBlock(tenantId, actor, id);
   const now = new Date().toISOString();
   const patch: Partial<BlockSelect> = { step, updatedAt: now };
   if (row.teleopIntervals?.some((i) => !i.endedAt)) {
