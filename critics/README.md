@@ -272,6 +272,11 @@ frequent class) means the signal carries nothing.
 | layout | grasp positions on an 8 cm grid: cells that held more than one target, spread per prompt, does the position tell the prompt? | `POSITION_CUE` |
 | evaluation | do the rollouts of an evaluation start among the recorded start poses, and which arm does their start pose point at? | `EVAL_START_OUT_OF_RANGE`, `EVAL_START_CUE` |
 
+One flag can rest on two tests (`START_CUE` on the arm and on the prompt). Every test therefore
+says whether it raised the finding itself (`cue: true`), and `findings` names per flag the tests
+it rests on and whether it is about the recordings or about the evaluation's rollouts
+(`{"EVAL_START_CUE": {"scope": "evaluation", "tests": ["evaluation", "start_cue.arm"]}}`).
+
 Over one run the figures are in the run summary (`dataset_summaries.diversity.shortcuts`) and the
 session profile. Over a **selection** of any number of runs the owner of the data posts the
 mirrored `diversity` metrics to `POST /analyses/shortcuts` (with the rollouts under `evaluation`);

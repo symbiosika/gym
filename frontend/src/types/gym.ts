@@ -1193,6 +1193,15 @@ export interface CueTest {
   classes: number
   scenes: number
   method: 'knn' | 'logistic'
+  /** this test raised the finding it belongs to */
+  cue?: boolean
+}
+
+/** what a finding over a selection rests on: the tests behind it, about the recordings or the evaluation's rollouts */
+export interface ShortcutFinding {
+  scope: 'recordings' | 'evaluation'
+  /** "start_cue.arm", "background.prompt", "layout.position_cue", "evaluation", "counterfactual" */
+  tests: string[]
 }
 
 export interface ShortcutAnalysis {
@@ -1227,6 +1236,8 @@ export interface ShortcutAnalysis {
   } | null
   /** the critics' findings in their words */
   flags: Record<string, string>
+  /** per flag: the tests it rests on and its scope */
+  findings?: Record<string, ShortcutFinding>
 }
 
 export interface SelectionShortcuts {

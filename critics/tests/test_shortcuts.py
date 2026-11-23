@@ -101,11 +101,22 @@ def test_a_start_pose_that_tells_the_arm_is_flagged():
     out = analyse(_episodes(cue=True))
     assert out["start_cue"]["arm"]["accuracy"] == 1.0
     assert "START_CUE" in out["flags"]
+    # the finding says which of the two start-pose tests it rests on, and each test says so itself
+    assert out["start_cue"]["arm"]["cue"] is True
+    assert out["findings"]["START_CUE"]["scope"] == "recordings"
+    assert "start_cue.arm" in out["findings"]["START_CUE"]["tests"]
+    assert "recordings" in out["flags"]["START_CUE"]
+    for what in ("arm", "prompt"):
+        test = out["start_cue"][what]
+        if test is not None:
+            assert test["cue"] == (f"start_cue.{what}" in out["findings"]["START_CUE"]["tests"])
 
 
 def test_no_cue_no_flag_and_counterfactual_scenes_count():
     out = analyse(_episodes())
     assert "START_CUE" not in out["flags"]
+    assert "START_CUE" not in out["findings"]
+    assert out["start_cue"]["arm"]["cue"] is False
     cf = out["counterfactual"]
     assert cf["scenes_multi_prompt"] == 1.0
     assert cf["episodes_with_partner"] == 1.0
@@ -140,11 +151,16 @@ def test_evaluation_starts_out_of_range_and_one_sided():
     assert out["evaluation"]["n"] == 4
     assert out["evaluation"]["in_range"] == 0.0
     assert "EVAL_START_OUT_OF_RANGE" in out["flags"]
+    assert out["findings"]["EVAL_START_OUT_OF_RANGE"] == {"scope": "evaluation", "tests": ["evaluation"]}
     near = [Episode(str(i), "ev", i, "red", None, train[1].start, None, None, None, None) for i in range(5)]
     out = analyse(train, near)
     assert out["evaluation"]["in_range"] == 1.0
     assert out["evaluation"]["predicted_arm"] == {"left": 5}
     assert "EVAL_START_CUE" in out["flags"]
+    assert out["findings"]["EVAL_START_CUE"] == {
+        "scope": "evaluation",
+        "tests": ["evaluation", "start_cue.arm"],
+    }
 
 
 def test_a_wrong_prompt_is_proposed_from_the_reference():

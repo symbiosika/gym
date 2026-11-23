@@ -304,6 +304,15 @@ export interface CueTest {
   classes: number;
   scenes: number;
   method: "knn" | "logistic";
+  /** this test raised the finding it belongs to (an older critics service leaves it out) */
+  cue?: boolean;
+}
+
+/** What a finding over a selection rests on: the tests behind it, and whether it is about the recordings or the evaluation's rollouts. */
+export interface ShortcutFinding {
+  scope: "recordings" | "evaluation";
+  /** paths into the analysis: "start_cue.arm", "background.prompt", "layout.position_cue", "evaluation", "counterfactual" */
+  tests: string[];
 }
 
 /** The critics' shortcut figures over a selection (lerobot_critics.shortcuts.analyse). */
@@ -338,6 +347,8 @@ export interface ShortcutAnalysis {
     arm_confidence: number | null;
   } | null;
   flags: Record<string, string>;
+  /** per flag: the tests it rests on and its scope (an older critics service leaves it out) */
+  findings?: Record<string, ShortcutFinding>;
 }
 
 export type PromptCheckStatus = "ok" | "propose" | "review" | "no_signature";

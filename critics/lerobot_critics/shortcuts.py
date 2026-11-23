@@ -534,29 +534,49 @@ def analyse(
         "layout": _layout(eps, scenes, p),
         "evaluation": _evaluation(eps, evaluation or [], p),
     }
+    # every test says whether it raised a finding itself (``cue``), so a reader can tell which of
+    # two tests behind one finding it was; ``findings`` names, per flag, the tests it rests on and
+    # whether it is about the recordings or about the evaluation's rollouts
+    for test in (
+        out["background"]["prompt"],
+        out["background"]["arm"],
+        out["start_cue"]["arm"],
+        out["start_cue"]["prompt"],
+        out["end_cue"]["prompt"],
+        (out["layout"] or {}).get("position_cue"),
+    ):
+        if test is not None:
+            test["cue"] = _cue(test, p)
     flags: dict[str, str] = {}
+    findings: dict[str, dict[str, Any]] = {}
+
+    def _told(group: dict, what: list[str]) -> str:
+        return " and ".join(
+            f"the {w} in {group[w]['accuracy']:.0%} of {group[w]['n']} episodes (chance {group[w]['chance']:.0%})"
+            for w in what
+        )
+
     bg = out["background"]
-    for what in ("prompt", "arm"):
-        if _cue(bg[what], p):
-            cv = bg[what]
-            flags["BACKGROUND_CUE"] = (
-                f"The first camera image tells the {what} of a scene it never saw in {cv['accuracy']:.0%} of "
-                f"{cv['n']} episodes (chance {cv['chance']:.0%}). Every {what} was recorded in front of its own "
-                "set-up; record each set-up with several prompts and arms."
-            )
-            break
+    hit = [w for w in ("prompt", "arm") if _cue(bg[w], p)]
+    if hit:
+        flags["BACKGROUND_CUE"] = (
+            f"The first camera image tells {_told(bg, hit)}, for scenes it never saw. Every "
+            f"{' and '.join(hit)} was recorded in front of its own set-up; record each set-up with several "
+            "prompts and arms."
+        )
+        findings["BACKGROUND_CUE"] = {"scope": "recordings", "tests": [f"background.{w}" for w in hit]}
     st = out["start_cue"]
-    for what in ("arm", "prompt"):
-        if _cue(st[what], p):
-            cv = st[what]
-            flags["START_CUE"] = (
-                f"The robot state in the first frame tells the {what} in {cv['accuracy']:.0%} of {cv['n']} episodes "
-                f"(chance {cv['chance']:.0%}, scenes held out). The policy can choose before it looks; start every "
-                "episode from the same pose, whatever the prompt."
-            )
-            break
+    hit = [w for w in ("arm", "prompt") if _cue(st[w], p)]
+    if hit:
+        flags["START_CUE"] = (
+            f"The robot state in the first frame of the recordings tells {_told(st, hit)}, scenes held out. "
+            "The policy can choose before it looks; start every episode from the same pose, whatever the "
+            "prompt."
+        )
+        findings["START_CUE"] = {"scope": "recordings", "tests": [f"start_cue.{w}" for w in hit]}
     cf = out["counterfactual"]
     if cf and cf["episodes_with_partner"] < p["counterfactual_share"]:
+        findings["FEW_COUNTERFACTUALS"] = {"scope": "recordings", "tests": ["counterfactual"]}
         flags["FEW_COUNTERFACTUALS"] = (
             f"Only {cf['episodes_with_partner']:.0%} of the episodes share their scene with another prompt. The "
             "prompt rarely has to choose between objects that are both in view; record several prompts per scene."
@@ -564,6 +584,7 @@ def analyse(
     lay = out["layout"]
     if lay and _cue(lay["position_cue"], p):
         cv = lay["position_cue"]
+        findings["POSITION_CUE"] = {"scope": "recordings", "tests": ["layout.position_cue"]}
         flags["POSITION_CUE"] = (
             f"The grasp position tells the prompt in {cv['accuracy']:.0%} of {cv['n']} episodes (chance "
             f"{cv['chance']:.0%}); only {lay['cells_multi_prompt']:.0%} of the {lay['cell_cm']:g} cm cells ever held "
@@ -572,6 +593,7 @@ def analyse(
     ev = out["evaluation"]
     if ev:
         if ev["in_range"] < p["eval_in_range_share"]:
+            findings["EVAL_START_OUT_OF_RANGE"] = {"scope": "evaluation", "tests": ["evaluation"]}
             flags["EVAL_START_OUT_OF_RANGE"] = (
                 f"Only {ev['in_range']:.0%} of {ev['n']} evaluation starts lie among the recorded starts (median "
                 f"distance {ev['distance_ratio_median']:g} times the usual gap). The policy starts from a pose it "
@@ -580,12 +602,15 @@ def analyse(
         pa = ev.get("predicted_arm") or {}
         if pa and _cue(st["arm"], p) and max(pa.values()) / sum(pa.values()) >= p["eval_one_arm_share"]:
             arm = max(pa, key=pa.get)
+            # rests on the recordings' start pose telling the arm, read on the rollouts' start poses
+            findings["EVAL_START_CUE"] = {"scope": "evaluation", "tests": ["evaluation", "start_cue.arm"]}
             flags["EVAL_START_CUE"] = (
                 f"The evaluation start pose looks like a '{arm}' start in {max(pa.values())} of {sum(pa.values())} "
                 "rollouts, and the start pose tells the arm in the recordings: the policy is pointed at one arm "
                 "before it reads the prompt."
             )
     out["flags"] = flags
+    out["findings"] = findings
     return out
 
 

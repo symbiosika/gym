@@ -585,12 +585,12 @@
         "scenesMulti": "{share} of {scenes} scenes with several prompts",
         "onePrompt": "only one prompt in the selection",
         "flag": {
-          "BACKGROUND_CUE": "Background",
-          "START_CUE": "Start pose",
+          "BACKGROUND_CUE": "Background (recordings)",
+          "START_CUE": "Start pose (recordings)",
           "FEW_COUNTERFACTUALS": "Few counterfactuals",
-          "POSITION_CUE": "Position",
-          "EVAL_START_OUT_OF_RANGE": "Evaluation start",
-          "EVAL_START_CUE": "Evaluation start"
+          "POSITION_CUE": "Grasp position (recordings)",
+          "EVAL_START_OUT_OF_RANGE": "Evaluation: unknown start poses",
+          "EVAL_START_CUE": "Evaluation: start points to one arm"
         },
         "scenes": "Scenes",
         "scenesFound": "{n} scenes (same first image, consecutive):",
@@ -612,9 +612,13 @@
           "tipBase": "{n} episodes · {scenes} scenes · {classes} classes",
           "tipFlag": "finding of the critics: {flag}"
         },
-        "evaluationFrom": "Rollouts compared, from:",
         "policy": "policy {name}",
-        "rolloutsOf": "{n} rollouts"
+        "rolloutsOf": "{n} rollouts",
+        "findingsRecordings": "Findings on the recordings",
+        "restsOn": "from: {tests}",
+        "evaluationTest": "the evaluation's start poses",
+        "evaluationTitle": "Evaluation: start poses of the rollouts against the recordings",
+        "evaluationNoFinding": "No finding on the evaluation."
       }
     },
     "cell": "Cell",

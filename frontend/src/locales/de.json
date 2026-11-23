@@ -585,12 +585,12 @@
         "scenesMulti": "{share} von {scenes} Szenen mit mehreren Prompts",
         "onePrompt": "nur ein Prompt in der Auswahl",
         "flag": {
-          "BACKGROUND_CUE": "Hintergrund",
-          "START_CUE": "Startpose",
+          "BACKGROUND_CUE": "Hintergrund (Aufnahmen)",
+          "START_CUE": "Startpose (Aufnahmen)",
           "FEW_COUNTERFACTUALS": "Wenig Gegenbeispiele",
-          "POSITION_CUE": "Position",
-          "EVAL_START_OUT_OF_RANGE": "Evaluierungsstart",
-          "EVAL_START_CUE": "Evaluierungsstart"
+          "POSITION_CUE": "Greifposition (Aufnahmen)",
+          "EVAL_START_OUT_OF_RANGE": "Evaluierung: unbekannte Startposen",
+          "EVAL_START_CUE": "Evaluierung: Start zeigt auf einen Arm"
         },
         "scenes": "Szenen",
         "scenesFound": "{n} Szenen (gleiches erstes Bild, aufeinanderfolgend):",
@@ -612,9 +612,13 @@
           "tipBase": "{n} Episoden · {scenes} Szenen · {classes} Klassen",
           "tipFlag": "Befund der Critics: {flag}"
         },
-        "evaluationFrom": "Verglichene Rollouts, aus:",
         "policy": "Policy {name}",
-        "rolloutsOf": "{n} Rollouts"
+        "rolloutsOf": "{n} Rollouts",
+        "findingsRecordings": "Befunde zu den Aufnahmen",
+        "restsOn": "aus: {tests}",
+        "evaluationTest": "die Startposen der Evaluierung",
+        "evaluationTitle": "Evaluierung: Startposen der Rollouts gegen die Aufnahmen",
+        "evaluationNoFinding": "Kein Befund zur Evaluierung."
       }
     },
     "cell": "Zelle",

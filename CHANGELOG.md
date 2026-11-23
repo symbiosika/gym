@@ -58,7 +58,10 @@ Shortcuts over the selection, and prompts that fit what was picked.
   prompts are not aligned yet do not teach it wrong ones. Yellow dots show
   while the critics measure a dataset or compute the check.
 - Pre-Train names the evaluation datasets (day, policy, rollouts) whose start
-  poses are compared with the recordings.
+  poses are compared with the recordings, in a panel of their own with the
+  findings about the evaluation. The critics say which test a finding rests
+  on (`cue` per test, `findings` per flag with its scope), so a tile is marked
+  only when its own test raised it, and every finding names its tests.
 - The guided tour explains the prompt check (critic specs) and the shortcuts
   (Pre-Train), and the two steps of the upload.
 

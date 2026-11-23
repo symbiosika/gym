@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { gymApi } from '@/api/gym'
 import { fmtDate } from '@/utils/time'
-import type { CueTest, SelectionShortcuts } from '@/types/gym'
+import type { CueTest, SelectionShortcuts, ShortcutFinding } from '@/types/gym'
 import ShortcutRadar, { type RadarAxis } from '@/components/skill/ShortcutRadar.vue'
 
 /**
@@ -11,8 +11,12 @@ import ShortcutRadar, { type RadarAxis } from '@/components/skill/ShortcutRadar.
  * the prompt. The data critics compute every figure (`/analyses/shortcuts`)
  * from what they measured per episode; each test holds whole scenes out and
  * says how often a signal still tells the prompt or the arm, against chance.
- * GYM only shows it. A tile is marked only where the critics raised the
- * matching finding, in their words below the tiles.
+ * GYM only shows it. A tile is marked only where the critics say its test
+ * raised a finding (`cue`), and every finding names the tests it rests on
+ * (`findings`): one finding can rest on two tests, and two findings can be
+ * about the start pose, one over the recordings, one over the evaluation.
+ * Findings about the recordings sit beside the plot, findings about the
+ * evaluation's rollouts in a panel of their own that names those datasets.
  *
  * Over the whole selection or one dataset of it; the rollouts of the skill's
  * evaluations are compared by their start poses, never selected.
@@ -51,11 +55,18 @@ const scopes = computed(() => [
   ...Object.entries(props.names).map(([value, label]) => ({ value, label })),
 ])
 const a = computed(() => data.value?.analysis ?? null)
-const flags = computed(() => Object.entries(a.value?.flags ?? {}))
+/** the scope and the tests of a finding; an older critics service named neither, then its name tells the scope */
+const findingOf = (flag: string): ShortcutFinding =>
+  a.value?.findings?.[flag] ?? { scope: flag.startsWith('EVAL_') ? 'evaluation' : 'recordings', tests: [] }
+const flags = computed(() => Object.entries(a.value?.flags ?? {}).map(([flag, text]) => ({ flag, text, ...findingOf(flag) })))
+const recordingFlags = computed(() => flags.value.filter((f) => f.scope === 'recordings'))
+const evaluationFlags = computed(() => flags.value.filter((f) => f.scope === 'evaluation'))
 const pct = (v: number | null | undefined) => (v == null ? '–' : `${Math.round(v * 100)} %`)
 
 interface Tile {
   key: string
+  /** where the test lies in the critics' answer, as their findings name it */
+  path: string
   test: CueTest | null
   flag: string
 }
@@ -63,14 +74,31 @@ const tiles = computed<Tile[]>(() => {
   const x = a.value
   if (!x) return []
   return [
-    { key: 'backgroundPrompt', test: x.background.prompt, flag: 'BACKGROUND_CUE' },
-    { key: 'backgroundArm', test: x.background.arm, flag: 'BACKGROUND_CUE' },
-    { key: 'startArm', test: x.start_cue.arm, flag: 'START_CUE' },
-    { key: 'startPrompt', test: x.start_cue.prompt, flag: 'START_CUE' },
-    { key: 'positionPrompt', test: x.layout?.position_cue ?? null, flag: 'POSITION_CUE' },
+    { key: 'backgroundPrompt', path: 'background.prompt', test: x.background.prompt, flag: 'BACKGROUND_CUE' },
+    { key: 'backgroundArm', path: 'background.arm', test: x.background.arm, flag: 'BACKGROUND_CUE' },
+    { key: 'startArm', path: 'start_cue.arm', test: x.start_cue.arm, flag: 'START_CUE' },
+    { key: 'startPrompt', path: 'start_cue.prompt', test: x.start_cue.prompt, flag: 'START_CUE' },
+    { key: 'positionPrompt', path: 'layout.position_cue', test: x.layout?.position_cue ?? null, flag: 'POSITION_CUE' },
   ]
 })
-const flagged = (tile: Tile) => !!tile.test && tile.flag in (a.value?.flags ?? {})
+/** the test itself raised the finding: the critics say so per test; an older answer only per finding */
+const flagged = (tile: Tile) => !!tile.test && (tile.test.cue ?? tile.flag in (a.value?.flags ?? {}))
+const TILE_OF: Record<string, string> = {
+  'background.prompt': 'backgroundPrompt',
+  'background.arm': 'backgroundArm',
+  'start_cue.arm': 'startArm',
+  'start_cue.prompt': 'startPrompt',
+  'layout.position_cue': 'positionPrompt',
+  counterfactual: 'counterfactual',
+}
+/** what a finding rests on, in the words of the tiles */
+const testLabel = (path: string) =>
+  TILE_OF[path]
+    ? t(`skill.episodesTab.shortcuts.tile.${TILE_OF[path]}`)
+    : path === 'evaluation'
+      ? t('skill.episodesTab.shortcuts.evaluationTest')
+      : path
+const restsOn = (tests: string[]) => tests.map(testLabel).join(' · ')
 /** the same tests as a spider plot: hit rate against chance per axis */
 const radarAxes = computed<RadarAxis[]>(() =>
   tiles.value.map((tile) => ({
@@ -157,13 +185,71 @@ const sceneSizes = computed(() =>
           <p class="text-xs text-surface-500 dark:text-surface-400" data-testid="shortcut-how-to-read">
             {{ t('skill.episodesTab.shortcuts.howToRead') }}
           </p>
-          <ul v-if="flags.length" class="mt-3 flex flex-col gap-1.5" data-testid="shortcut-flags">
-            <li v-for="[flag, text] in flags" :key="flag" class="gym-note text-sm">
-              <Pill tone="warn" class="me-1.5">{{ flagLabel(flag) }}</Pill
-              >{{ text }}
+          <h4 v-if="recordingFlags.length" class="mt-3 mb-1.5 text-sm font-medium">
+            {{ t('skill.episodesTab.shortcuts.findingsRecordings') }}
+          </h4>
+          <ul v-if="recordingFlags.length" class="flex flex-col gap-1.5" data-testid="shortcut-flags">
+            <li v-for="f in recordingFlags" :key="f.flag" class="gym-note border-s-warn text-sm">
+              <div class="mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <Pill tone="warn">{{ flagLabel(f.flag) }}</Pill>
+                <span v-if="f.tests.length" class="text-xs text-surface-500 dark:text-surface-400">
+                  {{ t('skill.episodesTab.shortcuts.restsOn', { tests: restsOn(f.tests) }) }}
+                </span>
+              </div>
+              {{ f.text }}
             </li>
           </ul>
         </div>
+      </div>
+
+      <!-- the evaluation: its rollouts' start poses against the recordings', and the findings about them -->
+      <div v-if="a.evaluation" class="gym-panel mt-4 p-3.5 text-sm" data-testid="shortcut-evaluation">
+        <h4 class="mb-1 font-medium">{{ t('skill.episodesTab.shortcuts.evaluationTitle') }}</h4>
+        <ul
+          v-if="data?.evaluationDatasets.length"
+          class="mb-2 flex flex-col gap-0.5 text-xs"
+          data-testid="shortcut-evaluation-datasets"
+        >
+          <li v-for="d in data.evaluationDatasets" :key="d.id" class="text-surface-600 dark:text-surface-300">
+            <b class="font-medium">{{ d.name }}</b>
+            · {{ fmtDate(d.date, locale) }}
+            <template v-if="d.policyName"> · {{ t('skill.episodesTab.shortcuts.policy', { name: d.policyName }) }}</template>
+            · {{ t('skill.episodesTab.shortcuts.rolloutsOf', { n: d.episodes }) }}
+          </li>
+        </ul>
+        <p class="text-surface-600 dark:text-surface-300">
+          {{
+            t('skill.episodesTab.shortcuts.evaluation', {
+              n: a.evaluation.n,
+              share: pct(a.evaluation.in_range),
+              ratio: a.evaluation.distance_ratio_median,
+            })
+          }}
+          <template v-if="a.evaluation.predicted_arm">
+            ·
+            {{
+              t('skill.episodesTab.shortcuts.evaluationArm', {
+                arms: Object.entries(a.evaluation.predicted_arm)
+                  .map(([arm, n]) => `${arm} ${n}`)
+                  .join(', '),
+              })
+            }}
+          </template>
+        </p>
+        <ul v-if="evaluationFlags.length" class="mt-2 flex flex-col gap-1.5" data-testid="shortcut-evaluation-flags">
+          <li v-for="f in evaluationFlags" :key="f.flag" class="gym-note border-s-warn text-sm">
+            <div class="mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Pill tone="warn">{{ flagLabel(f.flag) }}</Pill>
+              <span v-if="f.tests.length" class="text-xs text-surface-500 dark:text-surface-400">
+                {{ t('skill.episodesTab.shortcuts.restsOn', { tests: restsOn(f.tests) }) }}
+              </span>
+            </div>
+            {{ f.text }}
+          </li>
+        </ul>
+        <p v-else class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+          {{ t('skill.episodesTab.shortcuts.evaluationNoFinding') }}
+        </p>
       </div>
 
       <div class="mt-4 grid gap-4 lg:grid-cols-2">
@@ -176,41 +262,6 @@ const sceneSizes = computed(() =>
           <p v-if="a.counterfactual?.answered_by_arm != null" class="mt-1 text-surface-600 dark:text-surface-300">
             {{ t('skill.episodesTab.shortcuts.answeredByArm', { share: pct(a.counterfactual.answered_by_arm) }) }}
           </p>
-          <p v-if="a.evaluation" class="mt-1 text-surface-600 dark:text-surface-300" data-testid="shortcut-evaluation">
-            {{
-              t('skill.episodesTab.shortcuts.evaluation', {
-                n: a.evaluation.n,
-                share: pct(a.evaluation.in_range),
-                ratio: a.evaluation.distance_ratio_median,
-              })
-            }}
-            <template v-if="a.evaluation.predicted_arm">
-              ·
-              {{
-                t('skill.episodesTab.shortcuts.evaluationArm', {
-                  arms: Object.entries(a.evaluation.predicted_arm)
-                    .map(([arm, n]) => `${arm} ${n}`)
-                    .join(', '),
-                })
-              }}
-            </template>
-          </p>
-          <!-- which evaluation those start poses come from -->
-          <div
-            v-if="a.evaluation && data?.evaluationDatasets.length"
-            class="mt-1 text-xs"
-            data-testid="shortcut-evaluation-datasets"
-          >
-            <span class="text-surface-500 dark:text-surface-400">{{ t('skill.episodesTab.shortcuts.evaluationFrom') }}</span>
-            <ul class="mt-0.5 flex flex-col gap-0.5">
-              <li v-for="d in data.evaluationDatasets" :key="d.id" class="text-surface-600 dark:text-surface-300">
-                <b class="font-medium">{{ d.name }}</b>
-                · {{ fmtDate(d.date, locale) }}
-                <template v-if="d.policyName"> · {{ t('skill.episodesTab.shortcuts.policy', { name: d.policyName }) }}</template>
-                · {{ t('skill.episodesTab.shortcuts.rolloutsOf', { n: d.episodes }) }}
-              </li>
-            </ul>
-          </div>
           <p v-if="data && data.withoutFeatures" class="mt-1 text-xs text-surface-500 dark:text-surface-400">
             {{ t('skill.episodesTab.shortcuts.without', { n: data.withoutFeatures }) }}
           </p>
