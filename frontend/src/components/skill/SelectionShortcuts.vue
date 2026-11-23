@@ -2,7 +2,9 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { gymApi } from '@/api/gym'
+import { fmtDate } from '@/utils/time'
 import type { CueTest, SelectionShortcuts } from '@/types/gym'
+import ShortcutRadar, { type RadarAxis } from '@/components/skill/ShortcutRadar.vue'
 
 /**
  * Shortcuts over the selection: what a policy could learn instead of reading
@@ -23,7 +25,7 @@ const props = defineProps<{
   /** bumped by the caller when the selection changed */
   version?: number
 }>()
-const { t, te } = useI18n()
+const { t, te, locale } = useI18n()
 
 const scope = ref<string>('')
 const data = ref<SelectionShortcuts | null>(null)
@@ -69,6 +71,16 @@ const tiles = computed<Tile[]>(() => {
   ]
 })
 const flagged = (tile: Tile) => !!tile.test && tile.flag in (a.value?.flags ?? {})
+/** the same tests as a spider plot: hit rate against chance per axis */
+const radarAxes = computed<RadarAxis[]>(() =>
+  tiles.value.map((tile) => ({
+    key: tile.key,
+    label: t(`skill.episodesTab.shortcuts.tile.${tile.key}`),
+    test: tile.test,
+    flagged: flagged(tile),
+    flag: flagLabel(tile.flag),
+  })),
+)
 const sub = (test: CueTest | null) =>
   test
     ? t('skill.episodesTab.shortcuts.chance', { chance: pct(test.chance), n: test.n, scenes: test.scenes })
@@ -139,13 +151,20 @@ const sceneSizes = computed(() =>
           :tone="'FEW_COUNTERFACTUALS' in a.flags ? 'warn' : 'neutral'"
         />
       </div>
-
-      <ul v-if="flags.length" class="mt-3 flex flex-col gap-1.5" data-testid="shortcut-flags">
-        <li v-for="[flag, text] in flags" :key="flag" class="gym-note text-sm">
-          <Pill tone="warn" class="me-1.5">{{ flagLabel(flag) }}</Pill
-          >{{ text }}
-        </li>
-      </ul>
+      <div class="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,30rem)_1fr]">
+        <ShortcutRadar :axes="radarAxes" />
+        <div>
+          <p class="text-xs text-surface-500 dark:text-surface-400" data-testid="shortcut-how-to-read">
+            {{ t('skill.episodesTab.shortcuts.howToRead') }}
+          </p>
+          <ul v-if="flags.length" class="mt-3 flex flex-col gap-1.5" data-testid="shortcut-flags">
+            <li v-for="[flag, text] in flags" :key="flag" class="gym-note text-sm">
+              <Pill tone="warn" class="me-1.5">{{ flagLabel(flag) }}</Pill
+              >{{ text }}
+            </li>
+          </ul>
+        </div>
+      </div>
 
       <div class="mt-4 grid gap-4 lg:grid-cols-2">
         <div class="gym-panel p-3.5 text-sm">
@@ -176,6 +195,22 @@ const sceneSizes = computed(() =>
               }}
             </template>
           </p>
+          <!-- which evaluation those start poses come from -->
+          <div
+            v-if="a.evaluation && data?.evaluationDatasets.length"
+            class="mt-1 text-xs"
+            data-testid="shortcut-evaluation-datasets"
+          >
+            <span class="text-surface-500 dark:text-surface-400">{{ t('skill.episodesTab.shortcuts.evaluationFrom') }}</span>
+            <ul class="mt-0.5 flex flex-col gap-0.5">
+              <li v-for="d in data.evaluationDatasets" :key="d.id" class="text-surface-600 dark:text-surface-300">
+                <b class="font-medium">{{ d.name }}</b>
+                · {{ fmtDate(d.date, locale) }}
+                <template v-if="d.policyName"> · {{ t('skill.episodesTab.shortcuts.policy', { name: d.policyName }) }}</template>
+                · {{ t('skill.episodesTab.shortcuts.rolloutsOf', { n: d.episodes }) }}
+              </li>
+            </ul>
+          </div>
           <p v-if="data && data.withoutFeatures" class="mt-1 text-xs text-surface-500 dark:text-surface-400">
             {{ t('skill.episodesTab.shortcuts.without', { n: data.withoutFeatures }) }}
           </p>

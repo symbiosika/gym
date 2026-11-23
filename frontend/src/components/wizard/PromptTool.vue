@@ -18,8 +18,16 @@ import IconRenew from '~icons/carbon/renew'
  *   comes back as groups of episodes that look alike, to be named once each.
  *   Nothing is changed until the person saves; the upload itself is never
  *   rewritten, the merged export writes the prompt.
+ *   The check compares against the skill's other recording datasets, or the
+ *   ones the person picks: a dataset whose prompts are not aligned yet would
+ *   otherwise propose its own wrong ones.
  * - Paraphrases: per prompt of the skill a list of variants, spread evenly
  *   over its episodes in a merged export (with or without the prompt itself).
+ *
+ * A recording is checked here while it is only measured: the analysis the
+ * operator starts afterwards judges every episode with the prompt saved now.
+ * Prompts corrected after an analysis can be handed to the critics by
+ * analysing the dataset again.
  */
 const props = defineProps<{
   tenantId: string
@@ -30,6 +38,8 @@ const props = defineProps<{
   readonly?: boolean
 }>()
 const visible = defineModel<boolean>('visible', { required: true })
+/** a dataset is analysed again: the block it belongs to has moved on */
+const emit = defineEmits<{ analysed: [] }>()
 const { t } = useI18n()
 const ui = useUi()
 
@@ -51,17 +61,66 @@ const groupNames = ref<Record<number, string>>({})
 const variantText = ref<Record<string, string>>({})
 const keepOriginal = ref<Record<string, boolean>>({})
 
+/**
+ * The reference the check compares against, per checked dataset: the ids the
+ * person picked, null = every other recording dataset of the skill. Datasets
+ * whose prompts are not aligned yet would teach the check wrong prompts, so
+ * the choice is the person's. Kept in this browser only, a convenience.
+ */
+const reference = ref<string[] | null>(null)
+const referenceKey = (id: string) => `gym.promptReference.${id}`
+function rememberedReference(id: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(referenceKey(id))
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : null
+  } catch {
+    return null
+  }
+}
+function setReference(ids: string[]) {
+  reference.value = ids
+  try {
+    localStorage.setItem(referenceKey(datasetId.value), JSON.stringify(ids))
+  } catch {
+    // private window or blocked storage: the choice holds until the tool closes
+  }
+  void load()
+}
+function resetReference() {
+  reference.value = null
+  try {
+    localStorage.removeItem(referenceKey(datasetId.value))
+  } catch {
+    // nothing kept
+  }
+  void load()
+}
+const referenceOptions = computed(() =>
+  (view.value?.referenceDatasets ?? []).map((d) => ({
+    value: d.id,
+    label: d.name,
+    hint: t('prompts.referenceEpisodes', { n: d.reference, of: d.episodes }),
+    disabled: !d.reference,
+  })),
+)
+const referenceValue = computed(() => (view.value?.referenceDatasets ?? []).filter((d) => d.used).map((d) => d.id))
+
 watch(
   () => [visible.value, props.datasets.map((d) => d.id).join()],
   () => {
     if (!visible.value) return
     if (!props.datasets.some((d) => d.id === datasetId.value)) datasetId.value = props.datasets[0]?.id ?? ''
+    reference.value = rememberedReference(datasetId.value)
     void load()
   },
   { immediate: true },
 )
 watch(datasetId, (now, before) => {
-  if (before && now !== before) void load()
+  if (before && now !== before) {
+    reference.value = rememberedReference(now)
+    void load()
+  }
 })
 
 async function load() {
@@ -71,7 +130,8 @@ async function load() {
   edits.value = {}
   groupNames.value = {}
   try {
-    view.value = await gymApi.datasetPrompts(props.tenantId, datasetId.value)
+    // a dataset deleted since it was picked drops out of the choice by itself (the server ignores unknown ids)
+    view.value = await gymApi.datasetPrompts(props.tenantId, datasetId.value, reference.value)
     resetVariants(view.value.variants)
   } catch (e) {
     view.value = null
@@ -143,6 +203,23 @@ async function savePrompts() {
   }
 }
 
+const analysing = ref(false)
+/** hand the critics the prompts saved now: the dataset's verdicts are judged with them */
+async function analyseAgain() {
+  if (!view.value || props.readonly) return
+  analysing.value = true
+  try {
+    await gymApi.analyseDataset(props.tenantId, datasetId.value)
+    ui.showBanner('ok', t('prompts.analysisStarted', { name: view.value.datasetName }))
+    emit('analysed')
+    await load()
+  } catch (e) {
+    ui.showBanner('err', e instanceof Error ? e.message : String(e))
+  } finally {
+    analysing.value = false
+  }
+}
+
 /** the prompts paraphrases can be given for: the skill's selection and those that already have some */
 const variantPrompts = computed(() => {
   const counts = view.value?.selectionCounts ?? {}
@@ -192,6 +269,7 @@ async function saveVariants() {
         size="small"
         :aria-label="t('analysis.dataset')"
       />
+      <PendingDots v-if="loading" :label="t('prompts.checking')" data-testid="prompts-checking" />
       <SecondaryButton size="small" :loading="loading" :label="t('prompts.recheck')" @click="load">
         <template #icon><IconRenew /></template>
       </SecondaryButton>
@@ -202,9 +280,63 @@ async function saveVariants() {
 
     <!-- the check -->
     <template v-if="view && tab === 'check'">
+      <!-- what the check compares against: the person's pick of the skill's other datasets -->
+      <div class="mb-3 flex flex-wrap items-center gap-2 text-sm" data-testid="prompts-reference">
+        <span class="gym-field mb-0">{{ t('prompts.reference') }}</span>
+        <MultiSelect
+          v-if="referenceOptions.length"
+          :model-value="referenceValue"
+          :options="referenceOptions"
+          option-label="label"
+          option-value="value"
+          option-disabled="disabled"
+          display="chip"
+          :max-selected-labels="3"
+          :selected-items-label="t('prompts.referenceMany', { n: referenceValue.length })"
+          :placeholder="t('prompts.referenceNone')"
+          size="small"
+          class="max-w-xl min-w-64 grow"
+          :disabled="loading"
+          :aria-label="t('prompts.reference')"
+          @update:model-value="(v: string[]) => setReference(v)"
+        >
+          <template #option="{ option }">
+            <span class="flex w-full items-baseline gap-3">
+              <span class="truncate">{{ option.label }}</span>
+              <span class="ms-auto text-xs whitespace-nowrap text-surface-500">{{ option.hint }}</span>
+            </span>
+          </template>
+        </MultiSelect>
+        <span v-else class="text-surface-500">{{ t('prompts.referenceNoOther') }}</span>
+        <button
+          v-if="reference"
+          type="button"
+          class="text-primary cursor-pointer text-xs hover:underline"
+          @click="resetReference"
+        >
+          {{ t('prompts.referenceAll') }}
+        </button>
+      </div>
       <p class="mb-3 text-sm text-surface-600 dark:text-surface-300">
         {{ view.mode === 'groups' ? t('prompts.leadGroups') : view.mode ? t('prompts.lead') : t('prompts.notAnalysed') }}
       </p>
+      <p v-if="view.analysisStatus === 'measured'" class="gym-note mb-3 text-sm" data-testid="prompts-before-analysis">
+        {{ t('prompts.beforeAnalysis') }}
+      </p>
+      <div
+        v-else-if="view.promptsChangedSinceAnalysis"
+        class="gym-note border-s-warn mb-3 flex flex-wrap items-center gap-2 text-sm"
+        data-testid="prompts-changed"
+      >
+        <span class="grow">{{ t('prompts.changedSinceAnalysis') }}</span>
+        <SecondaryButton
+          size="small"
+          :disabled="readonly"
+          :loading="analysing"
+          :label="t('prompts.analyseAgain')"
+          @click="analyseAgain"
+        />
+      </div>
       <div class="mb-3 flex flex-wrap items-center gap-1.5">
         <Pill v-for="(n, status) in view.counts" :key="status" :tone="tone(status as PromptCheckStatus)">
           {{ t(`prompts.status.${status}`) }} {{ n }}

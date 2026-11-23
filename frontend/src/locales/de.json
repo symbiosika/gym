@@ -290,7 +290,7 @@
   },
   "upload": {
     "title": "Dataset hochladen",
-    "lead": "Die Aufnahme als Zip im LeRobot-Format (data, videos, meta). Mehrere Zips gehen auf einmal; jedes wird einzeln von den Critics geprüft.",
+    "lead": "Die Aufnahme als Zip im LeRobot-Format (data, videos, meta). Mehrere Zips gehen auf einmal. Die Critics messen jedes zuerst, ohne das Modell; prüf bei Bedarf die Prompts und starte dann die Analyse.",
     "drop": "Zip-Dateien hier ablegen",
     "dropHint": "oder klicken, um Dateien zu wählen · mehrere auf einmal möglich",
     "name": "Name des Datasets",
@@ -333,7 +333,11 @@
     "adjustHint": "Gilt nur für diesen Lauf, die Spec des Skills bleibt unverändert. Leer lassen übernimmt die Spec.",
     "adjustInstruction": "Aufgabe (Anweisung)",
     "adjustObjects": "Objekte, eines pro Zeile",
-    "adjustObjectsHint": "Das erste Objekt ist das Ziel, alle weiteren sind Störobjekte."
+    "adjustObjectsHint": "Das erste Objekt ist das Ziel, alle weiteren sind Störobjekte.",
+    "startAnalysis": "Analyse starten",
+    "startAnalysisMany": "Analyse von {n} Datasets starten",
+    "measuringHint": "Die Critics messen die Datasets. Die Prompts lassen sich prüfen, sobald sie fertig sind; die Analyse kann jederzeit starten.",
+    "measuredHint": "Gemessen. Prüf bei Bedarf die Prompts: Die Analyse beurteilt jede Episode mit dem Prompt, mit dem sie dann zählt."
   },
   "review": {
     "title": "Analyse",
@@ -567,6 +571,7 @@
         "wholeSelection": "Ganze Auswahl",
         "failed": "Die Data Critics konnten die Abkürzungen nicht berechnen:",
         "noFeatures": "Die {n} ausgewählten Episoden wurden analysiert, bevor die Critics diese Merkmale gemessen haben. Ein neuer Lauf misst sie.",
+        "howToRead": "So liest du die Kacheln: Die große Zahl ist, wie oft die Critics bei Szenen, die sie beim Lernen zurückgehalten haben, den richtigen Prompt oder Arm genannt haben. Zufall ist, was man erreicht, wenn man immer die häufigste Antwort der Auswahl rät: Liegen 31 von 60 Episoden auf dem rechten Arm, sind das 52 %. Das ist nicht einfach 50 % oder eins durch die Zahl der Prompts, eine ungleiche Verteilung hebt ihn an. Eine Zahl auf Zufallsniveau heißt, das Signal verrät nichts; je weiter darüber, desto eher kann eine Policy die Antwort daraus ablesen, ohne den Prompt zu lesen.",
         "notTestable": "nicht prüfbar (eine Klasse oder eine Szene)",
         "chance": "Zufall {chance} · {n} Episoden · {scenes} Szenen",
         "tile": {
@@ -596,7 +601,20 @@
         "prompt": "Prompt",
         "cells": "Zellen ({cm} cm)",
         "spread": "Std x / y (cm)",
-        "sharedCells": "{share} der {cells} Zellen hielten mehr als ein Ziel · {episodes} der Episoden griffen in einer solchen Zelle"
+        "sharedCells": "{share} der {cells} Zellen hielten mehr als ein Ziel · {episodes} der Episoden griffen in einer solchen Zelle",
+        "radar": {
+          "title": "Trefferquote gegen Zufall",
+          "hit": "Trefferquote, Szenen zurückgehalten",
+          "chance": "Zufall",
+          "tipHit": "Trefferquote {share}",
+          "tipChance": "Zufall {share}",
+          "tipLift": "vom Zufall bis zur Gewissheit: {share}",
+          "tipBase": "{n} Episoden · {scenes} Szenen · {classes} Klassen",
+          "tipFlag": "Befund der Critics: {flag}"
+        },
+        "evaluationFrom": "Verglichene Rollouts, aus:",
+        "policy": "Policy {name}",
+        "rolloutsOf": "{n} Rollouts"
       }
     },
     "cell": "Zelle",
@@ -983,7 +1001,7 @@
     ],
     "selectionShortcuts": [
       "Abkürzungen über die Auswahl",
-      "Was eine Policy lernen könnte, statt den Prompt zu lesen. Die Data Critics halten ganze Szenen zurück und prüfen, wie oft das erste Kamerabild, die Startpose des Roboters oder die Greifposition den Prompt oder den Arm trotzdem verraten. Liegt die Trefferquote weit über dem Zufall, steckt die Antwort in der Szene, nicht im Prompt. Dazu: wie viele Szenen mit mehr als einem Prompt aufgenommen wurden, und ob die Rollouts der Evaluierung von Posen starten, die die Aufnahmen kennen. GYM zeigt nur, was die Critics berechnen.",
+      "Was eine Policy lernen könnte, statt den Prompt zu lesen. Die Data Critics halten ganze Szenen zurück und prüfen, wie oft das erste Kamerabild, die Startpose des Roboters oder die Greifposition den Prompt oder den Arm trotzdem verraten. Zufall ist die Trefferquote, wenn man immer den häufigsten Prompt oder Arm der Auswahl rät; er steigt, je ungleicher sie verteilt sind. Liegt die Trefferquote weit über dem Zufall, steckt die Antwort in der Szene, nicht im Prompt. Dazu: wie viele Szenen mit mehr als einem Prompt aufgenommen wurden, und ob die Rollouts der Evaluierung von Posen starten, die die Aufnahmen kennen. GYM zeigt nur, was die Critics berechnen.",
       "Startpose verrät Arm 97 % bei 52 % Zufall: Die Policy weiß den Arm, bevor sie hinschaut."
     ]
   },
@@ -1037,6 +1055,8 @@
     "tokenCopy": "Kopieren"
   },
   "analysisStatus": {
+    "measuring": "wird gemessen",
+    "measured": "gemessen, nicht analysiert",
     "queued": "wartet",
     "running": "Critics laufen",
     "done": "fertig",
@@ -2058,7 +2078,7 @@
         },
         "upload": {
           "title": "Upload",
-          "text": "Das aufgenommene LeRobot-Dataset wird hier hochgeladen. GYM bewahrt es auf und gibt es den Critics."
+          "text": "Hier wird das aufgenommene LeRobot-Dataset hochgeladen. GYM behält es, und die Critics messen es zuerst, ohne das Modell. Die Analyse startet, wenn du weitergehst, nachdem die Prompts bei Bedarf geprüft wurden."
         },
         "summary": {
           "title": "Die Antwort der Critics",
@@ -2124,7 +2144,7 @@
         },
         "prompts": {
           "title": "Passen die Prompts?",
-          "text": "Nach dem Upload vergleichen die Critics, was in jeder Episode gegriffen wurde, mit den anderen Datasets des Skills: passt, Vorschlag oder prüfen. Ein Dataset mit Platzhalter-Prompt kommt in Gruppen zurück, die du einmal benennst. Dort stehen auch die Paraphrasen, die der Export gleichmäßig verteilt."
+          "text": "Vor der Analyse vergleichen die Critics, was jede Episode gegriffen hat, mit den anderen Datasets des Skills: passt, Vorschlag oder Prüfung. Ein Dataset mit einem Platzhalter-Prompt kommt in Gruppen zurück, die du einmal benennst. Die Analyse beurteilt dann jede Episode mit ihrem korrigierten Prompt. Die Paraphrasen, die der Export gleichmäßig verteilt, sind auch hier."
         },
         "wizardNew": {
           "title": "Der Spec-Wizard",
@@ -2271,6 +2291,19 @@
     "keepOriginal": "Originalprompt bleibt eine Variante",
     "spread": "Verteilung: {parts}",
     "saveVariants": "Paraphrasen speichern",
-    "variantsSaved": "Paraphrasen gespeichert"
+    "variantsSaved": "Paraphrasen gespeichert",
+    "lineMeasuring": "Verfügbar, sobald die Critics ein Dataset gemessen haben.",
+    "beforeAnalysis": "Noch nicht analysiert: Die Critics beurteilen jede Episode mit dem hier gespeicherten Prompt, sobald die Analyse startet.",
+    "changedSinceAnalysis": "Die Prompts haben sich geändert, nachdem dieses Dataset analysiert wurde: Seine Verdikte wurden mit den alten beurteilt.",
+    "analyseAgain": "Erneut analysieren",
+    "analysisStarted": "Die Analyse von {name} läuft mit den jetzt gespeicherten Prompts.",
+    "measuring": "Critics messen",
+    "checking": "wird geprüft",
+    "reference": "Verglichen mit",
+    "referenceEpisodes": "{n} von {of} Episoden nutzbar",
+    "referenceMany": "{n} Datasets",
+    "referenceNone": "keinem: Episoden nach Aussehen gruppiert",
+    "referenceNoOther": "noch kein anderes Dataset im Skill: Episoden nach Aussehen gruppiert",
+    "referenceAll": "alle Datasets des Skills"
   }
 }

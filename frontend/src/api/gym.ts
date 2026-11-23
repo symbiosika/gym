@@ -247,10 +247,16 @@ export const gymApi = {
       `${base(t)}/skills/${skillId}/selection/shortcuts${datasetId ? `?datasetId=${encodeURIComponent(datasetId)}` : ''}`,
     ),
   /** the critics' prompt check of a dataset against the skill's other datasets */
-  datasetPrompts: (t: string, id: string) => fetcher.get<PromptCheckView>(`${base(t)}/datasets/${id}/prompts`),
+  /** the prompt check of a dataset; `reference` names the datasets it compares against, null = every other one of the skill */
+  datasetPrompts: (t: string, id: string, reference?: string[] | null) =>
+    fetcher.get<PromptCheckView>(
+      `${base(t)}/datasets/${id}/prompts${reference ? `?reference=${encodeURIComponent(reference.join(','))}` : ''}`,
+    ),
   /** set the prompt of episodes; null gives an episode its recorded prompt back */
   setDatasetPrompts: (t: string, id: string, episodes: { index: number; prompt: string | null }[]) =>
     fetcher.put<{ changed: number }>(`${base(t)}/datasets/${id}/prompts`, { episodes }),
+  /** start the analysis of a dataset (again), with the prompts corrected since */
+  analyseDataset: (t: string, id: string) => fetcher.post<unknown>(`${base(t)}/datasets/${id}/analyse`, {}),
   /** replace the skill's paraphrases */
   setPromptVariants: (t: string, skillId: string, variants: PromptVariants) =>
     fetcher.put<PromptVariants>(`${base(t)}/skills/${skillId}/prompt-variants`, variants),

@@ -15,7 +15,12 @@ export type HumanVerdict = 'accept' | 'reject'
 export type FailureCode = 'F-01' | 'F-02' | 'F-03' | 'F-04' | 'F-05' | 'F-06' | 'F-07' | 'F-08'
 export const FAILURE_CODES: FailureCode[] = ['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06', 'F-07', 'F-08']
 export const INVALID_FAILURE_CODE: FailureCode = 'F-08'
-export type AnalysisStatus = 'queued' | 'running' | 'done' | 'failed'
+/**
+ * Where a dataset stands with the critics. A recording is measured first
+ * (`measuring`, `measured`: the hard critics alone, for the prompt check) and
+ * analysed when the operator starts it; rollouts are analysed at once.
+ */
+export type AnalysisStatus = 'measuring' | 'measured' | 'queued' | 'running' | 'done' | 'failed'
 export type Lang = 'de' | 'en'
 
 /**
@@ -1232,6 +1237,8 @@ export interface SelectionShortcuts {
   /** selected episodes analysed before the critics wrote the features: left out */
   withoutFeatures: number
   evaluationEpisodes: number
+  /** the evaluation datasets those rollouts come from */
+  evaluationDatasets: { id: string; name: string; date: string; policyName: string | null; episodes: number }[]
   analysis: ShortcutAnalysis | null
 }
 
@@ -1266,4 +1273,9 @@ export interface PromptCheckView {
   variants: PromptVariants
   /** selected episodes per prompt over the skill's selection */
   selectionCounts: Record<string, number>
+  analysisStatus: AnalysisStatus
+  /** the prompts were corrected since the dataset's analysis: analysing it again judges with them */
+  promptsChangedSinceAnalysis: boolean
+  /** the skill's other recording datasets the check can compare against; `used` = compared against now */
+  referenceDatasets: { id: string; name: string; episodes: number; reference: number; used: boolean }[]
 }

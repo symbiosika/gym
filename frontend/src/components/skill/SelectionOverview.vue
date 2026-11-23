@@ -309,19 +309,19 @@ async function exportAll(row: SelectionOverviewRow) {
       </div>
     </section>
 
-    <SelectionMetrics
-      data-tour="pretrain-positions"
-      :metrics="overview.metrics"
-      :points="overview.points"
-      :names="datasetNames"
-    />
-
     <SelectionShortcuts
       data-tour="pretrain-shortcuts"
       :tenant-id="tenantId"
       :skill-id="skillId"
       :names="includedNames"
       :version="loads"
+    />
+
+    <SelectionMetrics
+      data-tour="pretrain-positions"
+      :metrics="overview.metrics"
+      :points="overview.points"
+      :names="datasetNames"
     />
 
     <SelectionExportBar v-model:name="exportName" :count="selectedCount" :busy="busy" @export="exportSelection" />
