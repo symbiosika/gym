@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { gymApi, type UploadHandle } from '@/api/gym'
 import { useGym } from '@/stores/gym'
@@ -12,12 +12,16 @@ import IconClose from '~icons/carbon/close'
 import IconChevron from '~icons/carbon/chevron-down'
 import IconTrash from '~icons/carbon/trash-can'
 import SpecPicker from '@/components/SpecPicker.vue'
+import PromptTool from '@/components/wizard/PromptTool.vue'
 
 /**
  * Step 4: upload the LeRobot datasets of the recording, each as one zip (data,
  * videos, meta). Several zips can be dropped at once; they are uploaded one
  * after the other and every one goes to the data critics as a dataset of its
- * own. The results arrive in the next step.
+ * own. A recording is measured first (the hard critics alone, no model): the
+ * prompts can then be checked and corrected here, and the analysis starts when
+ * the operator moves on, judging every episode with its corrected prompt.
+ * Rollouts are analysed at once. The results arrive in the next step.
  *
  * The datasets already uploaded for the block are listed below the drop zone.
  * One that should not have been uploaded is removed from here: it goes with
@@ -61,6 +65,36 @@ const hot = ref(false)
 const busy = ref(false)
 const specBusy = ref(false)
 const specOpen = ref(false)
+/** the prompt tool: the critics' prompt check and the skill's paraphrases */
+const promptsOpen = ref(false)
+/** the block's datasets the critics have measured or judged: what the prompt check can look at */
+const judged = computed(() => props.block.datasets.filter((d) => d.analysisStatus === 'done' || d.analysisStatus === 'measured'))
+/** measured or being measured: what "Start analysis" starts */
+const unanalysed = computed(() =>
+  props.block.datasets.filter((d) => d.analysisStatus === 'measuring' || d.analysisStatus === 'measured'),
+)
+const measuring = computed(() => props.block.datasets.some((d) => d.analysisStatus === 'measuring'))
+const starting = ref(false)
+
+// the measuring pass takes a while: follow it, so the prompt check opens once it is done
+let timer: ReturnType<typeof setInterval> | undefined
+async function poll() {
+  if (!measuring.value || busy.value) return
+  try {
+    emit('update', await gymApi.block(props.tenantId, props.block.id))
+  } catch {
+    // the next round tries again
+  }
+}
+onMounted(() => (timer = setInterval(poll, 5000)))
+onBeforeUnmount(() => clearInterval(timer))
+async function reloadBlock() {
+  try {
+    emit('update', await gymApi.block(props.tenantId, props.block.id))
+  } catch (e) {
+    emit('error', e instanceof Error ? e.message : String(e))
+  }
+}
 const removing = ref('')
 const input = ref<HTMLInputElement | null>(null)
 let seq = 0
@@ -167,7 +201,8 @@ async function upload() {
     }
   }
 }
-const statusTone = (s: DatasetSummary['analysisStatus']) => (s === 'done' ? 'ok' : s === 'failed' ? 'bad' : 'warn')
+const statusTone = (s: DatasetSummary['analysisStatus']) =>
+  s === 'done' ? 'ok' : s === 'failed' ? 'bad' : s === 'measured' ? 'info' : 'warn'
 
 async function removeDataset(d: DatasetSummary) {
   if (removing.value) return
@@ -190,11 +225,16 @@ async function removeDataset(d: DatasetSummary) {
   }
 }
 
+/** On to the review: the datasets only measured so far are analysed now, with the prompts saved here. */
 async function toReview() {
+  if (starting.value) return
+  starting.value = true
   try {
     emit('update', await gymApi.setStep(props.tenantId, props.block.id, 'review'))
   } catch (e) {
     emit('error', e instanceof Error ? e.message : String(e))
+  } finally {
+    starting.value = false
   }
 }
 
@@ -352,6 +392,10 @@ async function back() {
               <template v-if="d.episodeCount"> · {{ t('upload.episodes', { n: d.episodeCount }) }}</template>
             </div>
           </div>
+          <PendingDots
+            v-if="['measuring', 'queued', 'running'].includes(d.analysisStatus)"
+            :label="d.progress?.hard ? `${d.progress.hard.done}/${d.progress.hard.total}` : undefined"
+          />
           <Pill :tone="statusTone(d.analysisStatus)">{{ t(`analysisStatus.${d.analysisStatus}`) }}</Pill>
           <SecondaryButton
             size="small"
@@ -388,6 +432,39 @@ async function back() {
       </FormField>
     </div>
 
+    <!-- the prompts the episodes are trained with: checked by the critics, corrected and paraphrased here,
+         before the analysis judges with them -->
+    <div
+      v-if="block.kind === 'recording' && (judged.length || measuring)"
+      class="mt-3 rounded-panel border border-surface-300 px-3.5 py-2.5 dark:border-surface-800"
+      data-tour="upload-prompts"
+    >
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="gym-field mb-0">{{ t('prompts.line') }}</span>
+        <span class="text-surface-600 dark:text-surface-300">{{
+          judged.length ? t('prompts.lineHint') : t('prompts.lineMeasuring')
+        }}</span>
+        <span class="grow"></span>
+        <!-- the critics are still measuring: the check of those datasets follows -->
+        <PendingDots v-if="measuring" :label="t('prompts.measuring')" data-testid="prompts-measuring" />
+        <button
+          v-if="judged.length"
+          type="button"
+          class="text-primary cursor-pointer text-sm hover:underline"
+          @click="promptsOpen = true"
+        >
+          {{ t('prompts.open') }}
+        </button>
+      </div>
+    </div>
+    <PromptTool
+      v-model:visible="promptsOpen"
+      :tenant-id="tenantId"
+      :skill-id="block.skillId"
+      :datasets="judged.map((d) => ({ id: d.id, name: d.name }))"
+      @analysed="reloadBlock"
+    />
+
     <div class="gym-stepnav">
       <!-- explicit: this opens the recording again and its clock runs -->
       <SecondaryButton
@@ -396,8 +473,24 @@ async function back() {
         @click="back"
       />
       <span class="grow"></span>
-      <!-- nothing left to send: the way on is the analysis of what is already there -->
-      <Button v-if="!waiting.length && block.datasets.length && !busy" :label="t('upload.toReview')" @click="toReview" />
+      <!-- nothing left to send: the way on is the analysis of what is already there, started here -->
+      <template v-if="!waiting.length && block.datasets.length && !busy">
+        <span v-if="unanalysed.length" class="max-w-md text-xs text-surface-500 dark:text-surface-400">{{
+          measuring ? t('upload.measuringHint') : t('upload.measuredHint')
+        }}</span>
+        <Button
+          :loading="starting"
+          :label="
+            !unanalysed.length
+              ? t('upload.toReview')
+              : unanalysed.length > 1
+                ? t('upload.startAnalysisMany', { n: unanalysed.length })
+                : t('upload.startAnalysis')
+          "
+          data-testid="start-analysis"
+          @click="toReview"
+        />
+      </template>
       <template v-else>
         <span v-if="!waiting.length" class="text-xs text-surface-500 dark:text-surface-400">{{ t('upload.nothingYet') }}</span>
         <Button

@@ -151,7 +151,8 @@ export async function getKpis(tenantId: string, filter: KpiFilter = {}): Promise
   if (!rows.length) return result;
 
   const blockIds = rows.map((r) => r.block.id);
-  const dsRows = await getDb().select().from(datasets).where(inArray(datasets.blockId, blockIds));
+  // the episodes of a measuring pass are not judged yet
+  const dsRows = await getDb().select().from(datasets).where(and(inArray(datasets.blockId, blockIds), eq(datasets.analysisPass, "full")));
   const epRows = dsRows.length
     ? await getDb()
         .select({

@@ -177,6 +177,16 @@ that alternates the arms), the report names all of them and says so with `ACTIVE
 That is a statement of the report only: the spec the critics run with keeps `active_arms`
 empty, which already scores every arm, so neither the scores nor the VLM prompt change.
 
+Corrected prompts are run facts per episode: `POST /jobs {"options": {"prompts": {"0": "pick
+the red tube", "3": "pick the blue cup"}}}` judges those episodes against the given prompt
+instead of the recorded task, every critic alike (the VLM judge, the diversity critic's
+prompt counts and cue features). The dataset is not rewritten; the report keeps the recorded
+task beside the judged one (`episodes[].recorded_task`), and a generated spec counts the
+distinct prompts after the correction. GYM measures a recording first with the hard critics
+alone (`options: {"run_soft": false, "contact_sheets": false}`), lets a person check and
+correct the prompts against that (`POST /analyses/prompts`), and then starts the analysis
+with the corrections.
+
 **The pre-roll.** An evaluation stack records from the start, but the policy takes over a few
 seconds in: until then the action topic carries zeros while the state is the resting robot.
 Read naively those frames are dropouts, a tracking error of a metre, a frozen command stream
@@ -200,7 +210,7 @@ stays a dropout (`ZERO_FRAMES`). `preroll_min_s: null` switches the detection of
 | `grasp_cycles` | close→open cycles of the hand/gripper (hysteresis; re-grasps within 1 s merged into one attempt; closures without a ≥ 5 cm carry counted as *idle closures*, not attempts) vs `task.expected_cycles`; produces grasp/release keyframes; **grasp profile** per cycle: closing duration, wrist motion while closing, settle time before closing, gaps between cycles, active share of the episode | `NOGRASP` `CYCLE_COUNT` `MULTIGRASP` `REGRASP` `UNFINISHED_GRASP` |
 | `tremor` | **where the shaking comes from**: share of command vs robot-state velocity power above 5 Hz (Welch PSD) and the dominant tremor frequency (8–12 Hz = human hand tremor through the input device), hold-phase jitter (how much the command still moves while the hand should be still: detrended position std, RMS speed), commanded vs measured rotation speed, finger command speed | `TREMOR` `HOLD_JITTER` |
 | `normalization` | **training-statistics hygiene**: all-zero dropout frames in pose/joint features (one such frame drags the dataset min/max range to 0 and costs the policy most of its action resolution), the start-up delay before the first real command (the pre-roll, reported as `preroll_s` and not counted), constant action dimensions, drift of arms that should idle (`robot.active_arms`), actions that are copies of the state; run level: inflation of the `meta/stats.json` min/max range per dimension | `ZERO_FRAMES` `IDLE_ARM_DRIFT` `ACTION_IS_STATE` · run level `STATS_RANGE_INFLATED` `DEAD_ACTION_DIMS` |
-| `diversity` | **spatial diversity** of the demonstrations: wrist position at every grasp / release keyframe and at the start; run level: std, robust std and range across the run. Informational (weight 0): a run whose grasps all lie within a few cm teaches a fixed trajectory, not a visually guided grasp. Per episode it also reports, for every arm whatever the spec calls active, the wrist at the start and the end (`wrists`), that arm's own grasp and release positions (`grasps_by_arm`) and the arm that grasped (`grasp_arm`), so a run whose arms take turns can be read arm by arm | run level `LOW_DIVERSITY` |
+| `diversity` | **spatial diversity** of the demonstrations: wrist position at every grasp / release keyframe and at the start; run level: std, robust std and range across the run. Informational (weight 0): a run whose grasps all lie within a few cm teaches a fixed trajectory, not a visually guided grasp. Per episode it also reports, for every arm whatever the spec calls active, the wrist at the start and the end (`wrists`), that arm's own grasp and release positions (`grasps_by_arm`) and the arm that grasped (`grasp_arm`), so a run whose arms take turns can be read arm by arm. It also writes `cue_features` per episode (start and end state, a 24 x 18 picture of the first frame, the colours of what was picked) for the shortcut figures, see below | run level `LOW_DIVERSITY`, `BACKGROUND_CUE`, `START_CUE`, `FEW_COUNTERFACTUALS`, `POSITION_CUE` |
 
 `tracking_error` additionally reports the **teleop latency** as a sub-frame estimate in
 milliseconds (`lag_ms`, cross-correlation of command and state velocities with parabolic
@@ -243,6 +253,45 @@ is stored in `report.json` under `session_profile`.
 **Run-level findings** (`HardCritic.summarize`) are properties of the whole recording session
 rather than of one episode - `LOW_DIVERSITY`, `STATS_RANGE_INFLATED`, `DEAD_ACTION_DIMS` - and
 never change a verdict; they tell you what to change in the *next* recording session.
+
+### Shortcuts a policy could learn instead of the prompt
+
+`lerobot_critics/shortcuts.py` asks of a set of episodes whether something other than the
+prompt already tells which object to take. Every test holds whole **scenes** out (consecutive
+episodes of a dataset whose first frames are practically the same picture: the 98th percentile
+of the per-pixel change, split where the gaps between consecutive frames fall into two groups)
+and predicts them from the rest, by a k-nearest-neighbour vote on pictures and positions or a
+regularised logistic regression on the robot state. Accuracy near chance (the share of the most
+frequent class) means the signal carries nothing.
+
+| figure | question | flag |
+|---|---|---|
+| background | does the first camera image tell the prompt or the acting arm? | `BACKGROUND_CUE` |
+| start cue | does the robot state in the first frame tell the arm or the prompt? (`end_cue`: the last frame, informational) | `START_CUE` |
+| counterfactual | share of episodes whose scene was also recorded with another prompt; does the arm settle the prompt inside a scene? | `FEW_COUNTERFACTUALS` |
+| layout | grasp positions on an 8 cm grid: cells that held more than one target, spread per prompt, does the position tell the prompt? | `POSITION_CUE` |
+| evaluation | do the rollouts of an evaluation start among the recorded start poses, and which arm does their start pose point at? | `EVAL_START_OUT_OF_RANGE`, `EVAL_START_CUE` |
+
+One flag can rest on two tests (`START_CUE` on the arm and on the prompt). Every test therefore
+says whether it raised the finding itself (`cue: true`), and `findings` names per flag the tests
+it rests on and whether it is about the recordings or about the evaluation's rollouts
+(`{"EVAL_START_CUE": {"scope": "evaluation", "tests": ["evaluation", "start_cue.arm"]}}`).
+
+Over one run the figures are in the run summary (`dataset_summaries.diversity.shortcuts`) and the
+session profile. Over a **selection** of any number of runs the owner of the data posts the
+mirrored `diversity` metrics to `POST /analyses/shortcuts` (with the rollouts under `evaluation`);
+nothing is fetched and nothing is kept.
+
+**The prompt check** (`POST /analyses/prompts`) places each episode by the appearance of what it
+picked (the colours of the pixels that changed between the scene camera's first and last frame,
+and the middle of the grasping arm's wrist camera at the end) among reference episodes whose
+prompts are taken as right, and answers `ok`, `propose` (with the prompt that fits), `review`
+(no clear winner, too few examples, or two prompts the references themselves mix up: such a pair
+is never proposed) or `no_signature`. With fewer than two prompts to learn from (a dataset
+recorded under one stand-in prompt) the episodes are grouped by appearance (k-means, as many
+groups as `candidates`) for a person to name. On a shelf of five products this flagged every one
+of ten swapped prompts without a wrong proposal; the two brown products stay a review. The
+correction itself is written by `/merge` (`sources[].prompts`), never into the source.
 
 `lerobot-critics critics` prints every critic with its default parameters. Feature roles
 (action/state pairs, cartesian vs joint vs hand, active arm, gripper signal, primary
@@ -624,7 +673,8 @@ lerobot_critics/
   benchmark.py  a finished run against a person's labels: precision, recall, what every flag is worth
   runner.py     process pool (hard) + thread pool (VLM), dataset stats, report writing
   report.py     report.json / report.md / episodes.csv / selection.json / contact sheets
-  merge.py      selected episodes of several datasets as one v2.1 dataset (renumbered, one task table)
+  merge.py      selected episodes of several datasets as one v2.1 dataset (renumbered, one task table, corrected prompts)
+  shortcuts.py  shortcut figures over a selection (background, start pose, counterfactuals, layout) and the prompt check
   ai_report.py  report_ai.md: self-contained AI-readable Markdown (whole run or one episode)
   visual_report.py  report.html: printable visual report (SVG charts + top-N detail analysis)
   video_composite.py  multi-camera composite writer (ffmpeg)

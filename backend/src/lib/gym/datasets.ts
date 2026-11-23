@@ -10,15 +10,23 @@
  *
  * GYM keeps the dataset row, mirrors the job's result (lib/critics/sync.ts)
  * and shows verdicts, flags and the session profile to the operator. A block
- * has N datasets, every dataset has exactly one critics run. The rollouts of
+ * has N datasets, every dataset has one critics run at a time. The rollouts of
  * an evaluation block are datasets like any other; only the export leaves
  * them out.
+ *
+ * A recording is analysed in two steps. The upload starts a measuring pass:
+ * the hard critics alone, no model, no contact sheets. It gives the episodes
+ * and what the prompt check reads (lib/gym/prompts.ts), so the operator can
+ * correct the prompts first. The analysis the operator then starts
+ * (`analyseBlock`, on the way to the review) is the full run, and the critics
+ * judge every episode against its corrected prompt. Only the episodes of a
+ * full run count (`datasets.analysis_pass`). Rollouts are analysed at once.
  */
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import * as v from "valibot";
 import { getDb } from "@framework/lib/db/db-connection";
-import { blocks, datasets, dayProtocols, episodes, skills, type BlockSelect, type DatasetSelect, type EpisodeSelect } from "../../db/schema";
-import { criticsClient, CriticsError, type CriticsPurpose, type SpecOverrides } from "../critics/client";
+import { blocks, datasets, dayProtocols, episodes, skills, type BlockSelect, type DatasetSelect, type EpisodeSelect, type SkillSelect } from "../../db/schema";
+import { criticsClient, CriticsError, type CriticsPurpose, type CriticsRunOptions, type SpecOverrides } from "../critics/client";
 import { refreshDataset, syncDataset, upgradeStaleSummaries } from "../critics/sync";
 import { ensureSpec, specNameOf } from "../critics/specs";
 import { putFile, removeFile, shareFile, storageDriver } from "../storage";
@@ -157,6 +165,34 @@ export const uploadDataset = (
 /** How the critics judge a block's datasets: an evaluation block's episodes are rollouts. */
 export const purposeOf = (kind: BlockSelect["kind"]): CriticsPurpose => (kind === "evaluation" ? "evaluation" : "recording");
 
+/** The measuring pass of a recording: the hard critics alone, enough for the prompt check. */
+export const MEASURE_RUN: CriticsRunOptions = { run_hard: true, run_soft: false, contact_sheets: false };
+/** The analysis: every critic, the model among them, and the contact sheets. */
+export const FULL_RUN: CriticsRunOptions = { run_hard: true, run_soft: true, contact_sheets: true };
+
+/**
+ * Start one critics job over a stored dataset with the skill's spec. A spec
+ * that was deleted since the skill named it must not fail the run: it falls
+ * back to the auto spec, as deleting a spec promises. One the critics merely
+ * lost (a redeploy) is put back from GYM's copy first.
+ */
+async function startJob(
+  tenantId: string,
+  block: BlockSelect,
+  skill: SkillSelect,
+  stored: StoredDataset,
+  specOverrides: SpecOverrides | null,
+  options: CriticsRunOptions,
+): Promise<{ jobId: string; specName: string | null; wantedSpec: string | null }> {
+  const wantedSpec = skill.criticSpecName ?? null;
+  const specName = wantedSpec && (await ensureSpec(tenantId, wantedSpec)) ? specNameOf(wantedSpec) : null;
+  const links = await datasetLinks(tenantId, stored);
+  // the skill's spec says what the task is; the kind of the block says what the
+  // episodes are: demonstrations for training or rollouts of a policy
+  const { job_id: jobId } = await criticsClient.createJob(links, specName, options, purposeOf(block.kind), true, specOverrides);
+  return { jobId, specName, wantedSpec };
+}
+
 /** The shared core of both upload paths: store the zip (unless it is stored in parts already) and start the run. */
 export async function createDataset(tenantId: string, actor: Actor, blockId: string, source: DatasetSource): Promise<DatasetView> {
   const block = await getBlockRow(tenantId, blockId);
@@ -166,6 +202,8 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
   const displayName = (source.displayName?.trim() || source.fileName.replace(/\.zip$/i, "")).slice(0, 300);
   // unique inside the critics service: the day and a short random suffix keep repeated uploads apart
   const criticsName = `${safeName(displayName)}_${day.date.replace(/-/g, "")}_${Math.random().toString(36).slice(2, 8)}`;
+  // a recording is measured first and analysed when the operator starts it; rollouts at once
+  const measure = block.kind === "recording";
 
   // the zip first: it is what GYM keeps, and the critics only ever see a link
   // to it. A job that cannot be started is a dataset that can be analysed
@@ -181,18 +219,9 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
           storageParts: null,
           driver: f.driver,
         }));
-  // a spec that was deleted since the skill named it must not fail the upload:
-  // the run falls back to the auto spec, as deleting a spec promises. One the
-  // critics merely lost (a redeploy) is put back from GYM's copy first.
-  const wantedSpec = skill.criticSpecName ?? null;
-  let specName: string | null = null;
-  let jobId: string;
+  let job: Awaited<ReturnType<typeof startJob>>;
   try {
-    specName = wantedSpec && (await ensureSpec(tenantId, wantedSpec)) ? specNameOf(wantedSpec) : null;
-    const links = await datasetLinks(tenantId, stored);
-    // the skill's spec says what the task is; the kind of the block says what the
-    // episodes are: demonstrations for training or rollouts of a policy
-    ({ job_id: jobId } = await criticsClient.createJob(links, specName, { run_hard: true, run_soft: true, contact_sheets: true }, purposeOf(block.kind), true, source.specOverrides ?? null));
+    job = await startJob(tenantId, block, skill, stored, source.specOverrides ?? null, measure ? MEASURE_RUN : FULL_RUN);
   } catch (error) {
     // nothing points at a zip stored here yet, so it would be orphaned for ever
     if (stored.storageRef) await removeFile(tenantId, DATASET_BUCKET, stored.storageRef).catch(() => undefined);
@@ -216,16 +245,19 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
       storageParts: stored.storageParts,
       specOverrides: source.specOverrides ?? null,
       criticsDatasetName: criticsName,
-      criticsJobId: jobId,
-      criticSpecName: specName,
-      analysisStatus: "queued",
+      criticsJobId: job.jobId,
+      criticSpecName: job.specName,
+      analysisStatus: measure ? "measuring" : "queued",
+      analysisPass: measure ? "measure" : "full",
       uploadedBy: actor.userId,
     })
     .returning();
+  // the upload ends the window that is open; a recording stays at the upload
+  // until the operator starts the analysis, rollouts go on to the review
   const now = new Date().toISOString();
   await getDb()
     .update(blocks)
-    .set({ teleopEndedAt: now, teleopIntervals: closeIntervals(block.teleopIntervals ?? [], now), step: "review", updatedAt: now })
+    .set({ teleopEndedAt: now, teleopIntervals: closeIntervals(block.teleopIntervals ?? [], now), step: measure ? "upload" : "review", updatedAt: now })
     .where(eq(blocks.id, block.id));
   await recordAudit(tenantId, { skillId: block.skillId, dayProtocolId: block.dayProtocolId, blockId: block.id }, actor, "dataset.uploaded", {
     datasetId: ds!.id,
@@ -233,14 +265,91 @@ export async function createDataset(tenantId: string, actor: Actor, blockId: str
     name: displayName,
     bytes: source.bytes,
     criticsDataset: criticsName,
-    jobId,
+    jobId: job.jobId,
+    run: measure ? "measure" : "full",
     storage: stored.driver,
     parts: stored.storageParts?.length ?? 0,
-    spec: wantedSpec && !specName ? `auto (stored spec '${wantedSpec}' missing)` : (specName ?? "auto"),
+    spec: job.wantedSpec && !job.specName ? `auto (stored spec '${job.wantedSpec}' missing)` : (job.specName ?? "auto"),
     purpose: purposeOf(block.kind),
     specOverrides: source.specOverrides ?? null,
   });
   return toView(await syncDataset(ds!), []);
+}
+
+/** The corrected prompts of a dataset's episodes, { episode index: prompt }; null when none was corrected. */
+export async function correctedPromptsOf(datasetId: string): Promise<Record<string, string> | null> {
+  const rows = await getDb()
+    .select({ index: episodes.index, prompt: episodes.promptOverride })
+    .from(episodes)
+    .where(and(eq(episodes.datasetId, datasetId), isNotNull(episodes.promptOverride)))
+    .orderBy(asc(episodes.index));
+  const out = Object.fromEntries(rows.filter((r) => r.prompt).map((r) => [String(r.index), r.prompt!]));
+  return Object.keys(out).length ? out : null;
+}
+
+const RUNNING: DatasetSelect["analysisStatus"][] = ["queued", "running"];
+
+/**
+ * Start the analysis of one dataset: the full critics run, with the prompts a
+ * person corrected handed over, so every critic (the model among them) judges
+ * an episode against the prompt it is trained with. Replaces the dataset's
+ * run: a measuring pass still going is dropped, a finished one stays mirrored
+ * until the analysis arrives. Also the way to analyse a dataset again after
+ * its prompts changed. The episodes keep their ids and what people wrote on
+ * them (lib/critics/sync.ts).
+ */
+export async function analyseDataset(tenantId: string, actor: Actor, id: string): Promise<DatasetView> {
+  const ds = await getDatasetRow(tenantId, id);
+  if (RUNNING.includes(ds.analysisStatus)) throw new ConflictError("The analysis of this dataset is running already");
+  if (!isDatasetStored(ds)) {
+    throw new InvalidInputError(`The dataset "${ds.name}" was recorded before GYM kept the uploads, so it cannot be analysed again. Upload it again.`);
+  }
+  const block = await getBlockRow(tenantId, ds.blockId);
+  const skill = (await getDb().select().from(skills).where(eq(skills.id, ds.skillId)).limit(1))[0]!;
+  const prompts = await correctedPromptsOf(id);
+  const job = await startJob(tenantId, block, skill, ds, ds.specOverrides ?? null, prompts ? { ...FULL_RUN, prompts } : FULL_RUN);
+  const previousJob = ds.criticsJobId;
+  const [updated] = await getDb()
+    .update(datasets)
+    .set({
+      criticsJobId: job.jobId,
+      criticSpecName: job.specName,
+      analysisStatus: "queued",
+      analysisError: null,
+      progress: {},
+      analysedPrompts: prompts,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(datasets.id, id))
+    .returning();
+  // the critics keep nothing for good anyway; the old job is only disc space now
+  if (previousJob) await criticsClient.deleteJob(previousJob).catch(() => undefined);
+  await recordAudit(tenantId, { skillId: ds.skillId, dayProtocolId: ds.dayProtocolId, blockId: ds.blockId }, actor, "dataset.analysis_started", {
+    datasetId: id,
+    name: ds.name,
+    jobId: job.jobId,
+    previousJob,
+    after: ds.analysisStatus,
+    correctedPrompts: Object.keys(prompts ?? {}).length,
+    spec: job.wantedSpec && !job.specName ? `auto (stored spec '${job.wantedSpec}' missing)` : (job.specName ?? "auto"),
+  });
+  const eps = await getDb().select().from(episodes).where(eq(episodes.datasetId, id)).orderBy(asc(episodes.index));
+  return toView(updated!, eps);
+}
+
+/**
+ * Start the analysis of every dataset of a block that was only measured so
+ * far (or whose measuring failed). Called on the way from the upload to the
+ * review; datasets analysed already are left alone.
+ */
+export async function analyseBlock(tenantId: string, actor: Actor, blockId: string): Promise<number> {
+  const rows = await getDb()
+    .select({ id: datasets.id, status: datasets.analysisStatus, pass: datasets.analysisPass })
+    .from(datasets)
+    .where(and(eq(datasets.tenantId, tenantId), eq(datasets.blockId, blockId), eq(datasets.analysisPass, "measure"), inArray(datasets.analysisStatus, ["measuring", "measured", "failed"])))
+    .orderBy(asc(datasets.createdAt));
+  for (const r of rows) await analyseDataset(tenantId, actor, r.id);
+  return rows.length;
 }
 
 export async function getDatasetRow(tenantId: string, id: string): Promise<DatasetSelect> {

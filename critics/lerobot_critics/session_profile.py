@@ -431,6 +431,72 @@ def build_session_profile(report: DatasetReport) -> dict[str, Any]:
             what="Standard deviation of the wrist position in the first frame across episodes (largest axis).",
             so_what="Varied start poses are good: the policy must not depend on one initial configuration.",
         )
+    # shortcuts a policy could learn instead of the prompt (lerobot_critics.shortcuts)
+    sh = div.get("shortcuts") or {}
+    for sid, label, cv, what, so_what, action in (
+        (
+            "background_cue",
+            "First image tells the prompt",
+            (sh.get("background") or {}).get("prompt"),
+            "Accuracy of predicting the prompt of an episode from its first camera image, every scene held out "
+            "together and predicted from the others (5 nearest neighbours). Chance is the share of the most "
+            "frequent prompt.",
+            "Far above chance, the background or the set-up of a session already says which object to take: the "
+            "policy can learn the set-up instead of reading the prompt.",
+            "record every set-up with several prompts",
+        ),
+        (
+            "start_cue_arm",
+            "Start pose tells the arm",
+            (sh.get("start_cue") or {}).get("arm"),
+            "Accuracy of predicting the acting arm from the robot state in the first frame, scenes held out.",
+            "Far above chance, the policy knows which arm to use before it has looked at the scene.",
+            "start every episode from the same pose",
+        ),
+        (
+            "position_cue",
+            "Grasp position tells the prompt",
+            ((sh.get("layout") or {}).get("position_cue")),
+            "Accuracy of predicting the prompt from where the object was grasped, scenes held out.",
+            "Far above chance, every object always sat in its own place: 'where' answers 'what'.",
+            "swap the places of the objects between scenes",
+        ),
+    ):
+        if cv:
+            ind = b.add(
+                sid,
+                "diversity",
+                label,
+                "%",
+                value=float(cv["accuracy"]) * 100,
+                better="lower",
+                good=min(100.0, float(cv["chance"]) * 100 + 15),
+                bad=min(100.0, float(cv["chance"]) * 100 + 40),
+                digits=0,
+                what=what,
+                so_what=so_what,
+                action=action,
+            )
+            if ind is not None:
+                ind["display_extra"] = (
+                    f"chance {cv['chance'] * 100:.0f} % · {cv['n']} episodes · {cv['scenes']} scenes"
+                )
+    cf = sh.get("counterfactual")
+    if cf:
+        b.add(
+            "counterfactual_share",
+            "diversity",
+            "Episodes with another prompt in the same scene",
+            "%",
+            value=float(cf["episodes_with_partner"]) * 100,
+            better="higher",
+            good=80.0,
+            bad=50.0,
+            digits=0,
+            what="Share of episodes whose scene (the same first image) was also recorded with another prompt.",
+            so_what="Only such pairs force the policy to read the prompt to choose between two objects in view.",
+            action="record several prompts per scene before changing it",
+        )
     b.add(
         "duration_s",
         "diversity",

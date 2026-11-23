@@ -161,12 +161,15 @@ class JobStore:
         purpose: Purpose | None = None,
         store: bool = True,
         overrides: dict[str, Any] | None = None,
+        prompts: dict[int, str] | None = None,
     ) -> CriticSpec:
         """A starter spec from the dataset, kept under `name` (unless `store` is False) so the run can be reproduced."""
         from ..spec.autospec import auto_spec
 
         arms = ((overrides or {}).get("robot") or {}).get("active_arms")
-        generated = auto_spec(ds_path, active_arms=arms or None, purpose=purpose or "recording")
+        generated = auto_spec(
+            ds_path, active_arms=arms or None, purpose=purpose or "recording", prompts=prompts
+        )
         generated = apply_overrides(generated, overrides)
         generated.name = name
         if store:
@@ -190,7 +193,9 @@ class JobStore:
             self._write(job_id, status="preparing")
             ds_path = self.resolve_dataset(dataset, job_dir)
             if spec is None:
-                spec = self._auto_spec(ds_path, auto_spec_name, job_dir, purpose, store_auto_spec, overrides)
+                spec = self._auto_spec(
+                    ds_path, auto_spec_name, job_dir, purpose, store_auto_spec, overrides, options.prompts
+                )
                 self._write(job_id, spec_name=spec.name)
             options = options.model_copy(update={"out_dir": str(job_dir / "out")})
             self._write(job_id, status="running", dataset_path=str(ds_path))

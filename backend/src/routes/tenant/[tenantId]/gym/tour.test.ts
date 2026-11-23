@@ -64,7 +64,11 @@ describe("The guided tour", () => {
     const id = started.jsonResponse.block.id as string;
     const up = await testFetcher.postFormData(app, `${base}/blocks/${id}/datasets`, token, zipUpload(`${kind}_${Date.now()}.zip`));
     expect(up.status).toBe(201);
-    // reading the block syncs the critics run
+    // reading the block syncs the critics run; a recording is measured first and analysed on the way to the review
+    if (kind === "recording") {
+      await testFetcher.get(app, `${base}/blocks/${id}`, token);
+      await testFetcher.put(app, `${base}/blocks/${id}/step`, token, { step: "review" });
+    }
     const block = await testFetcher.get(app, `${base}/blocks/${id}`, token);
     expect(block.jsonResponse.datasets[0].analysisStatus).toBe("done");
     return { blockId: id, datasetId: up.jsonResponse.id as string, block: block.jsonResponse };

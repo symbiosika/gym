@@ -277,7 +277,8 @@ export function episodeRows(report: DatasetReport, selection: CriticsSelection):
   return report.episodes
     .map((e) => ({
       index: e.episode,
-      task: e.task,
+      // what was recorded: a corrected prompt lives on the episode row (prompt_override)
+      task: e.recorded_task ?? e.task,
       frames: e.length,
       durationSeconds: round1(e.duration_s),
       verdict: e.score.verdict,

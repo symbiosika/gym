@@ -9,16 +9,24 @@ from .models import CriticSpec, Purpose, RobotSpec, TaskSpec
 
 
 def auto_spec(
-    dataset: str | Path, active_arms: list[str] | None = None, purpose: Purpose = "recording"
+    dataset: str | Path,
+    active_arms: list[str] | None = None,
+    purpose: Purpose = "recording",
+    prompts: dict[int, str] | None = None,
 ) -> CriticSpec:
-    ds = open_dataset(dataset)
-    task = next(iter(ds.tasks.values()), "") or (ds.task_for(ds.episode_indices()[0]) if ds.episodes else "")
+    ds = open_dataset(dataset, prompts)
+    task = (
+        (ds.task_for(ds.episode_indices()[0]) if ds.prompts and ds.episodes else "")
+        or next(iter(ds.tasks.values()), "")
+        or (ds.task_for(ds.episode_indices()[0]) if ds.episodes else "")
+    )
+    distinct = len({ds.task_for(e) for e in ds.episodes}) if ds.prompts else len(ds.tasks)
     # A dataset with several tasks has no single instruction to pin: task.per_episode (default) makes
     # every episode be judged against its own recorded task, and this one stays as the fallback only.
     notes = ""
-    if len(ds.tasks) > 1:
+    if distinct > 1:
         notes = (
-            f"This dataset records {len(ds.tasks)} distinct task instructions; each episode is judged "
+            f"This dataset records {distinct} distinct task instructions; each episode is judged "
             "against its own (task.per_episode). Keep the success indicators worded relative to the "
             "instruction rather than naming one concrete object."
         )

@@ -10,6 +10,61 @@ raises it, and its merge is tagged `v<version>`:
 
 The versions before 0.9.0 were given afterwards, one per merged pull request.
 
+## 0.14.0
+
+Shortcuts over the selection, and prompts that fit what was picked.
+
+- The `diversity` critic writes, per episode, the robot state in the first
+  and the last frame, a small picture of the first camera frame and the
+  colours of what was picked (`cue_features`). The critics' new
+  `lerobot_critics/shortcuts.py` tests with whole scenes held out whether the
+  background, the start pose or the grasp position already tell the prompt or
+  the arm, how many scenes carry more than one prompt, and whether the
+  rollouts of an evaluation start among the recorded start poses. New run
+  findings `BACKGROUND_CUE`, `START_CUE`, `FEW_COUNTERFACTUALS`,
+  `POSITION_CUE`, `EVAL_START_OUT_OF_RANGE`, `EVAL_START_CUE`, also in the
+  session profile.
+- The critics answer over any selection without keeping anything:
+  `POST /analyses/shortcuts` and `POST /analyses/prompts`. `/merge` writes a
+  prompt per episode instead of the recorded one (`sources[].prompts`).
+- Pre-Train shows the shortcut figures over the selection or one dataset of it
+  (`GET skills/:id/selection/shortcuts`), with the evaluation's rollouts
+  beside it.
+- The upload step opens a prompt tool: the critics' check of every episode's
+  prompt against the skill's other datasets (fits, proposal, review; a
+  stand-in prompt comes back as groups to name), corrections per episode
+  (`episodes.prompt_override`, `GET/PUT datasets/:id/prompts`) and
+  paraphrases per prompt of the skill (`skills.prompt_variants`,
+  `PUT skills/:id/prompt-variants`), spread evenly in a merged export. The
+  upload is never rewritten; the light export lists the prompts in its
+  manifest, the unfiltered download carries the corrections.
+- A recording is analysed in two steps. The upload starts a measuring pass
+  (the hard critics alone, no model, no contact sheets; `measuring`, then
+  `measured`) and the block stays at the upload, where the prompts can be
+  checked and corrected. "Start analysis" (the step to the review) starts the
+  full run with the corrected prompts: the critics judge every episode, the
+  VLM among them, against the prompt it is trained with (`options.prompts`;
+  the report keeps `recorded_task`). Only the episodes of a full run count in
+  the figures, the selection and the exports (`datasets.analysis_pass`).
+  Prompts corrected after an analysis can be handed over by analysing the
+  dataset again (`POST datasets/:id/analyse`), offered in the prompt tool.
+  Rollouts are analysed at once, as before.
+- The shortcut tiles say how to read them: the hit rate on held-out scenes
+  against chance, the share of the most frequent answer. A spider plot beside
+  them draws the same tests, the hit rate as a shape and chance as a dashed
+  ring, the critics' findings marked on their axis.
+- The prompt check compares against the skill's other datasets or the ones
+  a person picks (`GET datasets/:id/prompts?reference=`), so datasets whose
+  prompts are not aligned yet do not teach it wrong ones. Yellow dots show
+  while the critics measure a dataset or compute the check.
+- Pre-Train names the evaluation datasets (day, policy, rollouts) whose start
+  poses are compared with the recordings, in a panel of their own with the
+  findings about the evaluation. The critics say which test a finding rests
+  on (`cue` per test, `findings` per flag with its scope), so a tile is marked
+  only when its own test raised it, and every finding names its tests.
+- The guided tour explains the prompt check (critic specs) and the shortcuts
+  (Pre-Train), and the two steps of the upload.
+
 ## 0.13.0
 
 A guided tour through one skill.

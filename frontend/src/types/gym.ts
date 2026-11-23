@@ -15,7 +15,12 @@ export type HumanVerdict = 'accept' | 'reject'
 export type FailureCode = 'F-01' | 'F-02' | 'F-03' | 'F-04' | 'F-05' | 'F-06' | 'F-07' | 'F-08'
 export const FAILURE_CODES: FailureCode[] = ['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06', 'F-07', 'F-08']
 export const INVALID_FAILURE_CODE: FailureCode = 'F-08'
-export type AnalysisStatus = 'queued' | 'running' | 'done' | 'failed'
+/**
+ * Where a dataset stands with the critics. A recording is measured first
+ * (`measuring`, `measured`: the hard critics alone, for the prompt check) and
+ * analysed when the operator starts it; rollouts are analysed at once.
+ */
+export type AnalysisStatus = 'measuring' | 'measured' | 'queued' | 'running' | 'done' | 'failed'
 export type Lang = 'de' | 'en'
 
 /**
@@ -476,13 +481,25 @@ export interface ExportRecord {
       criticsDatasetName: string
       criticsJobId: string | null
       episodeIndexes: number[]
+      /** episode index → the prompt written instead of the recorded one */
+      prompts?: Record<string, string>
     }[]
     episodes: number
   }
   createdAt: string
 }
 
+/** Paraphrases of one prompt, spread evenly over its episodes in a merged export. */
+export interface PromptVariant {
+  variants: string[]
+  /** the prompt itself stays one of the variants; off: the variants substitute it */
+  keepOriginal: boolean
+}
+/** prompt → its paraphrases */
+export type PromptVariants = Record<string, PromptVariant>
+
 export interface SkillView extends SkillListItem {
+  promptVariants: PromptVariants
   blocks_: BlockView[]
   exports: ExportRecord[]
   policies_: PolicyRecord[]
@@ -1160,4 +1177,116 @@ export interface TourMaterial {
   reportId: string | null
   /** the skill names a spec that is stored, so the spec manager can open it */
   specStored: boolean
+}
+
+// ---------------------------------------------------------------------------
+// Shortcuts and prompts (the data critics' /analyses, lib/gym/shortcuts.ts and prompts.ts)
+// ---------------------------------------------------------------------------
+
+/** A held-out-scene test of the critics: can the class be told from a signal for scenes never seen. */
+export interface CueTest {
+  accuracy: number
+  /** share of the most frequent class */
+  chance: number
+  lift: number
+  n: number
+  classes: number
+  scenes: number
+  method: 'knn' | 'logistic'
+  /** this test raised the finding it belongs to */
+  cue?: boolean
+}
+
+/** what a finding over a selection rests on: the tests behind it, about the recordings or the evaluation's rollouts */
+export interface ShortcutFinding {
+  scope: 'recordings' | 'evaluation'
+  /** "start_cue.arm", "background.prompt", "layout.position_cue", "evaluation", "counterfactual" */
+  tests: string[]
+}
+
+export interface ShortcutAnalysis {
+  n: number
+  prompts: Record<string, number>
+  arms: Record<string, number>
+  scenes: { n: number; threshold: number; method: string; episodes_per_scene: Record<string, number> }
+  background: { prompt: CueTest | null; arm: CueTest | null }
+  start_cue: { arm: CueTest | null; prompt: CueTest | null }
+  end_cue: { prompt: CueTest | null }
+  counterfactual: {
+    scenes: number
+    scenes_multi_prompt: number
+    episodes_with_partner: number
+    prompts_per_scene: Record<string, number>
+    answered_by_arm: number | null
+  } | null
+  layout: {
+    cell_cm: number
+    cells: number
+    cells_multi_prompt: number
+    episodes_in_shared_cells: number
+    per_prompt: Record<string, { n: number; cells: number; std_cm: number[] }>
+    position_cue: CueTest | null
+  } | null
+  evaluation: {
+    n: number
+    in_range: number
+    distance_ratio_median: number
+    predicted_arm: Record<string, number> | null
+    arm_confidence: number | null
+  } | null
+  /** the critics' findings in their words */
+  flags: Record<string, string>
+  /** per flag: the tests it rests on and its scope */
+  findings?: Record<string, ShortcutFinding>
+}
+
+export interface SelectionShortcuts {
+  skillId: string
+  datasetId: string | null
+  datasets: number
+  episodes: number
+  /** selected episodes analysed before the critics wrote the features: left out */
+  withoutFeatures: number
+  evaluationEpisodes: number
+  /** the evaluation datasets those rollouts come from */
+  evaluationDatasets: { id: string; name: string; date: string; policyName: string | null; episodes: number }[]
+  analysis: ShortcutAnalysis | null
+}
+
+export type PromptCheckStatus = 'ok' | 'propose' | 'review' | 'no_signature' | 'not_analysed'
+
+export interface PromptCheckEpisode {
+  episodeId: string
+  index: number
+  /** recorded */
+  task: string
+  promptOverride: string | null
+  /** what it counts with now */
+  prompt: string
+  status: PromptCheckStatus
+  proposed: string | null
+  confidence: number | null
+  votes: Record<string, number>
+  group: number | null
+  reason: 'few_examples' | 'look_alike' | 'uncertain' | null
+}
+
+export interface PromptCheckView {
+  datasetId: string
+  datasetName: string
+  skillId: string
+  mode: 'reference' | 'groups' | null
+  candidates: string[]
+  referencePrompts: Record<string, number>
+  confusable: { prompts: string[]; rate: number }[]
+  episodes: PromptCheckEpisode[]
+  counts: Partial<Record<PromptCheckStatus, number>>
+  variants: PromptVariants
+  /** selected episodes per prompt over the skill's selection */
+  selectionCounts: Record<string, number>
+  analysisStatus: AnalysisStatus
+  /** the prompts were corrected since the dataset's analysis: analysing it again judges with them */
+  promptsChangedSinceAnalysis: boolean
+  /** the skill's other recording datasets the check can compare against; `used` = compared against now */
+  referenceDatasets: { id: string; name: string; episodes: number; reference: number; used: boolean }[]
 }

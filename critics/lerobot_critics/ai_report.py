@@ -91,6 +91,10 @@ FLAG_GLOSSARY: dict[str, str] = {
     "STATS_RANGE_INFLATED": "meta/stats.json min/max is wider than the real data (dropout frames); min_max normalisation loses resolution",
     "DEAD_ACTION_DIMS": "action dimensions constant across the whole run; they carry no information",
     "LOW_DIVERSITY": "the object was grasped at practically the same position in every episode; the policy cannot learn to correct",
+    "BACKGROUND_CUE": "the first camera image tells the prompt or the acting arm for scenes the policy never saw",
+    "START_CUE": "the robot state in the first frame tells the acting arm or the prompt",
+    "FEW_COUNTERFACTUALS": "most scenes were recorded with one prompt only",
+    "POSITION_CUE": "the grasp position tells the prompt: every target sat in its own place",
     # VLM
     "VLM_TASK_FAILED": "the VLM judged the task as not accomplished",
     "VLM_MAJOR_ANOMALY": "the VLM reported at least one anomaly with severity 'major'",

@@ -273,6 +273,13 @@ class MergeSourceRequest(BaseModel):
             "Give it when the source is a URL: a link carries a token, not a name."
         ),
     )
+    prompts: dict[int, str] | None = Field(
+        None,
+        description=(
+            "Per episode index: the prompt (task) to write into the merged dataset instead of the one "
+            "the episode was recorded with. The source itself is never changed."
+        ),
+    )
 
     def source(self) -> DatasetSource:
         if self.dataset_parts:
@@ -338,7 +345,14 @@ def merge(req: MergeRequest) -> Response:
                 raise
             except Exception as e:  # noqa: BLE001
                 raise HTTPException(502, f"could not fetch {label}: {type(e).__name__}") from e
-            sources.append(MergeSource(root=root, episodes=sorted(set(src.episodes)), name=label))
+            sources.append(
+                MergeSource(
+                    root=root,
+                    episodes=sorted(set(src.episodes)),
+                    name=label,
+                    prompts={int(k): v for k, v in (src.prompts or {}).items() if v and v.strip()},
+                )
+            )
         if not sources:
             raise HTTPException(400, "no episodes selected")
         try:
@@ -370,6 +384,70 @@ def merge(req: MergeRequest) -> Response:
     finally:
         if not streaming:
             shutil.rmtree(work, ignore_errors=True)
+
+
+class AnalysisEpisode(BaseModel):
+    id: str = Field(..., description="The caller's id of the episode; answers refer to it")
+    dataset: str = Field("", description="The dataset it belongs to: scenes never span two datasets")
+    order: int = Field(0, description="Its position in the dataset (the episode index)")
+    prompt: str | None = Field(
+        None, description="The prompt it counts with now; falls back to the one the critics recorded"
+    )
+    metrics: dict[str, Any] = Field(
+        default_factory=dict, description="The metrics of its `diversity` result, as report.json carries them"
+    )
+
+    def episode(self):
+        from ..shortcuts import episode_from
+
+        return episode_from(self.metrics, self.id, self.dataset, self.order, self.prompt)
+
+
+class ShortcutRequest(BaseModel):
+    episodes: list[AnalysisEpisode] = Field(..., description="The selection: recorded episodes")
+    evaluation: list[AnalysisEpisode] = Field(
+        default_factory=list, description="Rollouts of an evaluation: their start poses are compared"
+    )
+    params: dict[str, Any] = Field(default_factory=dict, description="Overrides of shortcuts.DEFAULTS")
+
+
+class PromptRequest(BaseModel):
+    episodes: list[AnalysisEpisode] = Field(..., description="The episodes whose prompts are checked")
+    reference: list[AnalysisEpisode] = Field(
+        default_factory=list,
+        description="Episodes whose prompts are taken as right (other datasets of the task)",
+    )
+    candidates: list[str] = Field(default_factory=list, description="Every prompt the task knows")
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.post("/analyses/shortcuts")
+def analyses_shortcuts(req: ShortcutRequest) -> dict[str, Any]:
+    """
+    Shortcuts a policy could learn instead of the prompt, over a **selection** of episodes
+    from any number of datasets: background, start pose, counterfactual scenes, layout, and
+    the start poses of an evaluation against the recorded ones. The caller hands over the
+    `diversity` metrics it mirrored from the reports; nothing is fetched and nothing is kept.
+    See ``lerobot_critics.shortcuts``.
+    """
+    from ..shortcuts import analyse
+
+    return analyse([e.episode() for e in req.episodes], [e.episode() for e in req.evaluation], req.params)
+
+
+@app.post("/analyses/prompts")
+def analyses_prompts(req: PromptRequest) -> dict[str, Any]:
+    """
+    Does each episode's prompt fit what it picked? Every episode is placed among the reference
+    episodes by the appearance of the picked object and gets ``ok``, ``propose`` (with the
+    prompt that fits), ``review`` or ``no_signature``. Without two prompts to learn from, the
+    episodes are grouped by appearance for a person to name. Nothing is changed or kept.
+    """
+    from ..shortcuts import align_prompts
+
+    return align_prompts(
+        [e.episode() for e in req.episodes], [e.episode() for e in req.reference], req.candidates, req.params
+    )
 
 
 @app.get("/health")

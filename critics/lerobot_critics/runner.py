@@ -47,6 +47,12 @@ class RunOptions(BaseModel):
         description="episodes analysed in addition to the sample (`max_episodes`): ones a person "
         "picked by number",
     )
+    prompts: dict[int, str] | None = Field(
+        None,
+        description="corrected prompts per episode ({episode: prompt}): every critic, the VLM judge "
+        "among them, judges the episode against this one instead of the recorded task. The dataset "
+        "is not rewritten; the report keeps the recorded task as `recorded_task`.",
+    )
     sheets_for_all: bool = Field(
         False,
         description="write a contact sheet for every episode, not only for the ones not accepted "
@@ -89,6 +95,8 @@ def parse_episodes(s: str | None) -> list[int] | None:
 class EpisodeReport(BaseModel):
     episode: int
     task: str = ""
+    # the task recorded in the dataset, when the run judged the episode against a corrected prompt
+    recorded_task: str | None = None
     length: int = 0
     duration_s: float = 0.0
     hard: list[CriticResult] = Field(default_factory=list)
@@ -140,9 +148,9 @@ class DatasetReport(BaseModel):
 
 # ------------------------------------------------------------------ workers
 def _hard_worker(args: tuple) -> dict[str, Any]:
-    ds_path, spec_dict, ep_index, out_dir, composite = args
+    ds_path, spec_dict, ep_index, out_dir, composite, prompts = args
     spec = CriticSpec.model_validate(spec_dict)
-    ds = open_dataset(ds_path)
+    ds = open_dataset(ds_path, prompts)
     ep = ds.episode(ep_index)
     t0 = time.time()
     try:
@@ -161,6 +169,7 @@ def _hard_worker(args: tuple) -> dict[str, Any]:
         return {
             "episode": ep_index,
             "task": ep.task,
+            "recorded_task": ep.recorded_task if ep.index in ds.prompts else None,
             "length": ep.length,
             "duration_s": ep.duration_s,
             "hard": [r.model_dump() for r in results],
@@ -208,7 +217,7 @@ def run(
 ) -> DatasetReport:
     options = options or RunOptions()
     t_start = time.time()
-    ds = open_dataset(dataset_path)
+    ds = open_dataset(dataset_path, options.prompts)
     out_dir = Path(options.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     eps = options.episodes if options.episodes is not None else ds.episode_indices()
@@ -241,7 +250,7 @@ def run(
     if options.run_hard or composite:
         workers = options.workers or max(1, os.cpu_count() or 2)
         workers = min(workers, len(eps)) or 1
-        jobs = [(str(ds.root), spec_dict, e, str(out_dir), composite) for e in eps]
+        jobs = [(str(ds.root), spec_dict, e, str(out_dir), composite, ds.prompts) for e in eps]
         done = 0
         _progress("hard", 0, len(eps))
         if workers == 1:
@@ -337,6 +346,8 @@ def run(
             EpisodeReport(
                 episode=e,
                 task=info.get("task", ds.task_for(e)),
+                recorded_task=info.get("recorded_task")
+                or (ds.recorded_task_for(e) if e in ds.prompts else None),
                 length=info.get("length", ds.episodes[e].length),
                 duration_s=info.get("duration_s", ds.episodes[e].length / ds.fps),
                 hard=hard,

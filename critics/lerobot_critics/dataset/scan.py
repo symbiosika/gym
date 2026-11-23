@@ -15,6 +15,18 @@ import numpy as np
 
 from .loader import EpisodeContext
 
+EDGE_FRAME_SIDE = 160
+
+
+def _small(img: np.ndarray) -> np.ndarray:
+    import cv2
+
+    h, w = img.shape[:2]
+    f = EDGE_FRAME_SIDE / max(h, w)
+    if f >= 1:
+        return img.copy()
+    return cv2.resize(img, (max(1, round(w * f)), max(1, round(h * f))), interpolation=cv2.INTER_AREA)
+
 
 @dataclass
 class CameraScan:
@@ -28,6 +40,10 @@ class CameraScan:
     clip_high: list[float] = field(default_factory=list)
     sharpness: list[float] = field(default_factory=list)
     dup_mask: list[bool] = field(default_factory=list)  # per frame: near-duplicate of the previous frame
+    # the first and the last frame, reduced to at most EDGE_FRAME_SIDE pixels on the longer side
+    # (the diversity critic reads the scene and the object in hand from them)
+    first_rgb: np.ndarray | None = None
+    last_rgb: np.ndarray | None = None
     width: int = 0
     height: int = 0
 
@@ -75,6 +91,7 @@ def scan_episode(
     prev: dict[str, np.ndarray | None] = {c: None for c in cams}
     cur_run: dict[str, int] = {c: 0 for c in cams}
     iters = {c: ep.frames(c, gray=False) for c in cams}
+    last_img: dict[str, np.ndarray] = {}
     idx = 0
     while True:
         frames: dict[str, np.ndarray] = {}
@@ -106,6 +123,9 @@ def scan_episode(
                     cur_run[c] = 0
             sc.dup_mask.append(is_dup)
             prev[c] = thumb
+            last_img[c] = img
+            if sc.first_rgb is None:
+                sc.first_rgb = _small(img)
             if idx % stats_every == 0:
                 small = gray[::2, ::2]
                 sc.brightness.append(float(small.mean()))
@@ -118,6 +138,16 @@ def scan_episode(
         idx += 1
     if composite is not None:
         composite.close()
-    out = {c: {**sc.summary(), "dup_mask": np.array(sc.dup_mask, dtype=bool)} for c, sc in scans.items()}
+    for c, img in last_img.items():
+        scans[c].last_rgb = _small(img)
+    out = {
+        c: {
+            **sc.summary(),
+            "dup_mask": np.array(sc.dup_mask, dtype=bool),
+            "first_rgb": sc.first_rgb,
+            "last_rgb": sc.last_rgb,
+        }
+        for c, sc in scans.items()
+    }
     ep.cache[key] = out
     return out

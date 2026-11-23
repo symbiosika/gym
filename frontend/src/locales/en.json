@@ -290,7 +290,7 @@
   },
   "upload": {
     "title": "Upload dataset",
-    "lead": "The recording as a zip in LeRobot format (data, videos, meta). Several zips at once are fine; each is checked by the critics on its own.",
+    "lead": "The recording as a zip in LeRobot format (data, videos, meta). Several zips at once are fine. The critics first measure each one, without the model; check the prompts if needed, then start the analysis.",
     "drop": "Drop zip files here",
     "dropHint": "or click to choose files · several at once",
     "name": "Dataset name",
@@ -333,7 +333,11 @@
     "adjustHint": "Applies to this run only, the skill's spec stays as it is. Leave empty to take the spec.",
     "adjustInstruction": "Task (instruction)",
     "adjustObjects": "Objects, one per line",
-    "adjustObjectsHint": "The first object is the target, all others are distractors."
+    "adjustObjectsHint": "The first object is the target, all others are distractors.",
+    "startAnalysis": "Start analysis",
+    "startAnalysisMany": "Start analysis of {n} datasets",
+    "measuringHint": "The critics are measuring the datasets. The prompts can be checked once they are done; the analysis can be started at any time.",
+    "measuredHint": "Measured. Check the prompts if needed: the analysis judges every episode with the prompt it counts with then."
   },
   "review": {
     "title": "Analysis",
@@ -558,7 +562,64 @@
       "toSelection": "To the block's selection step: set the ticks and resolve open reviews",
       "selectionStep": "Selection",
       "includeAll": "Take every dataset into the selection, or every one out",
-      "exportCount": "{n} episodes selected over the skill"
+      "exportCount": "{n} episodes selected over the skill",
+      "shortcuts": {
+        "title": "Shortcuts over the selection",
+        "base": "{datasets} datasets · {episodes} episodes",
+        "rollouts": "{n} rollouts compared",
+        "scope": "Over which episodes",
+        "wholeSelection": "Whole selection",
+        "failed": "The data critics could not compute the shortcuts:",
+        "noFeatures": "The {n} selected episodes were analysed before the critics measured these features. A new run measures them.",
+        "howToRead": "How to read the tiles: the large figure is how often the critics named the right prompt or arm for scenes they held out of training. Chance is what you score by always guessing the most frequent answer of the selection: with 31 of 60 episodes on the right arm, that is 52 %. It is not simply 50 % or one over the number of prompts, an uneven split raises it. A figure at chance means the signal tells nothing; the further above, the more a policy could answer from it without reading the prompt.",
+        "notTestable": "not testable (one class or one scene)",
+        "chance": "chance {chance} · {n} episodes · {scenes} scenes",
+        "tile": {
+          "backgroundPrompt": "First image tells prompt",
+          "backgroundArm": "First image tells arm",
+          "startArm": "Start pose tells arm",
+          "startPrompt": "Start pose tells prompt",
+          "positionPrompt": "Grasp position tells prompt",
+          "counterfactual": "Scene with another prompt"
+        },
+        "scenesMulti": "{share} of {scenes} scenes with several prompts",
+        "onePrompt": "only one prompt in the selection",
+        "flag": {
+          "BACKGROUND_CUE": "Background (recordings)",
+          "START_CUE": "Start pose (recordings)",
+          "FEW_COUNTERFACTUALS": "Few counterfactuals",
+          "POSITION_CUE": "Grasp position (recordings)",
+          "EVAL_START_OUT_OF_RANGE": "Evaluation: unknown start poses",
+          "EVAL_START_CUE": "Evaluation: start points to one arm"
+        },
+        "scenes": "Scenes",
+        "scenesFound": "{n} scenes (same first image, consecutive):",
+        "answeredByArm": "In scenes with several prompts the arm already settles the prompt for {share} of the episodes.",
+        "evaluation": "{n} rollouts: {share} start among the recorded start poses (median {ratio} × the usual gap)",
+        "evaluationArm": "start pose looks like: {arms}",
+        "without": "{n} selected episodes without these features (older run) are not counted.",
+        "prompt": "Prompt",
+        "cells": "Cells ({cm} cm)",
+        "spread": "Std x / y (cm)",
+        "sharedCells": "{share} of the {cells} cells held more than one target · {episodes} of the episodes grasped in such a cell",
+        "radar": {
+          "title": "Hit rate against chance",
+          "hit": "Hit rate, scenes held out",
+          "chance": "Chance",
+          "tipHit": "hit rate {share}",
+          "tipChance": "chance {share}",
+          "tipLift": "of the way from chance to certain: {share}",
+          "tipBase": "{n} episodes · {scenes} scenes · {classes} classes",
+          "tipFlag": "finding of the critics: {flag}"
+        },
+        "policy": "policy {name}",
+        "rolloutsOf": "{n} rollouts",
+        "findingsRecordings": "Findings on the recordings",
+        "restsOn": "from: {tests}",
+        "evaluationTest": "the evaluation's start poses",
+        "evaluationTitle": "Evaluation: start poses of the rollouts against the recordings",
+        "evaluationNoFinding": "No finding on the evaluation."
+      }
     },
     "cell": "Cell",
     "name": "Name",
@@ -941,6 +1002,11 @@
       "Your word",
       "Say of a few episodes whether they are good or bad. Then you see where the spec decides differently from you.",
       "E3 is good, E7 is bad: the spec should accept E3 and not E7."
+    ],
+    "selectionShortcuts": [
+      "Shortcuts over the selection",
+      "What a policy could learn instead of reading the prompt. The data critics hold whole scenes out and test how often the first camera image, the robot's start pose or the grasp position still tell the prompt or the arm. Chance is the hit rate of always guessing the most frequent prompt or arm of the selection, so it rises the more uneven they are spread. Far above chance, the answer is in the scene, not in the prompt. Also: how many scenes were recorded with more than one prompt, and whether the evaluation rollouts start from poses the recordings know. GYM only shows what the critics compute.",
+      "Start pose tells arm 97 % at 52 % chance: the policy knows the arm before it looks."
     ]
   },
   "profile": {
@@ -993,6 +1059,8 @@
     "tokenCopy": "Copy"
   },
   "analysisStatus": {
+    "measuring": "measuring",
+    "measured": "measured, not analysed",
     "queued": "queued",
     "running": "critics running",
     "done": "done",
@@ -2014,7 +2082,7 @@
         },
         "upload": {
           "title": "Upload",
-          "text": "The recorded LeRobot dataset is uploaded here. GYM keeps it and hands it to the critics."
+          "text": "The recorded LeRobot dataset is uploaded here. GYM keeps it and the critics measure it first, without the model. The analysis starts when you move on, after the prompts were checked if needed."
         },
         "summary": {
           "title": "The critics' answer",
@@ -2068,7 +2136,7 @@
         },
         "hard": {
           "title": "Technical checks",
-          "text": "Checks on signals and videos, each with a weight and thresholds."
+          "text": "Checks on signals and videos, each with a weight and thresholds. The diversity check also measures per episode the start pose, the first image and the picked object: from these the critics compute the shortcuts in Pre-Train and check the prompts."
         },
         "scoring": {
           "title": "Scoring",
@@ -2077,6 +2145,10 @@
         "yaml": {
           "title": "As YAML",
           "text": "The same spec as YAML, for copying or editing by hand."
+        },
+        "prompts": {
+          "title": "Do the prompts fit?",
+          "text": "Before the analysis the critics compare what each episode picked with the skill's other datasets: fits, proposal or review. A dataset with a stand-in prompt comes back in groups you name once. The analysis then judges every episode with its corrected prompt. The paraphrases the export spreads evenly are there too."
         },
         "wizardNew": {
           "title": "The spec wizard",
@@ -2111,6 +2183,10 @@
         "positions": {
           "title": "Positions",
           "text": "Where was picked and how much it spreads: the variety of the training data."
+        },
+        "shortcuts": {
+          "title": "Shortcuts",
+          "text": "Do background, start pose or grasp position already tell the prompt or the arm? The critics hold whole scenes out and compare with chance. Far above it, the policy learns the scene instead of the prompt; also how often a scene carries several prompts and whether the evaluation starts from known poses."
         },
         "export": {
           "title": "Export",
@@ -2172,5 +2248,66 @@
     },
     "toChapter": "On to the chapter {chapter} →",
     "drag": "Drag to move; a double click puts it back"
+  },
+  "prompts": {
+    "line": "Prompts",
+    "lineHint": "Does every prompt fit what was picked? Corrections and paraphrases for the export.",
+    "open": "Check prompts",
+    "title": "Prompts",
+    "hint": "Checked by the data critics, corrected and paraphrased",
+    "tabCheck": "Check",
+    "tabVariants": "Paraphrases",
+    "recheck": "Check again",
+    "failed": "The check failed:",
+    "lead": "The critics compare what the picked object of each episode looks like with the skill's other datasets. Nothing changes until you save; the upload stays as it is, the export writes the prompt.",
+    "leadGroups": "There is nothing to compare this dataset with (a stand-in prompt). The critics grouped the episodes by appearance: name each group once and check the assignment.",
+    "notAnalysed": "This dataset was analysed before the critics measured the appearance. Prompts can still be set by hand.",
+    "status": {
+      "ok": "fits",
+      "propose": "proposal",
+      "review": "review",
+      "no_signature": "no picture",
+      "not_analysed": "not analysed"
+    },
+    "reason": {
+      "few_examples": "too few examples of this prompt",
+      "look_alike": "two prompts look too much alike",
+      "uncertain": "no clear majority"
+    },
+    "confusable": "confusable ({rate}):",
+    "takeProposals": "Take {n} proposals",
+    "take": "take",
+    "group": "Group {n}",
+    "groupEpisodes": "{n} episodes",
+    "nameGroup": "Prompt for the group",
+    "recorded": "Recorded",
+    "critics": "Critics",
+    "prompt": "Prompt",
+    "corrected": "corrected ·",
+    "backToRecorded": "back to recorded",
+    "unsaved": "{n} changes not saved",
+    "save": "Save prompts",
+    "saved": "{n} prompts saved",
+    "leadVariants": "Paraphrases belong to the skill. In the merged export the episodes of a prompt take its variants in turn, evenly. One variant per line.",
+    "noPrompts": "No episode is in the selection yet.",
+    "inSelection": "{n} episodes in the selection",
+    "variantsPlaceholder": "one paraphrase per line",
+    "keepOriginal": "The original prompt stays a variant",
+    "spread": "Spread: {parts}",
+    "saveVariants": "Save paraphrases",
+    "variantsSaved": "Paraphrases saved",
+    "lineMeasuring": "Available once the critics have measured a dataset.",
+    "beforeAnalysis": "Not analysed yet: the critics judge every episode with the prompt saved here once the analysis is started.",
+    "changedSinceAnalysis": "The prompts changed after this dataset was analysed: its verdicts were judged with the old ones.",
+    "analyseAgain": "Analyse again",
+    "analysisStarted": "The analysis of {name} is running with the prompts saved now.",
+    "measuring": "critics measuring",
+    "checking": "checking",
+    "reference": "Compared with",
+    "referenceEpisodes": "{n} of {of} episodes usable",
+    "referenceMany": "{n} datasets",
+    "referenceNone": "none: episodes grouped by look",
+    "referenceNoOther": "no other dataset of the skill yet: episodes grouped by look",
+    "referenceAll": "all datasets of the skill"
   }
 }

@@ -471,9 +471,11 @@ describe("Gym operator flow", () => {
     expect(up.jsonResponse.criticsJobId).toBe("job_1");
     expect(up.jsonResponse.skillId).toBe(skillId);
     expect(up.jsonResponse.blockId).toBe(blockId);
-    // the first status read of the fake service says "running"
-    expect(up.jsonResponse.analysisStatus).toBe("running");
+    // a recording is measured first: the hard critics alone, no model, no contact sheets
+    expect(up.jsonResponse.analysisStatus).toBe("measuring");
+    expect(up.jsonResponse.analysisPass).toBe("measure");
     expect(up.jsonResponse.progress).toEqual({ hard: { done: 2, total: 4 } });
+    expect(critics.jobs[0]!.options).toEqual({ run_hard: true, run_soft: false, contact_sheets: false });
     expect(up.jsonResponse.report).toBeUndefined();
     // the bytes never go to the critics
     expect(critics.uploads).toHaveLength(0);
@@ -488,6 +490,27 @@ describe("Gym operator flow", () => {
     expect(critics.fetched[0]!.bytes).toBe(7);
     // the name of the dataset at the critics is GYM's own now, not something the service gave back
     expect(up.jsonResponse.criticsDatasetName).toMatch(/^cup_tray_a_20260910_/);
+
+    // reading the block syncs the measuring pass: the block waits at the upload, nothing counts yet
+    const measured = await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
+    expect(measured.jsonResponse.step).toBe("upload");
+    expect(measured.jsonResponse.datasets[0].analysisStatus).toBe("measured");
+    expect(measured.jsonResponse.totals.episodes).toBe(0);
+    expect(measured.jsonResponse.teleopEndedAt).toBeTruthy();
+    // the episodes are there for the prompt tool
+    expect((await testFetcher.get(app, `${base}/datasets/${datasetId}`, token)).jsonResponse.episodes).toHaveLength(4);
+    expect((await testFetcher.get(app, `${base}/skills/${skillId}/selection`, token)).jsonResponse.datasets).toHaveLength(0);
+
+    // on to the review: the operator starts the analysis, every critic runs
+    const started = await testFetcher.put(app, `${base}/blocks/${blockId}/step`, token, { step: "review" });
+    expect(started.status).toBe(200);
+    expect(started.jsonResponse.step).toBe("review");
+    expect(critics.jobs[1]!.options).toEqual({ run_hard: true, run_soft: true, contact_sheets: true });
+    expect(critics.jobs[1]!.spec).toBe("cup_tray");
+    // the measuring job is not needed any more
+    expect(critics.deleted).toContain("job_1");
+    // the block the step answers with read the analysis once: running
+    expect(started.jsonResponse.datasets[0].analysisStatus).toBe("running");
 
     // reading the block syncs the run: now it is done
     const block = await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
@@ -524,12 +547,12 @@ describe("Gym operator flow", () => {
     const html = await app.request(`/tenant/${T}/gym/datasets/${datasetId}/report.html`, { headers: { Authorization: `Bearer ${token}` } });
     expect(html.status).toBe(200);
     const page = await html.text();
-    expect(page).toContain("report job_1");
-    expect(page).not.toContain("/jobs/job_1/files/");
+    expect(page).toContain("report job_2");
+    expect(page).not.toContain("/jobs/job_2/files/");
     expect(page).toContain('href="files/report.md"');
     const linked = await app.request(`/tenant/${T}/gym/datasets/${datasetId}/files/report.md`, { headers: { Authorization: `Bearer ${token}` } });
     expect(linked.status).toBe(200);
-    expect(await linked.text()).toContain("lerobot-critics run job_1");
+    expect(await linked.text()).toContain("lerobot-critics run job_2");
     const md = await app.request(`/tenant/${T}/gym/datasets/${datasetId}/markdown?detail=summary`, { headers: { Authorization: `Bearer ${token}` } });
     expect(await md.text()).toContain("lerobot-critics");
 
@@ -559,6 +582,12 @@ describe("Gym operator flow", () => {
     const up = await testFetcher.postFormData(app, `${base}/blocks/${blockId}/datasets`, token, zipUpload("second.zip", "cup_tray_b"));
     expect(up.status).toBe(201);
     expect(up.jsonResponse.name).toBe("cup_tray_b");
+    // measured, then analysed on the way to the review; the first dataset is not analysed again
+    await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
+    const jobs = critics.jobs.length;
+    expect((await testFetcher.put(app, `${base}/blocks/${blockId}/step`, token, { step: "review" })).status).toBe(200);
+    expect(critics.jobs.length).toBe(jobs + 1);
+    await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
     const block = await testFetcher.get(app, `${base}/blocks/${blockId}`, token);
     expect(block.jsonResponse.datasets).toHaveLength(2);
     expect(block.jsonResponse.datasets.every((d: { analysisStatus: string }) => d.analysisStatus === "done")).toBe(true);
@@ -737,7 +766,7 @@ describe("Gym operator flow", () => {
     expect(manifest.skill).toBe("Cup to tray");
     expect(manifest.episodes).toBe(4);
     expect(manifest.datasets).toHaveLength(2);
-    expect(manifest.datasets[0].criticsJob).toBe("job_1");
+    expect(manifest.datasets[0].criticsJob).toBe("job_2");
     expect(manifest.datasets[0].specOverrides).toBeNull();
     expect(manifest.datasets[0].episodes.sort()).toEqual([1, 2]);
     expect(manifest.datasets[0].ranges).toBe("1-2");
@@ -1184,7 +1213,8 @@ describe("Gym operator flow", () => {
     expect(day.jsonResponse.blocks).toHaveLength(0);
     const audit = await testFetcher.get(app, `${base}/skills/${skill2Id}/audit`, token);
     const gone = audit.jsonResponse.find((a: { action: string }) => a.action === "block.deleted");
-    expect(gone.details).toEqual({ kind: "recording", step: "review", datasets: ["gone"] });
+    // a recording waits at the upload until the analysis is started
+    expect(gone.details).toEqual({ kind: "recording", step: "upload", datasets: ["gone"] });
 
     // the day with a block and a dataset
     const again = await testFetcher.post(app, `${base}/blocks`, token, { cellId: other.id, skillId: skill2Id, date: "2026-09-12" });
@@ -1195,13 +1225,18 @@ describe("Gym operator flow", () => {
     // a dataset removed from the block drops out of the analysis, the figures and the selection
     const extra = await testFetcher.postFormData(app, `${base}/blocks/${block4}/datasets`, token, zipUpload("wrong.zip"));
     expect(extra.status).toBe(201);
+    await testFetcher.get(app, `${base}/blocks/${block4}`, token);
+    await testFetcher.put(app, `${base}/blocks/${block4}/step`, token, { step: "review" });
     const both = await testFetcher.get(app, `${base}/blocks/${block4}`, token);
+    const analysedJob = (id: string) => both.jsonResponse.datasets.find((d: { id: string }) => d.id === id).criticsJobId as string;
+    const [extraJob, up2Job] = [analysedJob(extra.jsonResponse.id), analysedJob(up2.jsonResponse.id)];
+    expect(extraJob).not.toBe(extra.jsonResponse.criticsJobId);
     expect(both.jsonResponse.datasets).toHaveLength(2);
     const before = both.jsonResponse.totals.episodes as number;
     const selBefore = await testFetcher.get(app, `${base}/skills/${skill2Id}/selection`, token);
     expect(selBefore.jsonResponse.datasets.some((d: { dataset: { id: string } }) => d.dataset.id === extra.jsonResponse.id)).toBe(true);
     expect((await testFetcher.delete(app, `${base}/datasets/${extra.jsonResponse.id}`, token)).status).toBe(204);
-    expect(critics.deleted).toContain(extra.jsonResponse.criticsJobId);
+    expect(critics.deleted).toContain(extraJob);
     const one = await testFetcher.get(app, `${base}/blocks/${block4}`, token);
     expect(one.jsonResponse.datasets.map((d: { id: string }) => d.id)).toEqual([up2.jsonResponse.id]);
     expect(one.jsonResponse.totals.episodes).toBeLessThan(before);
@@ -1215,7 +1250,7 @@ describe("Gym operator flow", () => {
     expect((await testFetcher.delete(app, `${base}/days/${day3}`, token)).status).toBe(204);
     expect((await testFetcher.get(app, `${base}/days/${day3}`, token)).status).toBe(404);
     expect((await testFetcher.get(app, `${base}/blocks/${again.jsonResponse.block.id}`, token)).status).toBe(404);
-    expect(critics.deleted).toContain(up2.jsonResponse.criticsJobId);
+    expect(critics.deleted).toContain(up2Job);
     expect((await testFetcher.get(app, `${base}/skills/${skill2Id}`, token)).jsonResponse.days).toBe(1);
   });
 
