@@ -177,6 +177,16 @@ that alternates the arms), the report names all of them and says so with `ACTIVE
 That is a statement of the report only: the spec the critics run with keeps `active_arms`
 empty, which already scores every arm, so neither the scores nor the VLM prompt change.
 
+Corrected prompts are run facts per episode: `POST /jobs {"options": {"prompts": {"0": "pick
+the red tube", "3": "pick the blue cup"}}}` judges those episodes against the given prompt
+instead of the recorded task, every critic alike (the VLM judge, the diversity critic's
+prompt counts and cue features). The dataset is not rewritten; the report keeps the recorded
+task beside the judged one (`episodes[].recorded_task`), and a generated spec counts the
+distinct prompts after the correction. GYM measures a recording first with the hard critics
+alone (`options: {"run_soft": false, "contact_sheets": false}`), lets a person check and
+correct the prompts against that (`POST /analyses/prompts`), and then starts the analysis
+with the corrections.
+
 **The pre-roll.** An evaluation stack records from the start, but the policy takes over a few
 seconds in: until then the action topic carries zeros while the state is the resting robot.
 Read naively those frames are dropouts, a tracking error of a metre, a frozen command stream

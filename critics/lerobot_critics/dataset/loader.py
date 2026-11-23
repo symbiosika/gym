@@ -58,8 +58,12 @@ class EpisodeMeta:
 class LeRobotDataset:
     """Read-only view on a LeRobot dataset directory."""
 
-    def __init__(self, root: str | Path):
+    def __init__(self, root: str | Path, prompts: dict[int, str] | None = None):
         self.root = Path(root)
+        # prompts a person corrected per episode (GYM): laid over the recorded task for this run
+        # only, the dataset on disc is never rewritten. Every critic reads the task through
+        # ``EpisodeContext.task`` / ``task_for`` and so sees the corrected one.
+        self.prompts: dict[int, str] = {int(k): str(v) for k, v in (prompts or {}).items() if v}
         info_path = self.root / "meta" / "info.json"
         if not info_path.is_file():
             raise DatasetFormatError(f"{self.root} is not a LeRobot dataset (missing meta/info.json)")
@@ -102,11 +106,18 @@ class LeRobotDataset:
         Such a dataset has no single instruction that describes every episode, so the VLM judge must
         take the task per episode (see ``TaskSpec.per_episode``).
         """
+        if self.prompts:
+            return len({self.task_for(e) for e in self.episodes}) > 1
         if len(self.tasks) > 1:
             return True
         return len({t for m in self.episodes.values() for t in m.tasks}) > 1
 
     def task_for(self, ep: int) -> str:
+        if ep in self.prompts:
+            return self.prompts[ep]
+        return self.recorded_task_for(ep)
+
+    def recorded_task_for(self, ep: int) -> str:
         meta = self.episodes[ep]
         if meta.tasks:
             return meta.tasks[0]
@@ -223,8 +234,8 @@ class LeRobotDataset:
         return EpisodeContext(self, ep)
 
 
-def open_dataset(path: str | Path) -> LeRobotDataset:
-    return LeRobotDataset(path)
+def open_dataset(path: str | Path, prompts: dict[int, str] | None = None) -> LeRobotDataset:
+    return LeRobotDataset(path, prompts)
 
 
 class EpisodeContext:
@@ -261,6 +272,11 @@ class EpisodeContext:
 
     @property
     def task(self) -> str:
+        """The task this episode is judged with: a corrected prompt if one was given, else the recorded one."""
+        return self.ds.prompts.get(self.index) or self.recorded_task
+
+    @property
+    def recorded_task(self) -> str:
         """The task text recorded for *this* episode.
 
         Most datasets carry it in ``meta/episodes`` (v3 packed: a parquet ``tasks`` column). When
@@ -275,7 +291,7 @@ class EpisodeContext:
                 task = self.ds.tasks.get(int(idx.iloc[0]))
                 if task:
                     return task
-        return self.ds.task_for(self.index)
+        return self.ds.recorded_task_for(self.index)
 
     @property
     def cameras(self) -> list[str]:
